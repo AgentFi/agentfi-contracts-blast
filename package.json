@@ -8,6 +8,7 @@
     "@account-abstraction/contracts": "^0.6.0",
     "@openzeppelin/contracts": "^5.0.0",
     "@uniswap/v3-core": "^1.0.1",
+    "dotenv": "^16.4.1",
     "erc6551": "^0.3.1"
   }
 }

@@ -21,11 +21,11 @@ module.exports = {
   },
   networks: {
     // for mainnet
-    'blast-mainnet': {
-      url: 'coming end of February',
-      accounts: [process.env.PRIVATE_KEY],
-      gasPrice: 1000000000,
-    },
+    // 'blast-mainnet': {
+    //   url: 'coming end of February',
+    //   accounts: [process.env.PRIVATE_KEY],
+    //   gasPrice: 1000000000,
+    // },
     // for Sepolia testnet
     'blast-sepolia': {
       url: 'https://sepolia.blast.io',
@@ -51,7 +51,7 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
-    defaultNetwork: 'blast-local',
+    // defaultNetwork: 'blast-local',
     // defaultNetwork: 'hardhat',
   },
   mocha: {
