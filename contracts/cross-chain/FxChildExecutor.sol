@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 interface IFxMessageProcessor {
     function processMessageFromRoot(uint256 stateId, address rootMessageSender, bytes calldata data)

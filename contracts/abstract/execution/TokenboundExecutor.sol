@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
@@ -49,5 +49,18 @@ abstract contract TokenboundExecutor is
         returns (bytes calldata)
     {
         return super._msgData();
+    }
+
+    /**
+     * @dev ERC-2771 specifies the context as being a single address (20 bytes).
+     */
+    function _contextSuffixLength()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (uint256)
+    {
+        return 20;
     }
 }

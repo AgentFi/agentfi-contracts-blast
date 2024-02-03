@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
@@ -87,20 +87,21 @@ contract AccountV3 is
      * @return bool True if the interface is supported, false otherwise
      */
     function supportsInterface(bytes4 interfaceId)
-    public
-    view
-    virtual
-    override(ERC6551Account, ERC6551Executor, ERC1155Holder)
-    returns (bool)
-{
-    bool interfaceSupported = super.supportsInterface(interfaceId);
+        public
+        view
+        virtual
+        override(ERC6551Account, ERC6551Executor, ERC1155Holder)
+        returns (bool)
+    {
+        bool interfaceSupported = super.supportsInterface(interfaceId);
 
-    if (interfaceSupported) return true;
+        if (interfaceSupported) return true;
 
-    _handleOverrideStatic();
+        _handleOverrideStatic();
 
-    return false;
-}
+        return false;
+    }
+    
     /**
      * @dev called whenever an ERC-721 token is received. Can be overriden via Overridable. Reverts
      * if token being received is the token the account is bound to.
