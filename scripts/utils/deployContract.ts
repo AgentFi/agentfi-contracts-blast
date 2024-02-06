@@ -25,35 +25,35 @@ export async function deployContractUsingContractFactory(deployer:Wallet|SignerW
   const FACTORY_ADDRESS = "0x2eF7f9C8545cB13EEaBc10CFFA3481553C70Ffc8";
   if(!(await isDeployed(FACTORY_ADDRESS))) throw new Error("Factory contract not detected");
   let factoryContract = await ethers.getContractAt(factoryAbi, FACTORY_ADDRESS, deployer);
-
   const contractFactory = await ethers.getContractFactory(contractName, deployer);
-  const bytecode = contractFactory.getDeployTransaction(...args).data;
+  const bytecode = (await contractFactory.getDeployTransaction(...args)).data;
   const tx = await (!calldata
     ? factoryContract.deploy(bytecode, salt, overrides)
     : factoryContract.deployAndCall(bytecode, salt, calldata, overrides)
   );
   const receipt = await tx.wait(confirmations);
-  if(!receipt.events || receipt.events.length == 0) {
+  if(!receipt.logs || receipt.logs.length == 0) {
     console.error("receipt")
     console.error(receipt)
-    throw new Error("no events")
+    throw new Error("no logs")
   }
-  const event = receipt.events[receipt.events.length-1]
+  const event = receipt.logs[receipt.logs.length-1]
   if(!event.args || event.args.length == 0) {
     console.error("receipt")
     console.error(receipt)
-    console.error(receipt.events)
+    console.error(receipt.logs)
     throw new Error("no args")
   }
   const contractAddress = event.args[0];
   await expectDeployed(contractAddress);
   const deployedContract = await ethers.getContractAt(contractName, contractAddress);
+  deployedContract.address = deployedContract.target
   return deployedContract;
 }
 exports.deployContract = deployContract
 
 
-export async function verifyContract(address: string, constructorArguments: any) {
+export async function verifyContract(address: string, constructorArguments: any, contractName: string) {
   console.log("Verifying contract");
   async function _sleeper(ms: number) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -63,9 +63,14 @@ export async function verifyContract(address: string, constructorArguments: any)
     address: address,
     constructorArguments: constructorArguments
   };
+  if(!!contractName) verifyArgs.contract = contractName
   try {
     await hardhat.run("verify:verify", verifyArgs);
     console.log("Verified")
-  } catch(e) { /* probably already verified */ }
+  } catch(e) {
+    console.error('error')
+    console.error(e)
+    /* probably already verified */
+  }
 }
 exports.verifyContract

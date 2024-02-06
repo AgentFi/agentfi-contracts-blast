@@ -7,7 +7,7 @@ const BN = BigNumber
 //import UniswapV3PoolArtifact from "@uniswap/v3-core/artifacts/contracts/UniswapV3Pool.sol/UniswapV3Pool.json";
 
 // when using JSON.stringify() on a BN or object that contains a BN, returns its string representation
-ethers.BigNumber.prototype.toJSON = function toJSON(_key:any) { return this.toString() };
+//ethers.BigNumber.prototype.toJSON = function toJSON(_key:any) { return this.toString() };
 
 // helper functions
 

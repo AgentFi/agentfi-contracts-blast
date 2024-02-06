@@ -5,7 +5,7 @@ const { /*waffle,*/ ethers } = hardhat;
 import axios from "axios"
 //const multicall = require("ethers-multicall-hysland-finance")
 
-const { AddressZero } = ethers.constants
+const { ZeroAddress } = ethers;
 
 import { withBackoffRetries } from "./misc"
 import { intToHex } from "./strings"
@@ -65,7 +65,7 @@ export async function isDeployed(provider:any, address:string, blockTag:number|s
     // safety checks
     if(address === undefined || address === null) return false;
     if(address.length !== 42) return false;
-    if(address === AddressZero) return false;
+    if(address === ZeroAddress) return false;
     if((await provider.getCode(address, blockTag)).length <= 2) return false;
     return true;
   } catch (e:any) {
