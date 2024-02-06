@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import "../../AccountV3.sol"; // tokenbound base account contract
+import "./../../accounts/AccountV3.sol"; // tokenbound base account contract
 import "./interfaces/IL1GatewayRouter.sol";
 import "./interfaces/IL2GasOracle.sol";
 

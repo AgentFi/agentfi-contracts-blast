@@ -21,7 +21,7 @@ abstract contract Lockable {
     /**
      * @dev Locks the account until a certain timestamp
      *
-     * @param _lockedUntil The time at which this account will no longer be locke
+     * @param _lockedUntil The time at which this account will no longer be locked
      */
     function lock(uint256 _lockedUntil) external virtual {
         (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
@@ -46,6 +46,10 @@ abstract contract Lockable {
      */
     function isLocked() public view virtual returns (bool) {
         return lockedUntil > block.timestamp;
+    }
+
+    function _verifyIsUnlocked() internal view virtual {
+        if (isLocked()) revert AccountLocked();
     }
 
     function _rootTokenOwner(uint256 chainId, address tokenContract, uint256 tokenId)

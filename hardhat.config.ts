@@ -73,7 +73,21 @@ const config: HardhatUserConfig = {
     timeout: 20000,
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API,
+    apiKey: {
+      mainnet: process.env.ETHERSCAN_API_KEY || "",
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
+      blast_sepolia: "blast_sepolia", // apiKey is not required, just set a placeholder
+     },
+     customChains: [
+       {
+        network: "blast_sepolia",
+        chainId: 168587773,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/testnet/evm/168587773/etherscan",
+          browserURL: "https://testnet.blastscan.io"
+        }
+      },
+     ]
   },
   sourcify: {
     enabled: true,

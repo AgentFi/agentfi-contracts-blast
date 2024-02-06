@@ -7,16 +7,16 @@ import "@openzeppelin/contracts/token/ERC1155/utils/ERC1155Holder.sol";
 
 import "erc6551/lib/ERC6551AccountLib.sol";
 
-import "./abstract/Lockable.sol";
-import "./abstract/Overridable.sol";
-import "./abstract/Permissioned.sol";
-import "./abstract/ERC6551Account.sol";
-import "./abstract/ERC4337Account.sol";
-import "./abstract/execution/TokenboundExecutor.sol";
+import "./../abstract/Lockable.sol";
+import "./../abstract/Overridable.sol";
+import "./../abstract/Permissioned.sol";
+import "./../abstract/ERC6551Account.sol";
+import "./../abstract/ERC4337Account.sol";
+import "./../abstract/execution/TokenboundExecutor.sol";
 
-import "./lib/OPAddressAliasHelper.sol";
+import "./../lib/OPAddressAliasHelper.sol";
 
-import "./interfaces/IAccountGuardian.sol";
+import "./../interfaces/IAccountGuardian.sol";
 
 /**
  * @title Tokenbound ERC-6551 Account Implementation
@@ -101,7 +101,7 @@ contract AccountV3 is
 
         return false;
     }
-    
+
     /**
      * @dev called whenever an ERC-721 token is received. Can be overriden via Overridable. Reverts
      * if token being received is the token the account is bound to.
@@ -165,11 +165,11 @@ contract AccountV3 is
     {
         (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
 
-        // Single level accuont owner is valid signer
+        // Single level account owner is valid signer
         address _owner = _tokenOwner(chainId, tokenContract, tokenId);
         if (signer == _owner) return true;
 
-        // Root owner of accuont tree is valid signer
+        // Root owner of account tree is valid signer
         address _rootOwner = _rootTokenOwner(_owner, chainId, tokenContract, tokenId);
         if (signer == _rootOwner) return true;
 
@@ -265,7 +265,7 @@ contract AccountV3 is
      * updated prior to execution.
      */
     function _beforeExecute() internal override {
-        if (isLocked()) revert AccountLocked();
+        _verifyIsUnlocked();
         _updateState();
     }
 
@@ -273,7 +273,7 @@ contract AccountV3 is
      * @dev Called before locking the account. Reverts if account is locked. Updates account state.
      */
     function _beforeLock() internal override {
-        if (isLocked()) revert AccountLocked();
+        _verifyIsUnlocked();
         _updateState();
     }
 
@@ -282,7 +282,7 @@ contract AccountV3 is
      * account state.
      */
     function _beforeSetOverrides() internal override {
-        if (isLocked()) revert AccountLocked();
+        _verifyIsUnlocked();
         _updateState();
     }
 
@@ -291,7 +291,7 @@ contract AccountV3 is
      * account state.
      */
     function _beforeSetPermissions() internal override {
-        if (isLocked()) revert AccountLocked();
+        _verifyIsUnlocked();
         _updateState();
     }
 

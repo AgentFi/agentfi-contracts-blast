@@ -34,7 +34,7 @@ abstract contract ERC6551Executor is IERC6551Executable, ERC165, BaseExecutor {
         virtual
         returns (bytes memory)
     {
-        if (!_isValidExecutor(_msgSender())) revert NotAuthorized();
+        _verifySenderIsValidExecutor();
 
         _beforeExecute();
 
@@ -44,5 +44,9 @@ abstract contract ERC6551Executor is IERC6551Executable, ERC165, BaseExecutor {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC6551Executable).interfaceId
             || super.supportsInterface(interfaceId);
+    }
+
+    function _verifySenderIsValidExecutor() internal view virtual {
+        if (!_isValidExecutor(_msgSender())) revert NotAuthorized();
     }
 }

@@ -50,7 +50,7 @@ abstract contract ERC4337Account is BaseERC4337Account {
     /**
      * @dev Returns the user operation hash that should be signed by the account owner
      */
-    function _getUserOpSignatureHash(UserOperation calldata userOp, bytes32 userOpHash)
+    function _getUserOpSignatureHash(UserOperation calldata, bytes32 userOpHash)
         internal
         view
         virtual
