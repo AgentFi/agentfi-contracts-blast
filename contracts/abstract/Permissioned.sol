@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "erc6551/lib/ERC6551AccountLib.sol";
-import "../utils/Errors.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
+import { Errors } from "./../libraries/Errors.sol";
 
 /**
  * @title Account Permissions
@@ -33,14 +33,14 @@ abstract contract Permissioned {
         (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
         address _owner = _rootTokenOwner(chainId, tokenContract, tokenId);
 
-        if (_owner == address(0)) revert NotAuthorized();
-        if (msg.sender != _owner) revert NotAuthorized();
+        if (_owner == address(0)) revert Errors.NotAuthorized();
+        if (msg.sender != _owner) revert Errors.NotAuthorized();
 
         _beforeSetPermissions();
 
         uint256 length = callers.length;
 
-        if (_permissions.length != length) revert InvalidInput();
+        if (_permissions.length != length) revert Errors.InvalidInput();
 
         for (uint256 i = 0; i < length; i++) {
             permissions[_owner][callers[i]] = _permissions[i];

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "erc6551/lib/ERC6551AccountLib.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 
-import "../utils/Errors.sol";
+import { Errors } from "./../libraries/Errors.sol";
 
 /**
  * @title Account Lock
@@ -21,17 +21,17 @@ abstract contract Lockable {
     /**
      * @dev Locks the account until a certain timestamp
      *
-     * @param _lockedUntil The time at which this account will no longer be locke
+     * @param _lockedUntil The time at which this account will no longer be locked
      */
     function lock(uint256 _lockedUntil) external virtual {
         (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
         address _owner = _rootTokenOwner(chainId, tokenContract, tokenId);
 
-        if (_owner == address(0)) revert NotAuthorized();
-        if (msg.sender != _owner) revert NotAuthorized();
+        if (_owner == address(0)) revert Errors.NotAuthorized();
+        if (msg.sender != _owner) revert Errors.NotAuthorized();
 
         if (_lockedUntil > block.timestamp + 365 days) {
-            revert ExceedsMaxLockTime();
+            revert Errors.ExceedsMaxLockTime();
         }
 
         _beforeLock();
@@ -46,6 +46,10 @@ abstract contract Lockable {
      */
     function isLocked() public view virtual returns (bool) {
         return lockedUntil > block.timestamp;
+    }
+
+    function _verifyIsUnlocked() internal view virtual {
+        if (isLocked()) revert Errors.AccountLocked();
     }
 
     function _rootTokenOwner(uint256 chainId, address tokenContract, uint256 tokenId)

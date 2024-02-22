@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/Create2.sol";
+import { Create2 } from "@openzeppelin/contracts/utils/Create2.sol";
 
-import "../../interfaces/ISandboxExecutor.sol";
-import "../../utils/Errors.sol";
-import "../../lib/LibSandbox.sol";
-import "../../lib/LibExecutor.sol";
+import { ISandboxExecutor } from "./../../interfaces/abstract/execution/ISandboxExecutor.sol";
+import { Errors } from "./../../libraries/Errors.sol";
+import { LibSandbox } from "./../../lib/LibSandbox.sol";
+import { LibExecutor } from "./../../lib/LibExecutor.sol";
 
 /**
  * @title Sandbox Executor
@@ -17,7 +17,7 @@ abstract contract SandboxExecutor is ISandboxExecutor {
      * @dev Ensures that a given caller is the sandbox for this account
      */
     function _requireFromSandbox() internal view {
-        if (msg.sender != LibSandbox.sandbox(address(this))) revert NotAuthorized();
+        if (msg.sender != LibSandbox.sandbox(address(this))) revert Errors.NotAuthorized();
     }
 
     /**

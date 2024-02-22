@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/Context.sol";
-
-import "./SandboxExecutor.sol";
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { SandboxExecutor } from "./SandboxExecutor.sol";
 
 /**
  * @title Base Executor

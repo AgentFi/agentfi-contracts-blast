@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-import {IEntryPoint} from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {UserOperation} from "@account-abstraction/contracts/interfaces/UserOperation.sol";
-import {BaseAccount as BaseERC4337Account} from "@account-abstraction/contracts/core/BaseAccount.sol";
+import { IEntryPoint } from "@account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { UserOperation } from "@account-abstraction/contracts/interfaces/UserOperation.sol";
+import { BaseAccount as BaseERC4337Account } from "@account-abstraction/contracts/core/BaseAccount.sol";
 
-import "../utils/Errors.sol";
+import { Errors } from "./../libraries/Errors.sol";
 
 /**
  * @title ERC-4337 Support
@@ -19,7 +19,7 @@ abstract contract ERC4337Account is BaseERC4337Account {
     IEntryPoint immutable _entryPoint;
 
     constructor(address entryPoint_) {
-        if (entryPoint_ == address(0)) revert InvalidEntryPoint();
+        if (entryPoint_ == address(0)) revert Errors.InvalidEntryPoint();
         _entryPoint = IEntryPoint(entryPoint_);
     }
 
@@ -50,7 +50,7 @@ abstract contract ERC4337Account is BaseERC4337Account {
     /**
      * @dev Returns the user operation hash that should be signed by the account owner
      */
-    function _getUserOpSignatureHash(UserOperation calldata userOp, bytes32 userOpHash)
+    function _getUserOpSignatureHash(UserOperation calldata, bytes32 userOpHash)
         internal
         view
         virtual

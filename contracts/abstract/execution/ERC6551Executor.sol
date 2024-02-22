@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import { ERC2771Context } from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
+import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import "erc6551/interfaces/IERC6551Executable.sol";
-import "erc6551/interfaces/IERC6551Account.sol";
-import "erc6551/lib/ERC6551AccountLib.sol";
+import { IERC6551Executable } from "erc6551/interfaces/IERC6551Executable.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 
-import "../../utils/Errors.sol";
-import "../../lib/LibExecutor.sol";
-import "../../lib/LibSandbox.sol";
-import "./SandboxExecutor.sol";
-import "./BaseExecutor.sol";
+import { Errors } from "./../../libraries/Errors.sol";
+import { LibExecutor } from "./../../lib/LibExecutor.sol";
+import { LibSandbox } from "./../../lib/LibSandbox.sol";
+import { SandboxExecutor } from "./SandboxExecutor.sol";
+import { BaseExecutor } from "./BaseExecutor.sol";
 
 /**
  * @title ERC-6551 Executor
@@ -34,7 +34,7 @@ abstract contract ERC6551Executor is IERC6551Executable, ERC165, BaseExecutor {
         virtual
         returns (bytes memory)
     {
-        if (!_isValidExecutor(_msgSender())) revert NotAuthorized();
+        _verifySenderIsValidExecutor();
 
         _beforeExecute();
 
@@ -44,5 +44,9 @@ abstract contract ERC6551Executor is IERC6551Executable, ERC165, BaseExecutor {
     function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
         return interfaceId == type(IERC6551Executable).interfaceId
             || super.supportsInterface(interfaceId);
+    }
+
+    function _verifySenderIsValidExecutor() internal view virtual {
+        if (!_isValidExecutor(_msgSender())) revert Errors.NotAuthorized();
     }
 }

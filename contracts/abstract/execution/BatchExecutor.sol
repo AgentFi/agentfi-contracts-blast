@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "../../utils/Errors.sol";
-
-import "./BaseExecutor.sol";
+import { Errors } from "./../../libraries/Errors.sol";
+import { BaseExecutor } from "./BaseExecutor.sol";
+import { LibExecutor } from "./../../lib/LibExecutor.sol";
 
 /**
  * @title Batch Executor
@@ -26,7 +26,7 @@ abstract contract BatchExecutor is BaseExecutor {
         payable
         returns (bytes[] memory)
     {
-        if (!_isValidExecutor(_msgSender())) revert NotAuthorized();
+        if (!_isValidExecutor(_msgSender())) revert Errors.NotAuthorized();
 
         _beforeExecute();
 

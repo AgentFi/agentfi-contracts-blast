@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "../utils/Errors.sol";
-import "./LibSandbox.sol";
+import { Errors } from "./../libraries/Errors.sol";
+import { LibSandbox } from "./LibSandbox.sol";
 
 library LibExecutor {
     uint8 constant OP_CALL = 0;
@@ -27,7 +27,7 @@ library LibExecutor {
             return abi.encodePacked(_create2(value, salt, bytecode));
         }
 
-        revert InvalidOperation();
+        revert Errors.InvalidOperation();
     }
 
     function _call(address to, uint256 value, bytes memory data)
@@ -51,7 +51,7 @@ library LibExecutor {
             created := create(value, add(bytecode, 0x20), mload(bytecode))
         }
 
-        if (created == address(0)) revert ContractCreationFailed();
+        if (created == address(0)) revert Errors.ContractCreationFailed();
     }
 
     function _create2(uint256 value, bytes32 salt, bytes calldata data)
@@ -64,6 +64,6 @@ library LibExecutor {
             created := create2(value, add(bytecode, 0x20), mload(bytecode), salt)
         }
 
-        if (created == address(0)) revert ContractCreationFailed();
+        if (created == address(0)) revert Errors.ContractCreationFailed();
     }
 }

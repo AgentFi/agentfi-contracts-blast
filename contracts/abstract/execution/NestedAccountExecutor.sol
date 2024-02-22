@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { ERC2771Context } from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
 
-import "erc6551/interfaces/IERC6551Executable.sol";
-import "erc6551/interfaces/IERC6551Account.sol";
-import "erc6551/lib/ERC6551AccountLib.sol";
+import { IERC6551Executable } from "erc6551/interfaces/IERC6551Executable.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 
-import "../../utils/Errors.sol";
-import "../../lib/LibExecutor.sol";
-import "../../lib/LibSandbox.sol";
-import "./SandboxExecutor.sol";
-import "./BaseExecutor.sol";
+import { Errors } from "./../../libraries/Errors.sol";
+import { LibExecutor } from "./../../lib/LibExecutor.sol";
+import { LibSandbox } from "./../../lib/LibSandbox.sol";
+import { SandboxExecutor } from "./SandboxExecutor.sol";
+import { BaseExecutor } from "./BaseExecutor.sol";
 
-import "../Lockable.sol";
+import { Lockable } from "./../Lockable.sol";
 
 /**
  * @title Nested Account Executor
@@ -32,7 +32,7 @@ abstract contract NestedAccountExecutor is BaseExecutor {
     }
 
     constructor(address _erc6551Registry) {
-        if (_erc6551Registry == address(0)) revert InvalidERC6551Registry();
+        if (_erc6551Registry == address(0)) revert Errors.InvalidERC6551Registry();
         erc6551Registry = _erc6551Registry;
     }
 
@@ -67,21 +67,21 @@ abstract contract NestedAccountExecutor is BaseExecutor {
                 erc6551Registry, __self, accountInfo.salt, block.chainid, tokenContract, tokenId
             );
 
-            if (tokenContract.code.length == 0) revert InvalidAccountProof();
+            if (tokenContract.code.length == 0) revert Errors.InvalidAccountProof();
 
             if (next.code.length > 0) {
-                if (Lockable(next).isLocked()) revert AccountLocked();
+                if (Lockable(next).isLocked()) revert Errors.AccountLocked();
             }
 
             try IERC721(tokenContract).ownerOf(tokenId) returns (address _owner) {
-                if (_owner != current) revert InvalidAccountProof();
+                if (_owner != current) revert Errors.InvalidAccountProof();
                 current = next;
             } catch {
-                revert InvalidAccountProof();
+                revert Errors.InvalidAccountProof();
             }
         }
 
-        if (!_isValidExecutor(current)) revert NotAuthorized();
+        if (!_isValidExecutor(current)) revert Errors.NotAuthorized();
 
         _beforeExecute();
 
