@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import { ERC2771Context } from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
+import { Context } from "@openzeppelin/contracts/utils/Context.sol";
 
-import "erc6551/interfaces/IERC6551Executable.sol";
-import "erc6551/interfaces/IERC6551Account.sol";
-import "erc6551/lib/ERC6551AccountLib.sol";
+import { IERC6551Executable } from "erc6551/interfaces/IERC6551Executable.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 
-import "../../utils/Errors.sol";
-import "../../lib/LibExecutor.sol";
-import "../../lib/LibSandbox.sol";
-import "./ERC6551Executor.sol";
-import "./BatchExecutor.sol";
-import "./NestedAccountExecutor.sol";
+import { Errors } from "./../../libraries/Errors.sol";
+import { LibExecutor } from "./../../lib/LibExecutor.sol";
+import { LibSandbox } from "./../../lib/LibSandbox.sol";
+import { ERC6551Executor } from "./ERC6551Executor.sol";
+import { BatchExecutor } from "./BatchExecutor.sol";
+import { NestedAccountExecutor } from "./NestedAccountExecutor.sol";
 
 /**
  * @title Tokenbound Executor
@@ -28,7 +29,7 @@ abstract contract TokenboundExecutor is
         ERC2771Context(multicallForwarder)
         NestedAccountExecutor(_erc6551Registry)
     {
-        if (multicallForwarder == address(0)) revert InvalidMulticallForwarder();
+        if (multicallForwarder == address(0)) revert Errors.InvalidMulticallForwarder();
     }
 
     function _msgSender()
@@ -49,5 +50,18 @@ abstract contract TokenboundExecutor is
         returns (bytes calldata)
     {
         return super._msgData();
+    }
+
+    /**
+     * @dev ERC-2771 specifies the context as being a single address (20 bytes).
+     */
+    function _contextSuffixLength()
+        internal
+        view
+        virtual
+        override(Context, ERC2771Context)
+        returns (uint256)
+    {
+        return 20;
     }
 }

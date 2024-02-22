@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.13;
+pragma solidity 0.8.24;
 
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+import { ERC165 } from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 
-import "erc6551/lib/ERC6551AccountLib.sol";
-import "erc6551/interfaces/IERC6551Account.sol";
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
 
-import "./Signatory.sol";
+import { Signatory } from "./Signatory.sol";
 
 /**
  * @title ERC-6551 Account Support

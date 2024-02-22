@@ -1,13 +1,23 @@
-# Sample Hardhat Project
+# agentfi-contracts
+Smart contracts for the core of the AgentFi protocol.
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a script that deploys that contract.
+### Install Dependencies
 
-Try running some of the following tasks:
+`npm i`
 
-```shell
-npx hardhat help
+### Compile Contracts
+
+`npx hardhat compile`
+
+### Run Tests
+
+```sh
 npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat run scripts/deploy.js
+npx hardhat test test/filename.test.ts
+npx hardhat coverage
+npx hardhat coverage --testfiles test/filename.test.ts
 ```
+
+### Deployment and Executing Scripts
+
+`npx hardhat run scripts/ethereum/deploy.ts --network ethereum`
