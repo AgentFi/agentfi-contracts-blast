@@ -1420,8 +1420,8 @@ describe("BoomAgentCreation", function () {
 
   describe("metadata", function () {
     it("has the correct name and symbol", async function () {
-      expect(await agentNft.name()).eq("Agent Ownership Tokens")
-      expect(await agentNft.symbol()).eq("AOT")
+      expect(await agentNft.name()).eq("Agents")
+      expect(await agentNft.symbol()).eq("AGENTS")
     })
   })
 
