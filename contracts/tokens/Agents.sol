@@ -58,7 +58,7 @@ contract Agents is IAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall
         address blast_,
         address governor_,
         address erc6551Registry_
-    ) Blastable(blast_, governor_) ERC721("Agent Ownership Tokens", "AOT") {
+    ) Blastable(blast_, governor_) ERC721("Agents", "AGENTS") {
         _transferOwnership(owner_);
         _erc6551Registry = erc6551Registry_;
     }

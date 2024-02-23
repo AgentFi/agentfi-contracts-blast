@@ -4,12 +4,12 @@ const { provider } = ethers;
 import { BigNumber as BN, BigNumberish } from "ethers";
 import { config as dotenv_config } from "dotenv";
 dotenv_config();
-
 const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
+
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, AgentFactory01, AgentFactory02, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
+import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, BlastAgentAccountRingProtocolD, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -33,13 +33,15 @@ const CONTRACT_FACTORY_ADDRESS        = "0xA74500382CAb2EBFe9A08dc2c01430821A4A8
 const GAS_COLLECTOR_ADDRESS           = "0x0311b9696907AdC2093448678cf080adA1368d00"; // V0.1.3
 const BALANCE_FETCHER_ADDRESS         = "0xb646F462A89799d910b1dc330BA1DA9dE763c931"; // v0.1.3
 
-const AGENT_NFT_ADDRESS               = "0xA1E88Ac5DBA42116eDd02987aed8880AbA38d112"; // v0.1.3
+const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"; // v0.1.3
 
-const AGENT_FACTORY01_ADDRESS         = "0x9EDa22a1F7Df00A502D164986743933cF787d6Ae"; // v0.1.3
-const AGENT_FACTORY02_ADDRESS         = "0x3D6B33A07629D3E120c06419c11b8A1F8714ec40"; // v0.1.3
+const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
+const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
+const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
 
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
+const ACCOUNT_IMPL_RING_D_ADDRESS     = "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64"; // v0.1.3
 
 let iblast: IBlast;
 
@@ -51,8 +53,10 @@ let balanceFetcher: BalanceFetcher;
 let agentNft: Agents;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
+let factory03: AgentFactory03;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
+let accountImplRingD: BlastAgentAccountRingProtocolD;
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -77,8 +81,10 @@ async function main() {
 
   await deployAgentFactory01();
   await deployAgentFactory02();
+  await deployAgentFactory03();
   await deployBlastAgentAccount();
   await deployBlastAgentAccountRingProtocolC();
+  await deployBlastAgentAccountRingProtocolD();
 
   logAddresses()
 }
@@ -174,6 +180,19 @@ async function deployAgentFactory02() {
   }
 }
 
+async function deployAgentFactory03() {
+  if(await isDeployed(AGENT_FACTORY03_ADDRESS)) {
+    factory03 = await ethers.getContractAt("AgentFactory03", AGENT_FACTORY03_ADDRESS, agentfideployer) as AgentFactory03;
+  } else {
+    console.log("Deploying AgentFactory03");
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, agentNft.address];
+    factory03 = await deployContractUsingContractFactory(agentfideployer, "AgentFactory03", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as AgentFactory03;
+    console.log(`Deployed AgentFactory03 to ${factory03.address}`);
+    if(chainID != 31337) await verifyContract(factory03.address, args);
+    if(!!AGENT_FACTORY03_ADDRESS && factory03.address != AGENT_FACTORY03_ADDRESS) throw new Error(`Deployed AgentFactory03 to ${factory03.address}, expected ${AGENT_FACTORY03_ADDRESS}`)
+  }
+}
+
 async function deployBlastAgentAccount() {
   if(await isDeployed(ACCOUNT_IMPL_BASE_ADDRESS)) {
     accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
@@ -200,6 +219,19 @@ async function deployBlastAgentAccountRingProtocolC() {
   }
 }
 
+async function deployBlastAgentAccountRingProtocolD() {
+  if(await isDeployed(ACCOUNT_IMPL_RING_D_ADDRESS)) {
+    accountImplRingD = await ethers.getContractAt("BlastAgentAccountRingProtocolD", ACCOUNT_IMPL_RING_D_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolD;
+  } else {
+    console.log("Deploying BlastAgentAccountRingProtocolD");
+    let args = [BLAST_ADDRESS, gasCollector.address, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    accountImplRingD = await deployContractUsingContractFactory(agentfideployer, "BlastAgentAccountRingProtocolD", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastAgentAccountRingProtocolD;
+    console.log(`Deployed BlastAgentAccountRingProtocolD to ${accountImplRingD.address}`);
+    if(chainID != 31337) await verifyContract(accountImplRingD.address, args);
+    if(!!ACCOUNT_IMPL_RING_D_ADDRESS && accountImplRingD.address != ACCOUNT_IMPL_RING_D_ADDRESS) throw new Error(`Deployed BlastAgentAccountRingProtocolD to ${accountImplRingD.address}, expected ${ACCOUNT_IMPL_RING_D_ADDRESS}`)
+  }
+}
+
 function logAddresses() {
   console.log("");
   console.log("| Contract Name                    | Address                                      |");
@@ -212,8 +244,10 @@ function logAddresses() {
   logContractAddress("AgentsNFT", agentNft.address);
   logContractAddress("Factory01", factory01.address);
   logContractAddress("Factory02", factory02.address);
+  logContractAddress("Factory03", factory03.address);
   logContractAddress("BlastAgentAccount", accountImplBase.address);
   logContractAddress("BlastAgentAccountRingProtocolC", accountImplRingC.address);
+  logContractAddress("BlastAgentAccountRingProtocolD", accountImplRingD.address);
 }
 
 main()

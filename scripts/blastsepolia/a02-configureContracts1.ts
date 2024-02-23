@@ -10,7 +10,7 @@ const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 const blasttestnetuser1 = new ethers.Wallet(accounts.blasttestnetuser1.key, provider);
 
-import { Agents, BlastAgentAccount, AgentFactory01, AgentFactory02, IBlast, ContractFactory, GasCollector, BalanceFetcher } from "../../typechain-types";
+import { Agents, BlastAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher } from "../../typechain-types";
 
 import { delay, deduplicateArray } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -35,18 +35,26 @@ const CONTRACT_FACTORY_ADDRESS        = "0xA74500382CAb2EBFe9A08dc2c01430821A4A8
 const GAS_COLLECTOR_ADDRESS           = "0x0311b9696907AdC2093448678cf080adA1368d00"; // V0.1.3
 const BALANCE_FETCHER_ADDRESS         = "0xb646F462A89799d910b1dc330BA1DA9dE763c931"; // v0.1.3
 
-const AGENT_NFT_ADDRESS               = "0xA1E88Ac5DBA42116eDd02987aed8880AbA38d112"; // v0.1.3
+const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"; // v0.1.3
 
-const AGENT_FACTORY01_ADDRESS         = "0x9EDa22a1F7Df00A502D164986743933cF787d6Ae"; // v0.1.3
-const AGENT_FACTORY02_ADDRESS         = "0x3D6B33A07629D3E120c06419c11b8A1F8714ec40"; // v0.1.3
+const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
+const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
+const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
 
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
+const ACCOUNT_IMPL_RING_D_ADDRESS     = "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64"; // v0.1.3
 
+// tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
 const MAX_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000002";
 const WETH_ADDRESS               = "0x4200000000000000000000000000000000000023";
+
+// ring protocol
+const UNIVERSAL_ROUTER_ADDRESS   = "0x334e3F7f5A9740627fA47Fa9Aa51cE0ccbD765cF";
+const FEW_ROUTER_ADDRESS         = "0x02F1e7A518e3E286C8E305E39cA7D4f25e0a44Aa";
+const STAKING_REWARDS_ADDRESS    = "0x366Ac78214aFE145Ca35d4A6513F4eD9e8909Fe8";
 const USDB_ADDRESS               = "0x4200000000000000000000000000000000000022";
 const USDC_ADDRESS               = "0xF19A5b56b419170Aa2ee49E5c9195F5902D39BF1";
 const USDT_ADDRESS               = "0xD8F542D710346DF26F28D6502A48F49fB2cFD19B";
@@ -54,13 +62,21 @@ const DAI_ADDRESS                = "0x9C6Fc5bF860A4a012C9De812002dB304AD04F581";
 const BOLT_ADDRESS               = "0x1B0cC80F4E2A7d205518A1Bf36de5bED686662FE";
 const RGB_ADDRESS                = "0x7647a41596c1Ca0127BaCaa25205b310A0436B4C";
 
+const FWWETH_ADDRESS             = "0x798dE0520497E28E8eBfF0DF1d791c2E942eA881";
+const FWUSDC_ADDRESS             = "0xa7870cf9143084ED04f4C2311f48CB24a2b4A097";
+const LP_TOKEN_ADDRESS           = "0x024Dd95113137f04E715B2fC8F637FBe678e9512";
+const RING_ADDRESS               = "0x0BD5539E33a1236bA69228271e60f3bFf8fDB7DB";
+const STAKING_REWARDS_INDEX      = 2;
+
 let iblast: IBlast;
 let gasCollector: GasCollector;
 let agentNft: Agents;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
+let factory03: AgentFactory03;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
+let accountImplRingD: BlastAgentAccountRingProtocolD;
 
 let usdb: MockERC20;
 
@@ -82,29 +98,36 @@ async function main() {
   agentNft = await ethers.getContractAt("Agents", AGENT_NFT_ADDRESS, agentfideployer) as Agents;
   factory01 = await ethers.getContractAt("AgentFactory01", AGENT_FACTORY01_ADDRESS, agentfideployer) as AgentFactory01;
   factory02 = await ethers.getContractAt("AgentFactory02", AGENT_FACTORY02_ADDRESS, agentfideployer) as AgentFactory02;
+  factory03 = await ethers.getContractAt("AgentFactory03", AGENT_FACTORY03_ADDRESS, agentfideployer) as AgentFactory03;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
   accountImplRingC = await ethers.getContractAt("BlastAgentAccountRingProtocolC", ACCOUNT_IMPL_RING_C_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolC;
+  accountImplRingC = await ethers.getContractAt("BlastAgentAccountRingProtocolC", ACCOUNT_IMPL_RING_C_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolC;
+  accountImplRingD = await ethers.getContractAt("BlastAgentAccountRingProtocolD", ACCOUNT_IMPL_RING_D_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolD;
 
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
 
-  //await whitelistFactories();
-  //await setNftMetadata();
+  await whitelistFactories();
+  await setNftMetadata();
 
   //await configureGasCollector();
   //await collectGasRewards();
 
-  //await postAgentCreationSettings02_1();
-  //await postAgentCreationSettings02_2();
-  //await postAgentCreationSettings02_3();
+  await postAgentCreationSettings03_1();
+  await postAgentCreationSettings03_2();
+  await postAgentCreationSettings03_3();
+  await postAgentCreationSettings03_4();
 
   //await pauseAgentCreationSettings02();
 
-  await postAgentCreationSettings02_4();
-  await postAgentCreationSettings02_5();
-  await postAgentCreationSettings02_6();
-  await postAgentCreationSettings02_7();
+  //await postAgentCreationSettings03_4();
+  //await postAgentCreationSettings03_5();
+  //await postAgentCreationSettings03_6();
+  //await postAgentCreationSettings03_7();
+
+  //await postAgentCreationSettings03_8();
+  //await postAgentCreationSettings03_9();
 
   //await transferFundsFromFactory02()
   //await transferFundsToFactory02();
@@ -128,6 +151,10 @@ async function whitelistFactories() {
       factory: factory02.address,
       shouldWhitelist: true,
     },
+    {
+      factory: factory03.address,
+      shouldWhitelist: true,
+    },
   ]
   let diffs = [] as any[]
   for(let i = 0; i < expectedSettings.length; i++) {
@@ -146,7 +173,7 @@ async function whitelistFactories() {
 async function setNftMetadata() {
   let txdatas = [] as any[]
   let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI.json"
-  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&v=0.1.2&agentID="
+  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&v=0.1.4&agentID="
   let currentContractURI = await agentNft.contractURI()
   let currentBaseURI = await agentNft.baseURI()
   if(currentContractURI != desiredContractURI) {
@@ -172,8 +199,8 @@ async function setNftMetadata() {
   await tx.wait(networkSettings.confirmations);
   console.log("Set NFT metadata");
 }
-
-async function pauseAgentCreationSettings02() {
+/*
+async function pauseAgentCreationSettings03() {
   let expectedSettings = [
     {
       settingsID: 1,
@@ -195,34 +222,31 @@ async function pauseAgentCreationSettings02() {
   let diffs = []
   for(let i = 0; i < expectedSettings.length; ++i) {
     let { settingsID, isPaused } = expectedSettings[i]
-    let res = await factory02.getAgentCreationSettings(settingsID)
+    let res = await factory03.getAgentCreationSettings(settingsID)
     if(res.isPaused != isPaused) {
       diffs.push(expectedSettings[i])
     }
   }
   if(diffs.length == 0) return
-  console.log(`Pausing factory02 agent creation settings`)
+  console.log(`Pausing factory03 agent creation settings`)
   console.log(diffs)
-  let txdatas = diffs.map(d=>factory02.interface.encodeFunctionData("setPaused",[d.settingsID,d.isPaused]))
-  let tx = await factory02.connect(agentfideployer).multicall(txdatas, networkSettings.overrides)
+  let txdatas = diffs.map(d=>factory03.interface.encodeFunctionData("setPaused",[d.settingsID,d.isPaused]))
+  let tx = await factory03.connect(agentfideployer).multicall(txdatas, networkSettings.overrides)
   await tx.wait(networkSettings.confirmations)
-  console.log(`Paused factory02 agent creation settings`)
+  console.log(`Paused factory03 agent creation settings`)
 }
-
-async function postAgentCreationSettings02_4() {
-  let expectedSettingsID = 4
-  let count = (await factory02.getAgentCreationSettingsCount()).toNumber()
+*/
+async function postAgentCreationSettings03_1() {
+  let expectedSettingsID = 1
+  let count = (await factory03.getAgentCreationSettingsCount()).toNumber()
   if(count >= expectedSettingsID) return // already created
   if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
-  console.log(`Calling postAgentCreationSettings02_${expectedSettingsID}`)
+  console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
 
   let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
   let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
   let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
   let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
-
-  let giveTokenList = []
-  let giveTokenAmounts = []
 
   let params = {
     agentImplementation: accountImplBase.address,
@@ -231,100 +255,27 @@ async function postAgentCreationSettings02_4() {
       agentInitializationCode4,
     ],
     isPaused: false,
-    giveTokenList,
-    giveTokenAmounts,
   }
-  let tx = await factory02.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
   if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
 
-  console.log(`Called postAgentCreationSettings02_${expectedSettingsID}`)
+  console.log(`Called postAgentCreationSettings03_${expectedSettingsID}`)
 }
 
-async function postAgentCreationSettings02_5() {
-  let expectedSettingsID = 5
-  let count = (await factory02.getAgentCreationSettingsCount()).toNumber()
+async function postAgentCreationSettings03_2() {
+  let expectedSettingsID = 2
+  let count = (await factory03.getAgentCreationSettingsCount()).toNumber()
   if(count >= expectedSettingsID) return // already created
   if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
-  console.log(`Calling postAgentCreationSettings02_${expectedSettingsID}`)
-
-  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
-  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
-
-  let giveTokenList = [ETH_ADDRESS, USDB_ADDRESS]
-  let giveTokenAmounts = [WeiPerEther.div(1000), WeiPerEther.mul(100)]
-
-  let params = {
-    agentImplementation: accountImplBase.address,
-    initializationCalls: [
-      agentInitializationCode3,
-      agentInitializationCode4,
-    ],
-    isPaused: false,
-    giveTokenList,
-    giveTokenAmounts,
-  }
-  let tx = await factory02.connect(agentfideployer).postAgentCreationSettings(params)
-  let receipt = await tx.wait(networkSettings.confirmations)
-  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
-  let settingsID = postEvent.args[0]
-  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
-
-  console.log(`Called postAgentCreationSettings02_${expectedSettingsID}`)
-}
-
-async function postAgentCreationSettings02_6() {
-  let expectedSettingsID = 6
-  let count = (await factory02.getAgentCreationSettingsCount()).toNumber()
-  if(count >= expectedSettingsID) return // already created
-  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
-  console.log(`Calling postAgentCreationSettings02_${expectedSettingsID}`)
-
-  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
-  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
-
-  let giveTokenList = []
-  let giveTokenAmounts = []
-
-  let params = {
-    agentImplementation: accountImplBase.address,
-    initializationCalls: [
-      agentInitializationCode3,
-      agentInitializationCode4,
-    ],
-    isPaused: false,
-    giveTokenList,
-    giveTokenAmounts,
-  }
-  let tx = await factory02.connect(agentfideployer).postAgentCreationSettings(params)
-  let receipt = await tx.wait(networkSettings.confirmations)
-  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
-  let settingsID = postEvent.args[0]
-  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
-
-  console.log(`Called postAgentCreationSettings02_${expectedSettingsID}`)
-}
-
-async function postAgentCreationSettings02_7() {
-  let expectedSettingsID = 7
-  let count = (await factory02.getAgentCreationSettingsCount()).toNumber()
-  if(count >= expectedSettingsID) return // already created
-  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
-  console.log(`Calling postAgentCreationSettings02_${expectedSettingsID}`)
+  console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
 
   let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
   let agentInitializationCode3 = accountImplRingC.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
   let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
   let agentInitializationCode4 = accountImplRingC.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
-
-  let giveTokenList = []
-  let giveTokenAmounts = []
 
   let params = {
     agentImplementation: accountImplRingC.address,
@@ -333,18 +284,107 @@ async function postAgentCreationSettings02_7() {
       agentInitializationCode4,
     ],
     isPaused: false,
-    giveTokenList,
-    giveTokenAmounts,
   }
-  let tx = await factory02.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
   if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
 
-  console.log(`Called postAgentCreationSettings02_${expectedSettingsID}`)
+  console.log(`Called postAgentCreationSettings03_${expectedSettingsID}`)
 }
 
+async function postAgentCreationSettings03_3() {
+  let expectedSettingsID = 3
+  let count = (await factory03.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
+
+  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode3 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode4 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+
+  let params = {
+    agentImplementation: accountImplRingD.address,
+    initializationCalls: [
+      agentInitializationCode3,
+      agentInitializationCode4,
+    ],
+    isPaused: false,
+  }
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postAgentCreationSettings03_${expectedSettingsID}`)
+}
+
+async function postAgentCreationSettings03_4() {
+  let expectedSettingsID = 4
+  let count = (await factory03.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
+
+  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode3 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode4 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+  let agentInitializationCode5 = accountImplRingD.interface.encodeFunctionData("initialize", [WETH_ADDRESS, USDC_ADDRESS, FWWETH_ADDRESS, FWUSDC_ADDRESS, LP_TOKEN_ADDRESS, STAKING_REWARDS_INDEX])
+
+  let params = {
+    agentImplementation: accountImplRingD.address,
+    initializationCalls: [
+      agentInitializationCode3,
+      agentInitializationCode4,
+      agentInitializationCode5,
+    ],
+    isPaused: false,
+  }
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postAgentCreationSettings03_${expectedSettingsID}`)
+}
+/*
+async function postAgentCreationSettings03_5() {
+  let expectedSettingsID = 5
+  let count = (await factory03.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
+
+  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode3 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode4 = accountImplRingD.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+  let agentInitializationCode5 = accountImplRingD.interface.encodeFunctionData("initialize", [WETH_ADDRESS, USDC_ADDRESS, FWWETH_ADDRESS, FWUSDC_ADDRESS, LP_TOKEN_ADDRESS, STAKING_REWARDS_INDEX])
+
+  let params = {
+    agentImplementation: accountImplRingD.address,
+    initializationCalls: [
+      agentInitializationCode3,
+      agentInitializationCode4,
+      agentInitializationCode5,
+    ],
+    isPaused: false,
+  }
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postAgentCreationSettings03_${expectedSettingsID}`)
+}
+*/
 async function configureGasCollector() {
   let contractListExpected = deduplicateArray([
     GAS_COLLECTOR_ADDRESS,
@@ -415,6 +455,13 @@ async function transferFundsToFactory02() {
     console.log(`Transferred USDB to factory02`)
   }
 
+}
+
+async function transferFundsFromFactory02() {
+  console.log(`Transferring funds from factory02`)
+  let tx3 = await factory02.connect(agentfideployer).sweep(agentfideployer.address, [AddressZero, USDB_ADDRESS], networkSettings.overrides)
+  await tx3.wait(networkSettings.confirmations)
+  console.log(`Transferred funds from factory02`)
 }
 
 main()
