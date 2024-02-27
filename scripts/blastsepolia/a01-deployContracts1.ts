@@ -9,7 +9,7 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, BlastAgentAccountRingProtocolD, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
+import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, BlastAgentAccountRingProtocolD, BlastAgentAccountThrusterA, BlastAgentAccountBasketA, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -42,6 +42,8 @@ const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01de
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
 const ACCOUNT_IMPL_RING_D_ADDRESS     = "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64"; // v0.1.3
+const ACCOUNT_IMPL_THRUSTER_A_ADDRESS = "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f"; // v0.1.5
+const ACCOUNT_IMPL_BASKET_A_ADDRESS   = "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8"; // v0.1.5
 
 let iblast: IBlast;
 
@@ -57,6 +59,8 @@ let factory03: AgentFactory03;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
 let accountImplRingD: BlastAgentAccountRingProtocolD;
+let accountImplThrusterA: BlastAgentAccountThrusterA;
+let accountImplBasketA: BlastAgentAccountBasketA;
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -85,6 +89,8 @@ async function main() {
   await deployBlastAgentAccount();
   await deployBlastAgentAccountRingProtocolC();
   await deployBlastAgentAccountRingProtocolD();
+  await deployBlastAgentAccountThrusterA();
+  await deployBlastAgentAccountBasketA();
 
   logAddresses()
 }
@@ -232,6 +238,32 @@ async function deployBlastAgentAccountRingProtocolD() {
   }
 }
 
+async function deployBlastAgentAccountThrusterA() {
+  if(await isDeployed(ACCOUNT_IMPL_THRUSTER_A_ADDRESS)) {
+    accountImplThrusterA = await ethers.getContractAt("BlastAgentAccountThrusterA", ACCOUNT_IMPL_THRUSTER_A_ADDRESS, agentfideployer) as BlastAgentAccountThrusterA;
+  } else {
+    console.log("Deploying BlastAgentAccountThrusterA");
+    let args = [BLAST_ADDRESS, gasCollector.address, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    accountImplThrusterA = await deployContractUsingContractFactory(agentfideployer, "BlastAgentAccountThrusterA", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastAgentAccountThrusterA;
+    console.log(`Deployed BlastAgentAccountThrusterA to ${accountImplThrusterA.address}`);
+    if(chainID != 31337) await verifyContract(accountImplThrusterA.address, args);
+    if(!!ACCOUNT_IMPL_THRUSTER_A_ADDRESS && accountImplThrusterA.address != ACCOUNT_IMPL_THRUSTER_A_ADDRESS) throw new Error(`Deployed BlastAgentAccountThrusterA to ${accountImplThrusterA.address}, expected ${ACCOUNT_IMPL_THRUSTER_A_ADDRESS}`)
+  }
+}
+
+async function deployBlastAgentAccountBasketA() {
+  if(await isDeployed(ACCOUNT_IMPL_BASKET_A_ADDRESS)) {
+    accountImplBasketA = await ethers.getContractAt("BlastAgentAccountBasketA", ACCOUNT_IMPL_BASKET_A_ADDRESS, agentfideployer) as BlastAgentAccountBasketA;
+  } else {
+    console.log("Deploying BlastAgentAccountBasketA");
+    let args = [BLAST_ADDRESS, gasCollector.address, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    accountImplBasketA = await deployContractUsingContractFactory(agentfideployer, "BlastAgentAccountBasketA", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastAgentAccountBasketA;
+    console.log(`Deployed BlastAgentAccountBasketA to ${accountImplBasketA.address}`);
+    if(chainID != 31337) await verifyContract(accountImplBasketA.address, args);
+    if(!!ACCOUNT_IMPL_BASKET_A_ADDRESS && accountImplBasketA.address != ACCOUNT_IMPL_BASKET_A_ADDRESS) throw new Error(`Deployed BlastAgentAccountBasketA to ${accountImplBasketA.address}, expected ${ACCOUNT_IMPL_BASKET_A_ADDRESS}`)
+  }
+}
+
 function logAddresses() {
   console.log("");
   console.log("| Contract Name                    | Address                                      |");
@@ -248,6 +280,8 @@ function logAddresses() {
   logContractAddress("BlastAgentAccount", accountImplBase.address);
   logContractAddress("BlastAgentAccountRingProtocolC", accountImplRingC.address);
   logContractAddress("BlastAgentAccountRingProtocolD", accountImplRingD.address);
+  logContractAddress("BlastAgentAccountThrusterA", accountImplThrusterA.address);
+  logContractAddress("BlastAgentAccountBasketA", accountImplBasketA.address);
 }
 
 main()
