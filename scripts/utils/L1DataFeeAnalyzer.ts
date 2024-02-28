@@ -27,17 +27,17 @@ export default class L1DataFeeAnalyzer {
 
   // analyze all transactions that have been registered, broken down by function name
   public analyze() {
-    let breakLine = `·--------------------------------------·------------·----------------·----------------·`
+    let breakLine = `·------------------------------------------------·------------·----------------·----------------·`
     console.log(breakLine)
-    console.log(`|  Analyzing functions by L1 data fee                                                 |`)
+    console.log(`|  Analyzing functions by L1 data fee                                                           |`)
     console.log(breakLine)
-    console.log(`|  function                            |  data gas  |  data fee eth  |  data fee usd  |`)
+    console.log(`|  function                                      |  data gas  |  data fee eth  |  data fee usd  |`)
     console.log(breakLine)
     // get function names, sorted
     const functionNames = Object.keys(this.txs).sort()
     // loop over functions
     for(const functionName of functionNames) {
-      let function_str = rightPad(functionName, 34)
+      let function_str = rightPad(functionName, 44)
       //console.log(`Function: ${functionName}`)
       // calculate average tx_data_gas
       let tx_data_gas_sum = 0
