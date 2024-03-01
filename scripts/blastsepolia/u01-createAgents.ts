@@ -1,13 +1,17 @@
 import hardhat from "hardhat";
 const { ethers } = hardhat;
 const { provider } = ethers;
-import { BigNumber as BN, BigNumberish } from "ethers";
+import { BigNumber as BN, BigNumberish, utils } from "ethers";
 import { config as dotenv_config } from "dotenv";
 dotenv_config();
 
 const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
+const blasttestnetuser1 = new ethers.Wallet(accounts.blasttestnetuser1.key, provider);
+const blasttestnetuser2 = new ethers.Wallet(accounts.blasttestnetuser2.key, provider);
+const blasttestnetuser3 = new ethers.Wallet(accounts.blasttestnetuser3.key, provider);
+const allowlistSignerKey = accounts.allowlistSigner.key
 
 import { Agents, BlastAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03 } from "../../typechain-types";
 
@@ -20,6 +24,7 @@ import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
 import { MulticallProvider, MulticallContract } from "./../utils/multicall";
 import { multicallChunked } from "./../utils/network";
+import { sign, assembleSignature, getMintFromAllowlistDigest, getMintFromAllowlistSignature } from "./../utils/signature";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 
@@ -44,6 +49,7 @@ const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC1219
 const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
 const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
 const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
+const GENESIS_FACTORY_ADDRESS         = "0x9d2f478f121b7b96C0AE29D3Cf8e66914936d4a7"; // genesis
 
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
@@ -74,11 +80,16 @@ const LP_TOKEN_ADDRESS           = "0x024Dd95113137f04E715B2fC8F637FBe678e9512";
 const RING_ADDRESS               = "0x0BD5539E33a1236bA69228271e60f3bFf8fDB7DB";
 const STAKING_REWARDS_INDEX      = 2;
 
+const DOMAIN_NAME = "AgentFi-BlastooorGenesisFactory";
+const MINT_FROM_ALLOWLIST_TYPEHASH = utils.keccak256(utils.toUtf8Bytes("MintFromAllowlist(address receiver)"));
+
+
 let agentNft: Agents;
 let agentNftMC: any;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
 let factory03: AgentFactory02;
+let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
 let accountImplRingD: BlastAgentAccountRingProtocolD;
@@ -92,7 +103,8 @@ async function main() {
   chainID = (await provider.getNetwork()).chainId;
   networkSettings = getNetworkSettings(chainID);
   function isChain(chainid: number, chainName: string) {
-    return ((chainID == chainid)/* || ((chainID == 31337) && (process.env.FORK_NETWORK === chainName))*/);
+    //return ((chainID == chainid)/* || ((chainID == 31337) && (process.env.FORK_NETWORK === chainName))*/);
+    return ((chainID === chainid) || ((chainID === 31337) && (process.env.FORK_NETWORK === chainName)));
   }
   if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
 
@@ -101,15 +113,19 @@ async function main() {
   factory01 = await ethers.getContractAt("AgentFactory01", AGENT_FACTORY01_ADDRESS, boombotseth) as AgentFactory01;
   factory02 = await ethers.getContractAt("AgentFactory02", AGENT_FACTORY02_ADDRESS, boombotseth) as AgentFactory02;
   factory03 = await ethers.getContractAt("AgentFactory03", AGENT_FACTORY03_ADDRESS, boombotseth) as AgentFactory03;
+  genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
   accountImplRingC = await ethers.getContractAt("BlastAgentAccountRingProtocolC", ACCOUNT_IMPL_RING_C_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolC;
   accountImplRingD = await ethers.getContractAt("BlastAgentAccountRingProtocolD", ACCOUNT_IMPL_RING_D_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolD;
   accountImplThrusterA = await ethers.getContractAt("BlastAgentAccountThrusterA", ACCOUNT_IMPL_THRUSTER_A_ADDRESS, agentfideployer) as BlastAgentAccountThrusterA;
   accountImplBasketA = await ethers.getContractAt("BlastAgentAccountBasketA", ACCOUNT_IMPL_BASKET_A_ADDRESS, agentfideployer) as BlastAgentAccountBasketA;
 
-  await listAgents();
-  await createAgents();
-  await listAgents();
+  createSignatures();
+
+
+  //await listAgents();
+  //await createAgents();
+  //await listAgents();
 }
 
 async function listAgents() {
@@ -146,7 +162,7 @@ async function createAgents() {
   //await createCustomAgent4(agentfideployer);
   //await createCustomAgent6(agentfideployer);
   //await createCustomAgent7(agentfideployer);
-  await createCustomAgent7_2(agentfideployer);
+  //await createCustomAgent7_2(agentfideployer);
 
   //await createAgent(agentfideployer, 5);
   //await createAgent(agentfideployer, 6);
@@ -154,6 +170,10 @@ async function createAgents() {
   //await createAgent(agentfideployer, 8);
   //await createAgent(agentfideployer, 9);
   //await createCustomAgent1(agentfideployer, 9);
+
+  //await mintGenesisBlastooorPublic(agentfideployer, 10);
+  //await mintGenesisBlastooorAllowlist(blasttestnetuser1, 1);
+  await mintGenesisBlastooorAllowlistAndPublic(blasttestnetuser2)
 }
 
 async function createAgent(creator=boombotseth, createSettingsID=1) {
@@ -253,6 +273,54 @@ async function createCustomAgent7_2(creator=boombotseth) {
   let calldata1 = accountImplBase.interface.encodeFunctionData('execute', [factory03.address, ethAmount, calldata0, 0])
   let calldatasOuter = [calldata1]
   let tx = await factory03.connect(creator)['createAgent(uint256,bytes[],(address,uint256)[])'](createSettingsIDRoot, calldatasOuter, deposits, {...networkSettings.overrides, gasLimit: 5_000_000, value:ethAmount})
+  await watchTxForCreatedAgentID(tx)
+}
+
+async function mintGenesisBlastooorPublic(creator=boombotseth, count=1) {
+  console.log(`Creating ${count} new agents`)
+  let ethAmount = WeiPerEther.div(100).mul(count)
+  let tx = await genesisFactory.connect(creator).blastooorPublicMint(count, {...networkSettings.overrides, gasLimit: 5_000_000, value:ethAmount})
+  await watchTxForCreatedAgentID(tx)
+}
+
+let allowlistAddresses = [
+  //"0x...",
+  accounts.blasttestnetuser1.address,
+]
+
+let signatures = {}
+/*
+
+*/
+
+function createSignatures() {
+  signatures = {}
+  for(const addr of allowlistAddresses) {
+    let signature = getMintFromAllowlistSignature(DOMAIN_NAME, genesisFactory.address, chainID, addr, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+    signatures[addr] = signature
+  }
+  console.log(signatures)
+  console.log(JSON.stringify(signatures, 2, undefined))
+  //let tx = await genesisFactory.connect(user3).blastooorMintWithAllowlistAndPublic(2, 8, signature, {value:WeiPerEther.div(100).mul(10)})
+}
+
+async function mintGenesisBlastooorAllowlist(creator=boombotseth, count=1) {
+  console.log(`Checking allowlist for ${creator.address}`)
+  let signature = signatures[creator.address]
+  if(!signature) throw new Error(`Account ${creator.address} is not on the allowlist`)
+  console.log(`Creating ${count} new agents`)
+  let ethAmount = WeiPerEther.div(100).mul(count)
+  let tx = await genesisFactory.connect(creator).blastooorMintWithAllowlist(count, signature, {...networkSettings.overrides, gasLimit: 5_000_000, value:ethAmount})
+  await watchTxForCreatedAgentID(tx)
+}
+
+async function mintGenesisBlastooorAllowlistAndPublic(creator=boombotseth) {
+  console.log(`Checking allowlist for ${creator.address}`)
+  let signature = signatures[creator.address]
+  if(!signature) throw new Error(`Account ${creator.address} is not on the allowlist`)
+  console.log(`Creating ${10} new agents`)
+  let ethAmount = WeiPerEther.div(100).mul(10)
+  let tx = await genesisFactory.connect(creator).blastooorMintWithAllowlistAndPublic(2, 8, signature, {...networkSettings.overrides, gasLimit: 5_000_000, value:ethAmount})
   await watchTxForCreatedAgentID(tx)
 }
 /*

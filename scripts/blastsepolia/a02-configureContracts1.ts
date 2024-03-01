@@ -9,6 +9,8 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 const blasttestnetuser1 = new ethers.Wallet(accounts.blasttestnetuser1.key, provider);
+const allowlistSignerKey = accounts.allowlistSigner.key
+const allowlistSignerAddress = accounts.allowlistSigner.address
 
 import { Agents, BlastAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher } from "../../typechain-types";
 
@@ -40,6 +42,7 @@ const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC1219
 const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
 const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
 const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
+const GENESIS_FACTORY_ADDRESS         = "0x9d2f478f121b7b96C0AE29D3Cf8e66914936d4a7"; // genesis
 
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
@@ -76,6 +79,7 @@ let agentNft: Agents;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
 let factory03: AgentFactory03;
+let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
 let accountImplRingD: BlastAgentAccountRingProtocolD;
@@ -103,6 +107,7 @@ async function main() {
   factory01 = await ethers.getContractAt("AgentFactory01", AGENT_FACTORY01_ADDRESS, agentfideployer) as AgentFactory01;
   factory02 = await ethers.getContractAt("AgentFactory02", AGENT_FACTORY02_ADDRESS, agentfideployer) as AgentFactory02;
   factory03 = await ethers.getContractAt("AgentFactory03", AGENT_FACTORY03_ADDRESS, agentfideployer) as AgentFactory03;
+  genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
   accountImplRingC = await ethers.getContractAt("BlastAgentAccountRingProtocolC", ACCOUNT_IMPL_RING_C_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolC;
   accountImplRingD = await ethers.getContractAt("BlastAgentAccountRingProtocolD", ACCOUNT_IMPL_RING_D_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolD;
@@ -114,31 +119,21 @@ async function main() {
   //await configureContractFactoryGasGovernor();
 
   await whitelistFactories();
-  await setNftMetadata();
+  //await setNftMetadata();
 
   //await configureGasCollector();
   //await collectGasRewards();
 
-  await postAgentCreationSettings03_1();
-  await postAgentCreationSettings03_2();
-  await postAgentCreationSettings03_3();
-  await postAgentCreationSettings03_4();
-  //await postAgentCreationSettings03_5();
-  await postAgentCreationSettings03_6();
-  await postAgentCreationSettings03_7();
+  await postAgentCreationSettings_blastooor();
+  await addSigners()
 
-  //await pauseAgentCreationSettings02();
-
+  //await postAgentCreationSettings03_1();
+  //await postAgentCreationSettings03_2();
+  //await postAgentCreationSettings03_3();
   //await postAgentCreationSettings03_4();
-  //await postAgentCreationSettings03_5();
   //await postAgentCreationSettings03_6();
   //await postAgentCreationSettings03_7();
 
-  //await postAgentCreationSettings03_8();
-  //await postAgentCreationSettings03_9();
-
-  //await transferFundsFromFactory02()
-  //await transferFundsToFactory02();
 
 }
 
@@ -161,6 +156,10 @@ async function whitelistFactories() {
     },
     {
       factory: factory03.address,
+      shouldWhitelist: true,
+    },
+    {
+      factory: GENESIS_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -244,6 +243,47 @@ async function pauseAgentCreationSettings03() {
   console.log(`Paused factory03 agent creation settings`)
 }
 */
+
+// postAgentCreationSettings_blastooor
+async function postAgentCreationSettings_blastooor() {
+  console.log(`Calling postAgentCreationSettings_blastooor`)
+
+  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+
+  const startTimePast = 1705735600
+
+  const mintStartTime = 1709355600
+  const allowlistStopTime = 1709398800
+
+  let params = {
+    agentImplementation: accountImplBase.address,
+    initializationCalls: [
+      agentInitializationCode3,
+      agentInitializationCode4,
+    ],
+    isActive: true,
+    paymentToken: AddressZero,
+    paymentAmount: WeiPerEther.mul(1).div(100),
+    paymentReceiver: agentfideployer.address,
+    mintStartTime: startTimePast,
+    allowlistStopTime: allowlistStopTime
+  }
+  let tx = await genesisFactory.connect(agentfideployer).postAgentCreationSettings(params)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+
+  console.log(`Called postAgentCreationSettings_blastooor`)
+}
+
+async function addSigners() {
+  console.log(`Adding signers`)
+  let tx = await genesisFactory.connect(agentfideployer).addSigner(allowlistSignerAddress, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  console.log(`Added signers`)
+}
 
 // 1: create new root agent
 async function postAgentCreationSettings03_1() {

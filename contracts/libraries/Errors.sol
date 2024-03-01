@@ -32,6 +32,8 @@ library Errors {
     error ERC6551InvalidSigner();
     /// @notice Thrown when attempting a function reserved for the owner of the agent.
     //error NotOwnerOfAgent();
+    /// @notice Thrown when a signature is invalid.
+    error InvalidSignature();
 
     // generic input errors
     /// @notice Thrown when address zero is used where it should not be.
@@ -72,6 +74,18 @@ library Errors {
     error ContractPaused();
     /// @notice Thrown when using a factory and a creation settings that has been paused.
     error CreationSettingsPaused();
+    /// @notice Thrown when minting an nft over the max total supply.
+    error OverMaxSupply();
+    /// @notice Thrown when minting an nft but the mint has not been started.
+    error MintNotStarted();
+    /// @notice Thrown when minting via the allowlist but the period has ended.
+    error AllowlistMintEnded();
+    /// @notice Thrown when minting too many agents at once.
+    error OverMaxMintPerTx();
+    /// @notice Thrown when minting an nft over the max allowlist mint total.
+    error OverMaxAllowlistMintTotal();
+    /// @notice Thrown when minting an nft over the max allowlist mint per user.
+    error OverMaxAllowlistMintPerAccount();
 
     // erc2535 errors
     /// @notice Thrown when installing a function that is already installed.

@@ -9,7 +9,7 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, BlastAgentAccountRingProtocolD, BlastAgentAccountThrusterA, BlastAgentAccountBasketA, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
+import { Agents, BlastAgentAccount, BlastAgentAccountRingProtocolC, BlastAgentAccountRingProtocolD, BlastAgentAccountThrusterA, BlastAgentAccountBasketA, AgentFactory01, AgentFactory02, AgentFactory03, BlastooorGenesisFactory, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -38,6 +38,7 @@ const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC1219
 const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
 const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
 const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
+const GENESIS_FACTORY_ADDRESS         = "0x9d2f478f121b7b96C0AE29D3Cf8e66914936d4a7"; // genesis
 
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
@@ -56,6 +57,7 @@ let agentNft: Agents;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
 let factory03: AgentFactory03;
+let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
 let accountImplRingC: BlastAgentAccountRingProtocolC;
 let accountImplRingD: BlastAgentAccountRingProtocolD;
@@ -86,6 +88,7 @@ async function main() {
   await deployAgentFactory01();
   await deployAgentFactory02();
   await deployAgentFactory03();
+  await deployBlastooorGenesisFactory();
   await deployBlastAgentAccount();
   await deployBlastAgentAccountRingProtocolC();
   await deployBlastAgentAccountRingProtocolD();
@@ -199,6 +202,19 @@ async function deployAgentFactory03() {
   }
 }
 
+async function deployBlastooorGenesisFactory() {
+  if(await isDeployed(GENESIS_FACTORY_ADDRESS)) {
+    genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
+  } else {
+    console.log("Deploying BlastooorGenesisFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, agentNft.address];
+    genesisFactory = await deployContractUsingContractFactory(agentfideployer, "BlastooorGenesisFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorGenesisFactory;
+    console.log(`Deployed BlastooorGenesisFactory to ${genesisFactory.address}`);
+    if(chainID != 31337) await verifyContract(genesisFactory.address, args);
+    if(!!GENESIS_FACTORY_ADDRESS && genesisFactory.address != GENESIS_FACTORY_ADDRESS) throw new Error(`Deployed BlastooorGenesisFactory to ${genesisFactory.address}, expected ${GENESIS_FACTORY_ADDRESS}`)
+  }
+}
+
 async function deployBlastAgentAccount() {
   if(await isDeployed(ACCOUNT_IMPL_BASE_ADDRESS)) {
     accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
@@ -277,6 +293,7 @@ function logAddresses() {
   logContractAddress("Factory01", factory01.address);
   logContractAddress("Factory02", factory02.address);
   logContractAddress("Factory03", factory03.address);
+  logContractAddress("BlastooorGenesisFactory", genesisFactory.address);
   logContractAddress("BlastAgentAccount", accountImplBase.address);
   logContractAddress("BlastAgentAccountRingProtocolC", accountImplRingC.address);
   logContractAddress("BlastAgentAccountRingProtocolD", accountImplRingD.address);
