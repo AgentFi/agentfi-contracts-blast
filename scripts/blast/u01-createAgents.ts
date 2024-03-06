@@ -33,7 +33,7 @@ let chainID: number;
 
 const fs = require("fs")
 const ABI_AGENTS_NFT = JSON.parse(fs.readFileSync("abi/contracts/tokens/Agents.sol/Agents.json").toString()).filter(x=>!!x&&x.type=="function")
-let mcProvider = new MulticallProvider(provider, 168587773);
+let mcProvider = new MulticallProvider(provider, 81457);
 
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
 const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
@@ -94,15 +94,15 @@ async function main() {
     //return ((chainID == chainid)/* || ((chainID == 31337) && (process.env.FORK_NETWORK === chainName))*/);
     return ((chainID === chainid) || ((chainID === 31337) && (process.env.FORK_NETWORK === chainName)));
   }
-  if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
+  if(!isChain(81457, "blast")) throw("Only run this on Blast Mainnet or a local fork of Blast Mainnet");
 
   genesisCollection = await ethers.getContractAt("Agents", GENESIS_COLLECTION_ADDRESS, boombotseth) as Agents;
   genesisCollectionMC = new MulticallContract(GENESIS_COLLECTION_ADDRESS, ABI_AGENTS_NFT)
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
 
-  await listAgents();
-  await createAgents();
+  //await listAgents();
+  //await createAgents();
   await listAgents();
 }
 
@@ -116,7 +116,7 @@ async function listAgents() {
     calls.push(genesisCollectionMC.getAgentInfo(agentID))
     calls.push(genesisCollectionMC.ownerOf(agentID))
   }
-  const results = await multicallChunked(mcProvider, calls, "latest", 200)
+  const results = await multicallChunked(mcProvider, calls, "latest", 500)
   for(let agentID = 1; agentID <= ts; agentID++) {
     console.log(`Agent ID ${agentID}`)
     let agentInfo = results[agentID*2-2]

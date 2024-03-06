@@ -7,19 +7,19 @@ import { Multicall } from "./../utils/Multicall.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IAgents } from "./../interfaces/tokens/IAgents.sol";
-import { IAgentFactory03 } from "./../interfaces/router/IAgentFactory03.sol";
+import { IAgentFactory02 } from "./../interfaces/factory/IAgentFactory02.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 
 
 /**
- * @title AgentFactory03
+ * @title AgentFactory02
  * @author AgentFi
  * @notice A factory for agents.
  *
  * Users can use [`createAgent()`](#createagent) to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
  */
-contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
+contract AgentFactory02 is Multicall, Blastable, Ownable2Step, IAgentFactory02 {
 
     /***************************************
     STATE VARIABLES
@@ -66,12 +66,16 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
      * @return agentImplementation The agent implementation.
      * @return initializationCalls The calls to initialize the agent.
      * @return isPaused True if these creation settings are paused, false otherwise.
+     * @return giveTokenList The list of tokens to give to newly created agents.
+     * @return giveTokenAmounts The amount of each token to give.
      */
     function getAgentCreationSettings(uint256 creationSettingsID) external view override returns (
         address agentNft,
         address agentImplementation,
         bytes[] memory initializationCalls,
-        bool isPaused
+        bool isPaused,
+        address[] memory giveTokenList,
+        uint256[] memory giveTokenAmounts
     ) {
         if(creationSettingsID == 0 || creationSettingsID > _agentCreationSettingsCount) revert Errors.OutOfRange();
         agentNft = _agentNft;
@@ -79,6 +83,8 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
         agentImplementation = creationSettings.agentImplementation;
         initializationCalls = creationSettings.initializationCalls;
         isPaused = creationSettings.isPaused;
+        giveTokenList = creationSettings.giveTokenList;
+        giveTokenAmounts = creationSettings.giveTokenAmounts;
     }
 
     /***************************************
@@ -137,64 +143,6 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
         agentNft.transferFrom(address(this), receiver, agentID);
     }
 
-
-
-    /**
-     * @notice Creates a new agent.
-     * The new agent will be transferred to `msg.sender`.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
-     */
-    function createAgent(uint256 creationSettingsID, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
-        IAgents agentNft = IAgents(_agentNft);
-        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
-        agentNft.transferFrom(address(this), msg.sender, agentID);
-    }
-
-    /**
-     * @notice Creates a new agent.
-     * The new agent will be transferred to `msg.sender`.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
-     */
-    function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
-        IAgents agentNft = IAgents(_agentNft);
-        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
-        _multicallAgent(agentAddress, callDatas);
-        agentNft.transferFrom(address(this), msg.sender, agentID);
-    }
-
-    /**
-     * @notice Creates a new agent.
-     * @param receiver The address to mint the new agent to.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
-     */
-    function createAgent(uint256 creationSettingsID, address receiver, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
-        IAgents agentNft = IAgents(_agentNft);
-        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
-        agentNft.transferFrom(address(this), receiver, agentID);
-    }
-
-    /**
-     * @notice Creates a new agent.
-     * @param receiver The address to mint the new agent to.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
-     */
-    function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, address receiver, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
-        IAgents agentNft = IAgents(_agentNft);
-        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
-        _multicallAgent(agentAddress, callDatas);
-        agentNft.transferFrom(address(this), receiver, agentID);
-    }
-
     /***************************************
     OWNER FUNCTIONS
     ***************************************/
@@ -211,6 +159,7 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
     ) {
         // checks
         Calls.verifyHasCode(creationSettings.agentImplementation);
+        if(creationSettings.giveTokenList.length != creationSettings.giveTokenAmounts.length) revert Errors.LengthMismatch();
         // post
         creationSettingsID = ++_agentCreationSettingsCount;
         _agentCreationSettings[creationSettingsID] = creationSettings;
@@ -256,36 +205,10 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
         for(uint256 i = 0; i < creationSettings.initializationCalls.length; ++i) {
             _callAgent(agentAddress, creationSettings.initializationCalls[i]);
         }
-    }
-
-    /**
-     * @notice Creates a new agent.
-     * @param agentNft The agent nft contract.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
-     */
-    function _createAgent(
-        IAgents agentNft,
-        uint256 creationSettingsID,
-        TokenDeposit[] calldata deposits
-    ) internal returns (uint256 agentID, address agentAddress) {
-        // checks
-        if(creationSettingsID == 0 || creationSettingsID > _agentCreationSettingsCount) revert Errors.OutOfRange();
-        AgentCreationSettings memory creationSettings = _agentCreationSettings[creationSettingsID];
-        if(creationSettings.isPaused) revert Errors.CreationSettingsPaused();
-        // create agent
-        (agentID, agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
-        // deposit tokens
-        for(uint256 i = 0; i < deposits.length; ++i) {
-            address token = deposits[i].token;
-            uint256 amount = deposits[i].amount;
-            if(token == address(0)) Calls.sendValue(agentAddress, amount);
-            else SafeERC20.safeTransferFrom(IERC20(token), msg.sender, agentAddress, amount);
-        }
-        // initialize
-        for(uint256 i = 0; i < creationSettings.initializationCalls.length; ++i) {
-            _callAgent(agentAddress, creationSettings.initializationCalls[i]);
+        // give tokens
+        uint256 len = creationSettings.giveTokenList.length;
+        for(uint256 i = 0; i < len; ++i) {
+            _sendToken(creationSettings.giveTokenList[i], creationSettings.giveTokenAmounts[i], agentAddress);
         }
     }
 
@@ -295,8 +218,7 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
      * @param callData The data to pass to the agent.
      */
     function _callAgent(address agentAddress, bytes memory callData) internal {
-        uint256 balance = address(this).balance;
-        Calls.functionCallWithValue(agentAddress, callData, balance);
+        Calls.functionCall(agentAddress, callData);
     }
 
     /**
@@ -308,5 +230,36 @@ contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
         for(uint256 i = 0; i < callDatas.length; ++i) {
             _callAgent(agentAddress, callDatas[i]);
         }
+    }
+
+    /**
+     * @notice Sends some token. Supports the gas token and erc20s.
+     * @param token The address of token to send.
+     * @param amount The maximum amount to send. Will send less if insufficient funds.
+     * @param receiver The receiver of the funds.
+     */
+    function _sendToken(address token, uint256 amount, address receiver) internal {
+        // send eth
+        if(token == address(0)) {
+            uint256 bal = address(this).balance;
+            bal = _min(bal, amount);
+            if(bal > 0) Calls.sendValue(receiver, bal);
+        }
+        // send erc20
+        else {
+            uint256 bal = IERC20(token).balanceOf(address(this));
+            bal = _min(bal, amount);
+            if(bal > 0) SafeERC20.safeTransfer(IERC20(token), receiver, bal);
+        }
+    }
+
+    /**
+     * @notice Returns the minimum of two numbers.
+     * @param a The first number.
+     * @param b The second number.
+     * @return c The minimum.
+     */
+    function _min(uint256 a, uint256 b) internal pure returns (uint256 c) {
+        c = (a < b ? a : b);
     }
 }

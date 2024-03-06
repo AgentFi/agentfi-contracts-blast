@@ -57,8 +57,7 @@ async function main() {
   function isChain(chainid: number, chainName: string) {
     return ((chainID === chainid) || ((chainID === 31337) && (process.env.FORK_NETWORK === chainName)));
   }
-  if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
-  //await expectDeployed(ERC6551_REGISTRY_ADDRESS)
+  if(!isChain(81457, "blast")) throw("Only run this on Blast Mainnet or a local fork of Blast Mainnet");
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, boombotseth) as IBlast;
 
@@ -150,6 +149,8 @@ async function deployBlastooorGenesisFactory() {
     if(chainID != 31337) await verifyContract(genesisFactory.address, args);
     if(!!GENESIS_FACTORY_ADDRESS && genesisFactory.address != GENESIS_FACTORY_ADDRESS) throw new Error(`Deployed BlastooorGenesisFactory to ${genesisFactory.address}, expected ${GENESIS_FACTORY_ADDRESS}`)
   }
+  let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, genesisCollection.address];
+  if(chainID != 31337) await verifyContract(genesisFactory.address, args);
 }
 
 async function deployBlastAgentAccount() {

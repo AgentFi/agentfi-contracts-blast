@@ -15,7 +15,7 @@ const polygon_fork = { url: process.env.POLYGON_URL||'', blockNumber:parseInt(pr
 const mumbai_fork = { url: process.env.MUMBAI_URL||'', blockNumber:parseInt(process.env.MUMBAI_FORK_BLOCK)||undefined };
 const base_fork = { url: process.env.BASE_URL||'', blockNumber:parseInt(process.env.BASE_FORK_BLOCK)||undefined }
 const base_goerli_fork = { url: process.env.BASE_GOERLI_URL||'', blockNumber:parseInt(process.env.BASE_GOERLI_FORK_BLOCK)||undefined };
-//const blast_fork = { url: process.env.BLAST_URL||'', blockNumber:parseInt(process.env.BLAST_FORK_BLOCK)||undefined };
+const blast_fork = { url: process.env.BLAST_URL||'', blockNumber:parseInt(process.env.BLAST_FORK_BLOCK)||undefined };
 const blast_sepolia_fork = { url: process.env.BLAST_SEPOLIA_URL||'', blockNumber:parseInt(process.env.BLAST_SEPOLIA_FORK_BLOCK)||undefined };
 const no_fork = undefined;
 const forking = (
@@ -26,7 +26,7 @@ const forking = (
   : process.env.FORK_NETWORK === "mumbai"         ? mumbai_fork
   : process.env.FORK_NETWORK === "base"           ? base_fork
   : process.env.FORK_NETWORK === "basegoerli"     ? base_goerli_fork
-  //: process.env.FORK_NETWORK === "blast"          ? blast_fork
+  : process.env.FORK_NETWORK === "blast"          ? blast_fork
   : process.env.FORK_NETWORK === "blastsepolia"   ? blast_sepolia_fork
   : no_fork
 );
@@ -80,6 +80,11 @@ const config: HardhatUserConfig = {
       chainId: 84531,
       accounts: accounts
     },
+    blast: {
+      url: process.env.BLAST_URL||'',
+      chainId: 81457,
+      accounts: accounts
+    },
     blastsepolia: {
       url: process.env.BLAST_SEPOLIA_URL||'',
       chainId: 168587773,
@@ -129,26 +134,35 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.POLYGONSCAN_API_KEY || "",
       base: process.env.BASESCAN_API_KEY || "",
       "base-goerli": "PLACEHOLDER_STRING",
+      blast: "blast", // apiKey is not required, just set a placeholder
       blast_sepolia: "blast_sepolia", // apiKey is not required, just set a placeholder
-     },
-     customChains: [
-       {
-         network: "base",
-         chainId: 8453,
-         urls: {
+    },
+    customChains: [
+      {
+        network: "base",
+        chainId: 8453,
+        urls: {
           apiURL: "https://api.basescan.org/api",
           browserURL: "https://basescan.org"
-         }
-       },
-       {
-         network: "base-goerli",
-         chainId: 84531,
-         urls: {
+        }
+      },
+      {
+        network: "base-goerli",
+        chainId: 84531,
+        urls: {
           apiURL: "https://api-goerli.basescan.org/api",
           browserURL: "https://goerli.basescan.org"
-         }
-       },
-       {
+        }
+      },
+      {
+        network: "blast",
+        chainId: 81457,
+        urls: {
+          apiURL: "https://api.routescan.io/v2/network/mainnet/evm/81457/etherscan",
+          browserURL: "https://blastexplorer.io"
+        }
+      },
+      {
         network: "blast_sepolia",
         chainId: 168587773,
         urls: {
@@ -156,7 +170,7 @@ const config: HardhatUserConfig = {
           browserURL: "https://testnet.blastscan.io"
         }
       },
-     ]
+    ]
   }
 };
 
