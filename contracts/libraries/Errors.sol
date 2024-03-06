@@ -76,6 +76,8 @@ library Errors {
     error CreationSettingsPaused();
     /// @notice Thrown when minting an nft over the max total supply.
     error OverMaxSupply();
+    /// @notice Thrown when minting an nft over the max public mint.
+    error OverMaxPublicMint();
     /// @notice Thrown when minting an nft but the mint has not been started.
     error MintNotStarted();
     /// @notice Thrown when minting via the allowlist but the period has ended.
@@ -86,6 +88,12 @@ library Errors {
     error OverMaxAllowlistMintTotal();
     /// @notice Thrown when minting an nft over the max allowlist mint per user.
     error OverMaxAllowlistMintPerAccount();
+    /// @notice Thrown when minting from the treasury allocation before treasury mint starts.
+    error TreasuryMintNotStarted();
+    /// @notice Thrown when not paying enough to mint an nft.
+    error InsufficientPayment();
+    /// @notice Thrown when minting from the treasury allocation without approval.
+    error NotTreasuryMinter();
 
     // erc2535 errors
     /// @notice Thrown when installing a function that is already installed.

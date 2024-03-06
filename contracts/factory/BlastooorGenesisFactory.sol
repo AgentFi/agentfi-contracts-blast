@@ -37,11 +37,13 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
 
     /// @notice The authorized signers.
     mapping(address => bool) internal _isAuthorizedSigner;
+    mapping(address => bool) internal _isAuthorizedTreasuryMinter;
 
     uint256 internal constant MAX_TOTAL_SUPPLY = 6551;
-    uint256 internal constant MAX_ALLOWLIST_MINT_TOTAL = 1200;
+    uint256 internal constant MAX_ALLOWLIST_MINT_TOTAL = 1500;
     uint256 internal constant MAX_ALLOWLIST_MINT_PER_ACCOUNT = 2;
     uint256 internal constant MAX_MINT_PER_TX = 10;
+    uint256 internal constant TREASURY_ALLOCATION_START_ID = 6401;
 
     /***************************************
     CONSTRUCTOR
@@ -74,7 +76,6 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
      * @return agentImplementation The agent implementation.
      * @return initializationCalls The calls to initialize the agent.
      * @return isActive True if these creation settings are active, false otherwise.
-     * @return paymentToken The address of the token to pay with.
      * @return paymentAmount The amount of the token to pay.
      * @return paymentReceiver The receiver of the payment.
      */
@@ -83,34 +84,38 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         address agentImplementation,
         bytes[] memory initializationCalls,
         bool isActive,
-        address paymentToken,
         uint256 paymentAmount,
         address paymentReceiver,
-        uint256 mintStartTime,
-        uint256 allowlistStopTime
+        uint256 timestampAllowlistMintStart,
+        uint256 timestampAllowlistMintEnd,
+        uint256 timestampPublicMintStart
     ) {
         agentNft = _agentNft;
         AgentCreationSettings memory creationSettings = _agentCreationSettings;
         agentImplementation = creationSettings.agentImplementation;
         initializationCalls = creationSettings.initializationCalls;
         isActive = creationSettings.isActive;
-        paymentToken = creationSettings.paymentToken;
         paymentAmount = creationSettings.paymentAmount;
         paymentReceiver = creationSettings.paymentReceiver;
-        mintStartTime = creationSettings.mintStartTime;
-        allowlistStopTime = creationSettings.allowlistStopTime;
+        timestampAllowlistMintStart = creationSettings.timestampAllowlistMintStart;
+        timestampAllowlistMintEnd = creationSettings.timestampAllowlistMintEnd;
+        timestampPublicMintStart = creationSettings.timestampPublicMintStart;
     }
 
     function allowlistMintedTotal() external view returns (uint256 amount) {
         amount = _allowlistMintedTotal;
     }
 
-    function allowlistMintedTotal(address account) external view returns (uint256 amount) {
+    function allowlistMintedByAccount(address account) external view returns (uint256 amount) {
         amount = _allowlistMintedByAccount[account];
     }
 
     function isAuthorizedSigner(address account) external view returns (bool isAuthorized) {
         isAuthorized = _isAuthorizedSigner[account];
+    }
+
+    function isAuthorizedTreasuryMinter(address account) external view returns (bool isAuthorized) {
+        isAuthorized = _isAuthorizedTreasuryMinter[account];
     }
 
     /***************************************
@@ -127,11 +132,11 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         IAgents agentNft = IAgents(_agentNft);
         _createBlastooorChecks(agentNft, count);
         _handlePayment(count);
-        info = _createBlastooor(agentNft, count);
+        info = _createBlastooors(agentNft, 0, count);
     }
 
     /**
-     * @notice Creates new agents. The
+     * @notice Creates new agents.
      * The new agents will be transferred to `msg.sender`.
      * @param count The number of agents to create.
      * @param signature Signature from the signer.
@@ -142,11 +147,11 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         _createBlastooorChecks(agentNft, count);
         _createBlastooorCheckAllowlist(agentNft, count, signature);
         _handlePayment(count);
-        info = _createBlastooor(agentNft, count);
+        info = _createBlastooors(agentNft, count, 0);
     }
 
     /**
-     * @notice Creates new agents. The
+     * @notice Creates new agents.
      * The new agents will be transferred to `msg.sender`.
      * @param countAllowlist The number of agents to create via the allowlist.
      * @param countPublic The number of agents to create via public mint.
@@ -159,7 +164,20 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         _createBlastooorChecks(agentNft, count);
         _createBlastooorCheckAllowlist(agentNft, countAllowlist, signature);
         _handlePayment(count);
-        info = _createBlastooor(agentNft, count);
+        info = _createBlastooors(agentNft, countAllowlist, countPublic);
+    }
+
+    /**
+     * @notice Creates new agents.
+     * The new agents will be transferred to `msg.sender`.
+     * @param count The number of agents to create.
+     * @return info Information about the newly created agents.
+     */
+    function blastooorMintForTreasury(uint256 count) external payable returns (AgentInfo[] memory info) {
+        IAgents agentNft = IAgents(_agentNft);
+        _createBlastooorChecksForTreasury(agentNft, count);
+        _handlePayment(count);
+        info = _createBlastooors(agentNft, 0, count);
     }
 
     /***************************************
@@ -180,8 +198,9 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         AgentCreationSettings storage creationSettings = _agentCreationSettings;
         if(!creationSettings.isActive) revert Errors.CreationSettingsPaused();
         uint256 supply = agentNft.totalSupply();
-        if(supply + count > MAX_TOTAL_SUPPLY) revert Errors.OverMaxSupply();
-        if(creationSettings.mintStartTime > block.timestamp) revert Errors.MintNotStarted();
+        uint256 lastAgentID = supply + count;
+        if(lastAgentID > TREASURY_ALLOCATION_START_ID) revert Errors.OverMaxPublicMint();
+        if(creationSettings.timestampAllowlistMintStart > block.timestamp) revert Errors.MintNotStarted();
     }
 
     /**
@@ -197,7 +216,7 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
     ) internal {
         AgentCreationSettings storage creationSettings = _agentCreationSettings;
         // check time
-        if(creationSettings.allowlistStopTime < block.timestamp) revert Errors.AllowlistMintEnded();
+        if(creationSettings.timestampAllowlistMintEnd < block.timestamp) revert Errors.AllowlistMintEnded();
         // check mint total
         uint256 mintedTotal = _allowlistMintedTotal;
         mintedTotal += count;
@@ -216,6 +235,28 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
     }
 
     /**
+     * @notice A set of checks before minting.
+     * @param agentNft The agent nft contract.
+     * @param count The number of agents to create.
+     */
+    function _createBlastooorChecksForTreasury(
+        IAgents agentNft,
+        uint256 count
+    ) internal {
+        if(!_isAuthorizedTreasuryMinter[msg.sender]) revert Errors.NotTreasuryMinter();
+        if(count == 0) revert Errors.AmountZero();
+        if(count > MAX_MINT_PER_TX) revert Errors.OverMaxMintPerTx();
+        AgentCreationSettings storage creationSettings = _agentCreationSettings;
+        if(!creationSettings.isActive) revert Errors.CreationSettingsPaused();
+        if(creationSettings.timestampAllowlistMintStart > block.timestamp) revert Errors.MintNotStarted();
+        uint256 supply = agentNft.totalSupply();
+        uint256 firstAgentID = supply + 1;
+        uint256 lastAgentID = supply + count;
+        if(firstAgentID < TREASURY_ALLOCATION_START_ID) revert Errors.TreasuryMintNotStarted();
+        if(lastAgentID > MAX_TOTAL_SUPPLY) revert Errors.OverMaxSupply();
+    }
+
+    /**
      * @notice Handles payment to creates a new agent.
      * @param count The number of agents to create.
      */
@@ -223,27 +264,25 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
         uint256 count
     ) internal {
         AgentCreationSettings storage creationSettings = _agentCreationSettings;
-        address paymentToken = creationSettings.paymentToken;
         uint256 paymentAmount = creationSettings.paymentAmount * count;
-        if(paymentToken == address(0)) {
-            Calls.sendValue(creationSettings.paymentReceiver, paymentAmount);
-        } else {
-            SafeERC20.safeTransferFrom(IERC20(paymentToken), msg.sender, address(this), paymentAmount);
-            SafeERC20.safeTransfer(IERC20(paymentToken), creationSettings.paymentReceiver, paymentAmount);
-        }
+        if(address(this).balance < paymentAmount) revert Errors.InsufficientPayment();
+        Calls.sendValue(creationSettings.paymentReceiver, paymentAmount);
     }
 
     /**
      * @notice Creates a new agent.
      * @param agentNft The agent nft contract.
-     * @param count The number of agents to create.
+     * @param countAllowlist The number of agents to create via the allowlist.
+     * @param countPublic The number of agents to create via the public mint.
      * @return info Information about the newly created agents.
      */
-    function _createBlastooor(
+    function _createBlastooors(
         IAgents agentNft,
-        uint256 count
+        uint256 countAllowlist,
+        uint256 countPublic
     ) internal returns (AgentInfo[] memory info) {
         AgentCreationSettings storage creationSettings = _agentCreationSettings;
+        uint256 count = countAllowlist + countPublic;
         info = new AgentInfo[](count);
         address agentImplementation = creationSettings.agentImplementation;
         bytes[] memory initializationCalls = creationSettings.initializationCalls;
@@ -255,6 +294,8 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
             for(uint256 j = 0; j < initializationCalls.length; ++j) {
                 _callAgent(agentAddress, initializationCalls[j]);
             }
+            uint256 src = ( (i < countAllowlist) ? 1 : 0);
+            emit AgentCreated(agentID, src);
         }
         for(uint256 i = 0; i < count; ++i) {
             agentNft.transferFrom(address(this), msg.sender, info[i].agentID);
@@ -293,12 +334,12 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
     }
 
     /**
-     * @notice Adds a new signer that can authorize claims.
+     * @notice Adds a new signer that approve allowlist mints.
      * Can only be called by the contract owner.
      * @param signer The signer to add.
      */
     function addSigner(address signer) external payable onlyOwner {
-        require(signer != address(0x0), "zero address signer");
+        if(signer == address(0)) revert Errors.AddressZero();
         _isAuthorizedSigner[signer] = true;
         emit SignerAdded(signer);
     }
@@ -311,5 +352,26 @@ contract BlastooorGenesisFactory is Multicall, Blastable, Ownable2Step, IBlastoo
     function removeSigner(address signer) external payable onlyOwner {
         _isAuthorizedSigner[signer] = false;
         emit SignerRemoved(signer);
+    }
+
+    /**
+     * @notice Adds a new treasuryMinter that can mint from the treasury allocation.
+     * Can only be called by the contract owner.
+     * @param treasuryMinter The TreasuryMinter to add.
+     */
+    function addTreasuryMinter(address treasuryMinter) external payable onlyOwner {
+        if(treasuryMinter == address(0)) revert Errors.AddressZero();
+        _isAuthorizedTreasuryMinter[treasuryMinter] = true;
+        emit TreasuryMinterAdded(treasuryMinter);
+    }
+
+    /**
+     * @notice Removes a treasuryMinter.
+     * Can only be called by the contract owner.
+     * @param treasuryMinter The treasuryMinter to remove.
+     */
+    function removeTreasuryMinter(address treasuryMinter) external payable onlyOwner {
+        _isAuthorizedTreasuryMinter[treasuryMinter] = false;
+        emit TreasuryMinterRemoved(treasuryMinter);
     }
 }

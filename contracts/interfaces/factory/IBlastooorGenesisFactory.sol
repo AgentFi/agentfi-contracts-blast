@@ -18,12 +18,16 @@ interface IBlastooorGenesisFactory {
     /// @notice Emitted when a AgentCreationSettings is posted.
     event AgentCreationSettingsPosted();
     /// @notice Emitted when a new Agent is created.
-    event AgentCreated(uint256 indexed agentID, bool fromAllowlist);
+    event AgentCreated(uint256 indexed agentID, uint256 src);
 
-    /// @notice Emitted when a claim signer is added.
+    /// @notice Emitted when an allowlist signer is added.
     event SignerAdded(address indexed signer);
-    /// @notice Emitted when a claim signer is removed.
+    /// @notice Emitted when an allowlist signer is removed.
     event SignerRemoved(address indexed signer);
+    /// @notice Emitted when a treasury minter is added.
+    event TreasuryMinterAdded(address indexed treasuryMinter);
+    /// @notice Emitted when a treasury minter is removed.
+    event TreasuryMinterRemoved(address indexed treasuryMinter);
 
     /***************************************
     VIEW FUNCTIONS
@@ -33,11 +37,11 @@ interface IBlastooorGenesisFactory {
         address agentImplementation;
         bytes[] initializationCalls;
         bool isActive;
-        address paymentToken;
         uint256 paymentAmount;
         address paymentReceiver;
-        uint256 mintStartTime;
-        uint256 allowlistStopTime;
+        uint256 timestampAllowlistMintStart;
+        uint256 timestampAllowlistMintEnd;
+        uint256 timestampPublicMintStart;
     }
 
     /**
@@ -46,7 +50,6 @@ interface IBlastooorGenesisFactory {
      * @return agentImplementation The agent implementation.
      * @return initializationCalls The calls to initialize the agent.
      * @return isActive True if these creation settings are active, false otherwise.
-     * @return paymentToken The address of the token to pay with.
      * @return paymentAmount The amount of the token to pay.
      * @return paymentReceiver The receiver of the payment.
      */
@@ -55,11 +58,11 @@ interface IBlastooorGenesisFactory {
         address agentImplementation,
         bytes[] memory initializationCalls,
         bool isActive,
-        address paymentToken,
         uint256 paymentAmount,
         address paymentReceiver,
-        uint256 mintStartTime,
-        uint256 allowlistStopTime
+        uint256 timestampAllowlistMintStart,
+        uint256 timestampAllowlistMintEnd,
+        uint256 timestampPublicMintStart
     );
 
     /***************************************

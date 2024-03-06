@@ -1,23 +1,25 @@
 // SPDX-License-Identifier: none
 pragma solidity 0.8.24;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Multicall } from "./../utils/Multicall.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IAgents } from "./../interfaces/tokens/IAgents.sol";
-import { IAgentFactory01 } from "./../interfaces/router/IAgentFactory01.sol";
+import { IAgentFactory03 } from "./../interfaces/factory/IAgentFactory03.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 
 
 /**
- * @title AgentFactory01
+ * @title AgentFactory03
  * @author AgentFi
  * @notice A factory for agents.
  *
  * Users can use [`createAgent()`](#createagent) to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
  */
-contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
+contract AgentFactory03 is Multicall, Blastable, Ownable2Step, IAgentFactory03 {
 
     /***************************************
     STATE VARIABLES
@@ -92,7 +94,6 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
     function createAgent(uint256 creationSettingsID) external payable override returns (uint256 agentID, address agentAddress) {
         IAgents agentNft = IAgents(_agentNft);
         (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID);
-        _optionalSendToAgent(agentAddress);
         agentNft.transferFrom(address(this), msg.sender, agentID);
     }
 
@@ -107,7 +108,6 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
         IAgents agentNft = IAgents(_agentNft);
         (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID);
         _multicallAgent(agentAddress, callDatas);
-        _optionalSendToAgent(agentAddress);
         agentNft.transferFrom(address(this), msg.sender, agentID);
     }
 
@@ -120,7 +120,6 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
     function createAgent(uint256 creationSettingsID, address receiver) external payable override returns (uint256 agentID, address agentAddress) {
         IAgents agentNft = IAgents(_agentNft);
         (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID);
-        _optionalSendToAgent(agentAddress);
         agentNft.transferFrom(address(this), receiver, agentID);
     }
 
@@ -135,7 +134,64 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
         IAgents agentNft = IAgents(_agentNft);
         (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID);
         _multicallAgent(agentAddress, callDatas);
-        _optionalSendToAgent(agentAddress);
+        agentNft.transferFrom(address(this), receiver, agentID);
+    }
+
+
+
+    /**
+     * @notice Creates a new agent.
+     * The new agent will be transferred to `msg.sender`.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
+     * @return agentID The ID of the newly created agent.
+     * @return agentAddress The address of the newly created agent.
+     */
+    function createAgent(uint256 creationSettingsID, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
+        IAgents agentNft = IAgents(_agentNft);
+        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
+        agentNft.transferFrom(address(this), msg.sender, agentID);
+    }
+
+    /**
+     * @notice Creates a new agent.
+     * The new agent will be transferred to `msg.sender`.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
+     * @param callDatas Extra data to pass to the agent after it is created.
+     * @return agentID The ID of the newly created agent.
+     * @return agentAddress The address of the newly created agent.
+     */
+    function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
+        IAgents agentNft = IAgents(_agentNft);
+        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
+        _multicallAgent(agentAddress, callDatas);
+        agentNft.transferFrom(address(this), msg.sender, agentID);
+    }
+
+    /**
+     * @notice Creates a new agent.
+     * @param receiver The address to mint the new agent to.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
+     * @return agentID The ID of the newly created agent.
+     * @return agentAddress The address of the newly created agent.
+     */
+    function createAgent(uint256 creationSettingsID, address receiver, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
+        IAgents agentNft = IAgents(_agentNft);
+        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
+        agentNft.transferFrom(address(this), receiver, agentID);
+    }
+
+    /**
+     * @notice Creates a new agent.
+     * @param receiver The address to mint the new agent to.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
+     * @param callDatas Extra data to pass to the agent after it is created.
+     * @return agentID The ID of the newly created agent.
+     * @return agentAddress The address of the newly created agent.
+     */
+    function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, address receiver, TokenDeposit[] calldata deposits) external payable override returns (uint256 agentID, address agentAddress) {
+        IAgents agentNft = IAgents(_agentNft);
+        (agentID, agentAddress) = _createAgent(agentNft, creationSettingsID, deposits);
+        _multicallAgent(agentAddress, callDatas);
         agentNft.transferFrom(address(this), receiver, agentID);
     }
 
@@ -203,6 +259,37 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
     }
 
     /**
+     * @notice Creates a new agent.
+     * @param agentNft The agent nft contract.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
+     * @return agentID The ID of the newly created agent.
+     * @return agentAddress The address of the newly created agent.
+     */
+    function _createAgent(
+        IAgents agentNft,
+        uint256 creationSettingsID,
+        TokenDeposit[] calldata deposits
+    ) internal returns (uint256 agentID, address agentAddress) {
+        // checks
+        if(creationSettingsID == 0 || creationSettingsID > _agentCreationSettingsCount) revert Errors.OutOfRange();
+        AgentCreationSettings memory creationSettings = _agentCreationSettings[creationSettingsID];
+        if(creationSettings.isPaused) revert Errors.CreationSettingsPaused();
+        // create agent
+        (agentID, agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
+        // deposit tokens
+        for(uint256 i = 0; i < deposits.length; ++i) {
+            address token = deposits[i].token;
+            uint256 amount = deposits[i].amount;
+            if(token == address(0)) Calls.sendValue(agentAddress, amount);
+            else SafeERC20.safeTransferFrom(IERC20(token), msg.sender, agentAddress, amount);
+        }
+        // initialize
+        for(uint256 i = 0; i < creationSettings.initializationCalls.length; ++i) {
+            _callAgent(agentAddress, creationSettings.initializationCalls[i]);
+        }
+    }
+
+    /**
      * @notice Calls an agent.
      * @param agentAddress The address of the agent.
      * @param callData The data to pass to the agent.
@@ -220,17 +307,6 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
     function _multicallAgent(address agentAddress, bytes[] calldata callDatas) internal {
         for(uint256 i = 0; i < callDatas.length; ++i) {
             _callAgent(agentAddress, callDatas[i]);
-        }
-    }
-
-    /**
-     * @notice Sends any contract balance to the agent.
-     * @param agentAddress The address of the agent.
-     */
-    function _optionalSendToAgent(address agentAddress) internal {
-        uint256 balance = address(this).balance;
-        if(balance > 0) {
-            Calls.sendValue(agentAddress, balance);
         }
     }
 }

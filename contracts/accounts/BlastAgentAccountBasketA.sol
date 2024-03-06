@@ -5,7 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
-import { IAgentFactory03 } from "./../interfaces/router/IAgentFactory03.sol";
+import { IAgentFactory03 } from "./../interfaces/factory/IAgentFactory03.sol";
 import { BlastAgentAccount } from "./BlastAgentAccount.sol";
 import { BlastAgentAccountRingProtocolD } from "./BlastAgentAccountRingProtocolD.sol";
 import { BlastAgentAccountThrusterA } from "./BlastAgentAccountThrusterA.sol";
