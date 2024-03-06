@@ -238,8 +238,9 @@ describe("BlastooorGenesisFactory", function () {
         paymentToken: AddressZero,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
-        mintStartTime: 0,
-        allowlistStopTime: 1
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: 1,
+        timestampPublicMintStart: 0,
       }
       await expect(factory.connect(user1).postAgentCreationSettings(params)).to.be.revertedWithCustomError(factory, "NotContractOwner")
     })
@@ -251,8 +252,9 @@ describe("BlastooorGenesisFactory", function () {
         paymentToken: AddressZero,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
-        mintStartTime: 0,
-        allowlistStopTime: 1
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: 1,
+        timestampPublicMintStart: 0,
       }
       await expect(factory.connect(owner).postAgentCreationSettings(params)).to.be.revertedWithCustomError(factory, "NotAContract")
     })
@@ -264,8 +266,9 @@ describe("BlastooorGenesisFactory", function () {
         paymentToken: AddressZero,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
-        mintStartTime: 0,
-        allowlistStopTime: 1
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: 1,
+        timestampPublicMintStart: 0,
       }
       let tx = await factory.connect(owner).postAgentCreationSettings(params)
       let res = await factory.getAgentCreationSettings()
@@ -379,8 +382,9 @@ describe("BlastooorGenesisFactory", function () {
         paymentToken: AddressZero,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
-        mintStartTime: 0,
-        allowlistStopTime: 1
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: 1,
+        timestampPublicMintStart: 0,
       }
       let tx = await factory.connect(owner).postAgentCreationSettings(params)
       let res = await factory.getAgentCreationSettings()
@@ -655,8 +659,9 @@ describe("BlastooorGenesisFactory", function () {
         paymentToken: AddressZero,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
-        mintStartTime: 0,
-        allowlistStopTime: MaxUint256
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: MaxUint256,
+        timestampPublicMintStart: 0,
       }
       let tx = await factory.connect(owner).postAgentCreationSettings(params)
       let res = await factory.getAgentCreationSettings()
@@ -677,15 +682,15 @@ describe("BlastooorGenesisFactory", function () {
       let tx = await factory.connect(user2).blastooorMintWithAllowlist(1, signature, {value:WeiPerEther.div(100)})
     })
     it("can mint with allowlist and public", async function () {
-      let tx = await factory.connect(user3).blastooorMintWithAllowlistAndPublic(2, 8, signature, {value:WeiPerEther.div(100).mul(10)})
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      let tx = await factory.connect(user3).blastooorMintWithAllowlistAndPublic(2, 8, signature, {value:WeiPerEther.div(100).mul(10)})
     })
     it("cannot mint more pt 1", async function () {
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       await expect(factory.connect(user3).blastooorMintWithAllowlist(1, signature, {value:WeiPerEther.div(100)})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintPerAccount")
     })
     it("cannot mint 0 pt 1", async function () {
-      await expect(factory.connect(user3).blastooorPublicMint(0, {value:0})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintPerAccount")
+      await expect(factory.connect(user3).blastooorPublicMint(0, {value:0})).to.be.revertedWithCustomError(factory, "AmountZero")
     })
     it("cannot mint more pt 2", async function () {
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
@@ -693,7 +698,7 @@ describe("BlastooorGenesisFactory", function () {
     })
     it("cannot mint more pt 3", async function () {
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
-      await expect(factory.connect(user3).blastooorPublicMint(11, {value:WeiPerEther.div(100).mul(11)})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintPerTx")
+      await expect(factory.connect(user3).blastooorPublicMint(11, {value:WeiPerEther.div(100).mul(11)})).to.be.revertedWithCustomError(factory, "OverMaxMintPerTx")
     })
   })
 

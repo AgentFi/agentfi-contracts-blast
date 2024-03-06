@@ -31,24 +31,15 @@ let chainID: number;
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
 const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x1740c3552c5f1Bd304fab433C977375357B5Bd7c";
-const CONTRACT_FACTORY_ADDRESS        = "0xA74500382CAb2EBFe9A08dc2c01430821A4A8E15"; // v0.1.3
+const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD"; // genesis
+const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // genesis
 
-const GAS_COLLECTOR_ADDRESS           = "0x0311b9696907AdC2093448678cf080adA1368d00"; // V0.1.3
-const BALANCE_FETCHER_ADDRESS         = "0xb646F462A89799d910b1dc330BA1DA9dE763c931"; // v0.1.3
+const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // genesis
+const BALANCE_FETCHER_ADDRESS         = "0x5f3Ab2963DD2c61c6d69a3E42f51135cfdC189B0"; // genesis
 
-const AGENT_NFT_ADDRESS               = "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"; // v0.1.3
-
-const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373c95"; // v0.1.3
-const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
-const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
-const GENESIS_FACTORY_ADDRESS         = "0x9d2f478f121b7b96C0AE29D3Cf8e66914936d4a7"; // genesis
-
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
-const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
-const ACCOUNT_IMPL_RING_D_ADDRESS     = "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64"; // v0.1.3
-const ACCOUNT_IMPL_THRUSTER_A_ADDRESS = "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f"; // v0.1.5
-const ACCOUNT_IMPL_BASKET_A_ADDRESS   = "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8"; // v0.1.5
+const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // genesis
+const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // genesis
+const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // genesis
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -75,16 +66,9 @@ const STAKING_REWARDS_INDEX      = 2;
 
 let iblast: IBlast;
 let gasCollector: GasCollector;
-let agentNft: Agents;
-let factory01: AgentFactory01;
-let factory02: AgentFactory02;
-let factory03: AgentFactory03;
+let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
-let accountImplRingC: BlastAgentAccountRingProtocolC;
-let accountImplRingD: BlastAgentAccountRingProtocolD;
-let accountImplThrusterA: BlastAgentAccountThrusterA;
-let accountImplBasketA: BlastAgentAccountBasketA;
 
 let usdb: MockERC20;
 
@@ -103,20 +87,16 @@ async function main() {
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, boombotseth) as IBlast;
 
   gasCollector = await ethers.getContractAt("GasCollector", GAS_COLLECTOR_ADDRESS, agentfideployer) as GasCollector;
-  agentNft = await ethers.getContractAt("Agents", AGENT_NFT_ADDRESS, agentfideployer) as Agents;
-  factory01 = await ethers.getContractAt("AgentFactory01", AGENT_FACTORY01_ADDRESS, agentfideployer) as AgentFactory01;
-  factory02 = await ethers.getContractAt("AgentFactory02", AGENT_FACTORY02_ADDRESS, agentfideployer) as AgentFactory02;
-  factory03 = await ethers.getContractAt("AgentFactory03", AGENT_FACTORY03_ADDRESS, agentfideployer) as AgentFactory03;
+  genesisCollection = await ethers.getContractAt("BlastooorGenesisAgents", GENESIS_COLLECTION_ADDRESS, agentfideployer) as BlastooorGenesisAgents;
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
-  accountImplRingC = await ethers.getContractAt("BlastAgentAccountRingProtocolC", ACCOUNT_IMPL_RING_C_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolC;
-  accountImplRingD = await ethers.getContractAt("BlastAgentAccountRingProtocolD", ACCOUNT_IMPL_RING_D_ADDRESS, agentfideployer) as BlastAgentAccountRingProtocolD;
-  accountImplThrusterA = await ethers.getContractAt("BlastAgentAccountThrusterA", ACCOUNT_IMPL_THRUSTER_A_ADDRESS, agentfideployer) as BlastAgentAccountThrusterA;
-  accountImplBasketA = await ethers.getContractAt("BlastAgentAccountBasketA", ACCOUNT_IMPL_BASKET_A_ADDRESS, agentfideployer) as BlastAgentAccountBasketA;
 
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
+
+  await postAgentCreationSettings_blastooor();
+  await addSigners()
 
   await whitelistFactories();
   //await setNftMetadata();
@@ -124,8 +104,6 @@ async function main() {
   //await configureGasCollector();
   //await collectGasRewards();
 
-  await postAgentCreationSettings_blastooor();
-  await addSigners()
 
   //await postAgentCreationSettings03_1();
   //await postAgentCreationSettings03_2();
@@ -147,18 +125,6 @@ async function configureContractFactoryGasGovernor() {
 async function whitelistFactories() {
   let expectedSettings = [
     {
-      factory: factory01.address,
-      shouldWhitelist: true,
-    },
-    {
-      factory: factory02.address,
-      shouldWhitelist: true,
-    },
-    {
-      factory: factory03.address,
-      shouldWhitelist: true,
-    },
-    {
       factory: GENESIS_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
@@ -166,12 +132,12 @@ async function whitelistFactories() {
   let diffs = [] as any[]
   for(let i = 0; i < expectedSettings.length; i++) {
     let { factory , shouldWhitelist } = expectedSettings[i]
-    let isWhitelisted = await agentNft.connect(boombotseth).factoryIsWhitelisted(factory)
+    let isWhitelisted = await genesisCollection.connect(boombotseth).factoryIsWhitelisted(factory)
     if(isWhitelisted != shouldWhitelist) diffs.push(expectedSettings[i])
   }
   if(diffs.length > 0) {
     console.log("Whitelisting factories")
-    let tx = await agentNft.connect(agentfideployer).setWhitelist(diffs, networkSettings.overrides)
+    let tx = await genesisCollection.connect(agentfideployer).setWhitelist(diffs, networkSettings.overrides)
     await tx.wait(networkSettings.confirmations)
     console.log("Whitelisted factories")
   }
@@ -181,26 +147,26 @@ async function setNftMetadata() {
   let txdatas = [] as any[]
   let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI.json"
   let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&v=0.1.4&agentID="
-  let currentContractURI = await agentNft.contractURI()
-  let currentBaseURI = await agentNft.baseURI()
+  let currentContractURI = await genesisCollection.contractURI()
+  let currentBaseURI = await genesisCollection.baseURI()
   if(currentContractURI != desiredContractURI) {
-    txdatas.push(agentNft.interface.encodeFunctionData("setContractURI", [desiredContractURI]))
+    txdatas.push(genesisCollection.interface.encodeFunctionData("setContractURI", [desiredContractURI]))
   }
   if(currentBaseURI != desiredBaseURI) {
-    txdatas.push(agentNft.interface.encodeFunctionData("setBaseURI", [desiredBaseURI]))
+    txdatas.push(genesisCollection.interface.encodeFunctionData("setBaseURI", [desiredBaseURI]))
   }
   if(txdatas.length == 0) return
   var tx
   console.log("Setting NFT metadata");
   if(txdatas.length == 1) {
     tx = await agentfideployer.sendTransaction({
-      to: agentNft.address,
+      to: genesisCollection.address,
       data: txdatas[0],
       ...networkSettings.overrides,
       gasLimit: 1_000_000
     })
   } else { // length > 1
-    tx = await agentNft.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 1_000_000});
+    tx = await genesisCollection.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 1_000_000});
   }
   //console.log("tx:", tx);
   await tx.wait(networkSettings.confirmations);
@@ -255,8 +221,9 @@ async function postAgentCreationSettings_blastooor() {
 
   const startTimePast = 1705735600
 
-  const mintStartTime = 1709355600
-  const allowlistStopTime = 1709398800
+  const timestampAllowlistMintStart = 1709355600
+  const timestampAllowlistMintEnd = 1709398800
+  const timestampPublicMintStart = 1709355600
 
   let params = {
     agentImplementation: accountImplBase.address,
@@ -265,11 +232,11 @@ async function postAgentCreationSettings_blastooor() {
       agentInitializationCode4,
     ],
     isActive: true,
-    paymentToken: AddressZero,
     paymentAmount: WeiPerEther.mul(1).div(100),
     paymentReceiver: agentfideployer.address,
-    mintStartTime: startTimePast,
-    allowlistStopTime: allowlistStopTime
+    timestampAllowlistMintStart: 0,
+    timestampAllowlistMintEnd: timestampAllowlistMintEnd,
+    timestampPublicMintStart: 0,
   }
   let tx = await genesisFactory.connect(agentfideployer).postAgentCreationSettings(params)
   let receipt = await tx.wait(networkSettings.confirmations)
