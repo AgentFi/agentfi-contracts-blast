@@ -85,7 +85,7 @@ describe("Balancer Fetch Forked Test", function () {
         )
         .then((r) => r.map(convertToStruct));
 
-      console.table(res);
+      // console.table(res);
 
       expect(res).deep.eq([
         {
