@@ -9,6 +9,15 @@ pragma solidity 0.8.24;
  */
 interface IBalanceFetcher {
 
+    struct Agent {
+        address agentAddress;
+        address implementation;
+        address owner;
+        address collection;
+        uint256 tokenId;
+        uint256[] balances;
+    }
+
     /**
      * @notice Given an account and a list of tokens, returns that account's balance of each token.
      * Supports ERC20s and the gas token.
@@ -16,6 +25,14 @@ interface IBalanceFetcher {
      * @param tokens The list of tokens to query.
      */
     function fetchBalances(address account, address[] calldata tokens) external payable returns (uint256[] memory balances);
+
+    /**
+     * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account.
+     * @param account The account to query.
+     * @param collections The list of nfts tokens to query.
+     * @param tokens The list of erc20 tokens to query.
+     */
+    function fetchAgents(address account, address[] calldata collections, address[] calldata tokens) external payable returns (Agent[] memory agents);
 
     struct GasQuote {
         uint256 quoteAmountAllGas;

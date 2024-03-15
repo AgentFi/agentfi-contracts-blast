@@ -23,11 +23,15 @@ contract GasCollector is Blastable, Ownable2Step, Multicall, IGasCollector {
      * @notice Constructs the GasCollector contract.
      * @param owner_ The contract owner.
      * @param blast_ The address of the blast gas reward contract.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address owner_,
-        address blast_
-    ) Blastable(blast_, address(0)) {
+        address blast_,
+        address blastPoints_,
+        address pointsOperator_
+    ) Blastable(blast_, address(0), blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
     }
 

@@ -1,24 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-import { AccountV3 } from "./AccountV3.sol";
+import { BlastooorStrategyAccountBase } from "./BlastooorStrategyAccountBase.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
-import { IBlastAgentAccount } from "./../interfaces/accounts/IBlastAgentAccount.sol";
+import { AccessControlLibrary } from "./../libraries/AccessControlLibrary.sol";
+import { IBlastooorStrategyAgentAccount } from "./../interfaces/accounts/IBlastooorStrategyAgentAccount.sol";
 import { IBlast } from "./../interfaces/external/Blast/IBlast.sol";
 import { Blastable } from "./../utils/Blastable.sol";
+import { LibExecutor } from "./../lib/LibExecutor.sol";
 
 
 /**
- * @title BlastAgentAccount
+ * @title BlastooorStrategyAgentAccount
  * @author AgentFi
- * @notice An account type used by agents. Built on top of Tokenbound AccountV3.
+ * @notice An account type used by agents. Built on top of Tokenbound BlastooorStrategyAccountBase.
  *
  * Different functions within and across TBAs require different access control lists. Many of these functions are limited to just the TBA owner or its root owner. Some implementations allow a permissioned user to assume owner permissions. Role based access control allows the owner to grant and revoke access to a subset of protected functions as they see fit.
  *
  * Also comes with some features that integrate the accounts with the Blast ecosystem. The factory configures the account to automatically collect Blast yield and gas rewards on deployment. The TBA owner can claim these gas rewards with [`claimAllGas()`](#claimallgas) or [`claimMaxGas()`](#claimmaxgas). The rewards can also be quoted offchain with [`quoteClaimAllGas()`](#quoteclaimallgas) or [`quoteClaimMaxGas()`](#quoteclaimmaxgas).
  */
-contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
+contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastable, IBlastooorStrategyAgentAccount {
 
     /***************************************
     STATE VARIABLES
@@ -26,29 +28,32 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
 
     /// @notice The role for strategy managers.
     bytes32 public constant STRATEGY_MANAGER_ROLE = keccak256("STRATEGY_MANAGER_ROLE");
-    /// @notice The role for gas collectors.
-    bytes32 public constant GAS_COLLECTOR_ROLE = keccak256("GAS_COLLECTOR_ROLE");
-
-    // role hash => role owner => is role assigned
-    mapping(bytes32 => mapping(address => bool)) internal assignedRoles;
 
     /***************************************
     CONSTRUCTOR
     ***************************************/
 
     /**
-     * @notice Constructs the BlastAgentAccount contract.
+     * @notice Constructs the BlastooorStrategyAgentAccount contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param governor_ The address of the gas governor.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
+     * @param entryPoint_ The ERC-4337 EntryPoint address.
+     * @param multicallForwarder The MulticallForwarder address.
+     * @param erc6551Registry The ERC-6551 Registry address.
+     * @param _guardian The AccountGuardian address.
      */
     constructor(
         address blast_,
         address governor_,
+        address blastPoints_,
+        address pointsOperator_,
         address entryPoint_,
         address multicallForwarder,
         address erc6551Registry,
         address _guardian
-    ) Blastable(blast_, governor_) AccountV3(entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
+    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) BlastooorStrategyAccountBase(entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
 
     /***************************************
     VIEW FUNCTIONS
@@ -81,7 +86,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      * @return hasRole_ True if account has the role, false otherwise.
      */
     function hasRole(bytes32 role, address account) external view override returns (bool hasRole_) {
-        hasRole_ = assignedRoles[role][account];
+        hasRole_ = AccessControlLibrary.hasRole(role, account);
     }
 
     /**
@@ -90,14 +95,15 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      * @param params The list of roles to set.
      */
     function setRoles(SetRolesParam[] calldata params) external payable override {
-        _verifySenderIsValidExecutor();
+        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
         _verifyIsUnlocked();
         _updateState();
+        AccessControlLibrary.AccessControlLibraryStorage storage acls = AccessControlLibrary.accessControlLibraryStorage();
         for(uint256 i = 0; i < params.length; ++i) {
             bytes32 role = params[i].role;
             address account = params[i].account;
             bool grantAccess = params[i].grantAccess;
-            assignedRoles[role][account] = grantAccess;
+            acls.assignedRoles[role][account] = grantAccess;
             emit RoleAccessChanged(role, account, grantAccess);
         }
     }
@@ -108,9 +114,65 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      */
     function _verifySenderIsValidExecutorOrHasRole(bytes32 role) internal view virtual {
         address sender = _msgSender();
-        if(assignedRoles[role][sender]) return;
+        if(AccessControlLibrary.hasRole(role, sender)) return;
         if(_isValidExecutor(sender)) return;
         revert Errors.NotAuthorized();
+    }
+
+    /***************************************
+    MUTATOR FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Executes an external call from this account.
+     * Can only be called by an authorized executor or strategy manager.
+     */
+    function executeByStrategyManager(ExecuteByStrategyManagerParam calldata params) external payable virtual override returns (bytes memory result) {
+        _strategyManagerPrecheck();
+        result = LibExecutor._execute(params.to, 0, params.data, 0);
+    }
+
+    /**
+     * @notice Executes an external call from this account.
+     * Can only be called by an authorized executor or strategy manager.
+     */
+    function executePayableByStrategyManager(ExecutePayableByStrategyManagerParam calldata params) external payable virtual override returns (bytes memory result) {
+        _strategyManagerPrecheck();
+        result = LibExecutor._execute(params.to, params.value, params.data, 0);
+    }
+
+    /**
+     * @notice Executes a batch of external calls from this account.
+     * Can only be called by an authorized executor or strategy manager.
+     */
+    function executeBatchByStrategyManager(ExecuteByStrategyManagerParam[] calldata params) external payable virtual override returns (bytes[] memory results) {
+        _strategyManagerPrecheck();
+        results = new bytes[](params.length);
+        for(uint256 i = 0; i < params.length; ++i) {
+            results[i] = LibExecutor._execute(params[i].to, 0, params[i].data, 0);
+        }
+    }
+
+    /**
+     * @notice Executes a batch of external calls from this account.
+     * Can only be called by an authorized executor or strategy manager.
+     */
+    function executePayableBatchByStrategyManager(ExecutePayableByStrategyManagerParam[] calldata params) external payable virtual override returns (bytes[] memory results) {
+        _strategyManagerPrecheck();
+        results = new bytes[](params.length);
+        for(uint256 i = 0; i < params.length; ++i) {
+            results[i] = LibExecutor._execute(params[i].to, params[i].value, params[i].data, 0);
+        }
+    }
+
+    /**
+     * @notice Precheck for all execute by strategy manager calls.
+     */
+    function _strategyManagerPrecheck() internal {
+        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
+        _verifyIsUnlocked();
+        _updateState();
+        _beforeExecute();
     }
 
     /***************************************
@@ -124,7 +186,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      */
     function claimAllGas() external payable override returns (uint256 amountClaimed) {
         // checks
-        _verifySenderIsValidExecutorOrHasRole(GAS_COLLECTOR_ROLE);
+        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
         _verifyIsUnlocked();
         _updateState();
         // effects
@@ -138,7 +200,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      */
     function claimMaxGas() external payable override returns (uint256 amountClaimed) {
         // checks
-        _verifySenderIsValidExecutorOrHasRole(GAS_COLLECTOR_ROLE);
+        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
         _verifyIsUnlocked();
         _updateState();
         // effects
@@ -158,7 +220,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      * @return quoteAmount The amount of gas that can be claimed.
      */
     function quoteClaimAllGas() external payable override virtual returns (uint256 quoteAmount) {
-        try BlastAgentAccount(payable(address(this))).quoteClaimAllGasWithRevert() {}
+        try BlastooorStrategyAgentAccount(payable(address(this))).quoteClaimAllGasWithRevert() {}
         catch (bytes memory reason) {
             quoteAmount = BlastableLibrary.parseRevertReasonForAmount(reason);
         }
@@ -183,7 +245,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      * @return quoteAmount The amount of gas that can be claimed.
      */
     function quoteClaimMaxGas() external payable override virtual returns (uint256 quoteAmount) {
-        try BlastAgentAccount(payable(address(this))).quoteClaimMaxGasWithRevert() {}
+        try BlastooorStrategyAgentAccount(payable(address(this))).quoteClaimMaxGasWithRevert() {}
         catch (bytes memory reason) {
             quoteAmount = BlastableLibrary.parseRevertReasonForAmount(reason);
         }
@@ -207,7 +269,7 @@ contract BlastAgentAccount is AccountV3, Blastable, IBlastAgentAccount {
      * @notice Allows this contract to receive the gas token.
      */
     // solhint-disable-next-line no-empty-blocks
-    receive() external payable override (AccountV3,Blastable) virtual {
+    receive() external payable override (BlastooorStrategyAccountBase,Blastable) virtual {
         _handleOverride();
     }
 }

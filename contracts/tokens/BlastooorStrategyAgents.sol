@@ -7,15 +7,15 @@ import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { ERC721Enumerable } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
-import { IAgents } from "./../interfaces/tokens/IAgents.sol";
+import { IBlastooorStrategyAgents } from "./../interfaces/tokens/IBlastooorStrategyAgents.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 
 
 /**
- * @title Agents
+ * @title BlastooorStrategyAgents
  * @author AgentFi
- * @notice The Agents ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
+ * @notice The Blastooor Strategy ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
  *
  * Each agent is represented as an NFT. The owner of the NFT is the owner of the agent. Transferring the NFT means transferring the agent and its contents.
  *
@@ -27,7 +27,7 @@ import { Ownable2Step } from "./../utils/Ownable2Step.sol";
  *
  * Agents are ERC721s with the enumerable extension. Additional information about each agent can be queried via [`getAgentInfo()`](#getagentinfo) and [`exists()`](#exists).
  */
-contract Agents is IAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall {
+contract BlastooorStrategyAgents is IBlastooorStrategyAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall {
 
     mapping(address => bool) internal _factoryIsWhitelisted;
 
@@ -47,7 +47,7 @@ contract Agents is IAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall
 
 
     /**
-     * @notice Constructs the Agents nft contract.
+     * @notice Constructs the BlastooorStrategyAgents nft contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param governor_ The address of the gas governor.
@@ -62,7 +62,7 @@ contract Agents is IAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall
         address blastPoints_,
         address pointsOperator_,
         address erc6551Registry_
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) ERC721("Agents", "AGENTS") {
+    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) ERC721("Blastooor Strategy", "BLASTOOOR STRATEGY") {
         _transferOwnership(owner_);
         _erc6551Registry = erc6551Registry_;
     }

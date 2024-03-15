@@ -22,12 +22,16 @@ contract MockGasBurner is Multicall, Blastable, Ownable2Step {
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param governor_ The address of the gas governor.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_
-    ) Blastable(blast_, governor_) {
+        address governor_,
+        address blastPoints_,
+        address pointsOperator_
+    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
         x = 1;
     }

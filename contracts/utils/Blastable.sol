@@ -20,14 +20,22 @@ abstract contract Blastable is IBlastable {
      * Configures the contract to receive automatic yield, claimable gas, and assigns a governor.
      * @param blast_ The address of the blast gas reward contract.
      * @param governor_ The address of the gas governor.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      */
-    constructor(address blast_, address governor_) {
+    constructor(
+        address blast_,
+        address governor_,
+        address blastPoints_,
+        address pointsOperator_
+    ) {
         _blast = blast_;
         // allow these calls to fail on local fork
         // check success after deployment
         blast_.call(abi.encodeWithSignature("configureAutomaticYield()"));
         blast_.call(abi.encodeWithSignature("configureClaimableGas()"));
         if(governor_ != address(0)) blast_.call(abi.encodeWithSignature("configureGovernor(address)", governor_));
+        if(pointsOperator_ != address(0)) blastPoints_.call(abi.encodeWithSignature("configurePointsOperator(address)", pointsOperator_));
     }
 
     /**

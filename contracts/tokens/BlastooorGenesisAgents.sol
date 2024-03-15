@@ -51,14 +51,18 @@ contract BlastooorGenesisAgents is IBlastooorGenesisAgents, ERC721Enumerable, Bl
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param governor_ The address of the gas governor.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      * @param erc6551Registry_ The address of the ERC6551Registry.
      */
     constructor(
         address owner_,
         address blast_,
         address governor_,
+        address blastPoints_,
+        address pointsOperator_,
         address erc6551Registry_
-    ) Blastable(blast_, governor_) ERC721("Blastooor Genesis", "BLASTOOOR") {
+    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) ERC721("Blastooor Genesis", "BLASTOOOR") {
         _transferOwnership(owner_);
         _erc6551Registry = erc6551Registry_;
     }

@@ -4,7 +4,7 @@ pragma solidity 0.8.24;
 
 /**
  * @title Errors
- * @author AgentFi Ltd.
+ * @author AgentFi
  * @notice A library of custom error types used in BOOM!.
  */
 library Errors {
@@ -52,6 +52,8 @@ library Errors {
     error UnknownName();
     /// @notice Thrown when accessing an element that is out of range.
     error OutOfRange();
+    /// @notice Thrown when gas token values do not match.
+    error ValueMismatch();
 
     // execution errors
     /// @notice Thrown when a call reenters illegally.
@@ -94,6 +96,8 @@ library Errors {
     error InsufficientPayment();
     /// @notice Thrown when minting from the treasury allocation without approval.
     error NotTreasuryMinter();
+    /// @notice Thrown when minting more agents than allowed per user.
+    error OverMaxCreationsPerUser();
 
     // erc2535 errors
     /// @notice Thrown when installing a function that is already installed.
@@ -121,7 +125,8 @@ library Errors {
     error NotGasCollector();
     /// @notice Thrown when trying to mint without the minter role.
     error NotMinter();
-
+    /// @notice Thrown when calling the dispatcher without the operator role.
+    error NotOperator();
 
     error InvalidOperation();
     error ContractCreationFailed();

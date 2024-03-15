@@ -12,7 +12,7 @@ const blasttestnetuser1 = new ethers.Wallet(accounts.blasttestnetuser1.key, prov
 const allowlistSignerKey = accounts.allowlistSigner.key
 const allowlistSignerAddress = accounts.allowlistSigner.address
 
-import { Agents, BlastAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher } from "../../typechain-types";
+import { Agents, BlastooorAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher, IBlastPoints } from "../../typechain-types";
 
 import { delay, deduplicateArray } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -30,16 +30,25 @@ let chainID: number;
 
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
 const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD"; // genesis
-const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // genesis
+const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD"; // v1.0.0
+const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
-const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // genesis
-const BALANCE_FETCHER_ADDRESS         = "0x5f3Ab2963DD2c61c6d69a3E42f51135cfdC189B0"; // genesis
+const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
+const BALANCE_FETCHER_ADDRESS         = "0xecBa5144eeFEebceC60e0Bfb0D19e6F86048690A"; // v1.0.1
 
-const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // genesis
-const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // genesis
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // genesis
+const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
+const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
+const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // v1.0.0
+
+const STRATEGY_COLLECTION_ADDRESS     = "0x07A10106e8cA35D3ca976A63B93aCECF56Ef10dF"; // v1.0.1
+const STRATEGY_FACTORY_ADDRESS        = "0x91e82c028C1b7015225a7bCFa7a430E46C8DCFb6"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xF62f98e2aF80BB65e544D38783254bE294a4526d"; // v1.0.1
+
+const DISPATCHER_ADDRESS              = "0xC9EB588498e911bdeB081A927c8059FaC4480260"; // v1.0.1
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -65,10 +74,15 @@ const RING_ADDRESS               = "0x0BD5539E33a1236bA69228271e60f3bFf8fDB7DB";
 const STAKING_REWARDS_INDEX      = 2;
 
 let iblast: IBlast;
+let iblastpoints: IBlastPoints;
 let gasCollector: GasCollector;
 let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
-let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
+let accountImplBase: BlastooorAgentAccount; // the base implementation for agentfi accounts
+let strategyCollection: BlastooorStrategyAgents;
+let strategyFactory: BlastooorStrategyFactory;
+let strategyAccountImpl: BlastooorStrategyAgentAccount;
+let dispatcher: Dispatcher;
 
 let usdb: MockERC20;
 
@@ -84,21 +98,26 @@ async function main() {
   if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
   //await expectDeployed(ERC6551_REGISTRY_ADDRESS)
 
-  iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, boombotseth) as IBlast;
+  iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
+  iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
 
   gasCollector = await ethers.getContractAt("GasCollector", GAS_COLLECTOR_ADDRESS, agentfideployer) as GasCollector;
   genesisCollection = await ethers.getContractAt("BlastooorGenesisAgents", GENESIS_COLLECTION_ADDRESS, agentfideployer) as BlastooorGenesisAgents;
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
-  accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
+  accountImplBase = await ethers.getContractAt("BlastooorAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastooorAgentAccount;
+  strategyCollection = await ethers.getContractAt("BlastooorStrategyAgents", STRATEGY_COLLECTION_ADDRESS, agentfideployer) as BlastooorStrategyAgents;
+  strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
+  strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
+  dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
 
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
 
-  await postAgentCreationSettings_blastooor();
-  await addSigners()
+  //await postAgentCreationSettings_blastooor();
+  //await addSigners()
 
-  await whitelistFactories();
+  //await whitelistFactories();
   //await setNftMetadata();
 
   //await configureGasCollector();
@@ -112,7 +131,10 @@ async function main() {
   //await postAgentCreationSettings03_6();
   //await postAgentCreationSettings03_7();
 
-
+  //await whitelistStrategyFactories();
+  //await setMaxCreationsPerGenesisAgent();
+  //await setStrategyNftMetadata();
+  await postStrategyAgentCreationSettings_1();
 }
 
 async function configureContractFactoryGasGovernor() {
@@ -132,7 +154,7 @@ async function whitelistFactories() {
   let diffs = [] as any[]
   for(let i = 0; i < expectedSettings.length; i++) {
     let { factory , shouldWhitelist } = expectedSettings[i]
-    let isWhitelisted = await genesisCollection.connect(boombotseth).factoryIsWhitelisted(factory)
+    let isWhitelisted = await genesisCollection.connect(agentfideployer).factoryIsWhitelisted(factory)
     if(isWhitelisted != shouldWhitelist) diffs.push(expectedSettings[i])
   }
   if(diffs.length > 0) {
@@ -238,7 +260,7 @@ async function postAgentCreationSettings_blastooor() {
     timestampAllowlistMintEnd: timestampAllowlistMintEnd,
     timestampPublicMintStart: 0,
   }
-  let tx = await genesisFactory.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await genesisFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
 
@@ -273,7 +295,7 @@ async function postAgentCreationSettings03_1() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -303,7 +325,7 @@ async function postAgentCreationSettings03_2() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -333,7 +355,7 @@ async function postAgentCreationSettings03_3() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -365,7 +387,7 @@ async function postAgentCreationSettings03_4() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -397,7 +419,7 @@ async function postAgentCreationSettings03_6() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -429,7 +451,7 @@ async function postAgentCreationSettings03_7() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -463,7 +485,7 @@ async function postAgentCreationSettings03_8() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -495,7 +517,7 @@ async function postAgentCreationSettings03_5() {
     ],
     isPaused: false,
   }
-  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params)
+  let tx = await factory03.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
   let settingsID = postEvent.args[0]
@@ -545,7 +567,7 @@ async function configureGasCollector() {
 
 async function collectGasRewards() {
   console.log(`Collecting gas rewards`)
-  let tx = await gasCollector.connect(boombotseth).claimGas(networkSettings.overrides)
+  let tx = await gasCollector.connect(agentfideployer).claimGas(networkSettings.overrides)
   await tx.wait(networkSettings.confirmations)
   console.log(`Collected gas rewards`)
 }
@@ -555,7 +577,7 @@ async function transferFundsToFactory02() {
   var bal = await provider.getBalance(factory02.address)
   if(bal.eq(0)) {
     console.log(`Transferring ETH to factory02`)
-    let tx1 = await boombotseth.sendTransaction({
+    let tx1 = await agentfideployer.sendTransaction({
       ...networkSettings.overrides,
       to: factory02.address,
       value: WeiPerEther,
@@ -568,8 +590,8 @@ async function transferFundsToFactory02() {
   var bal = await usdb.balanceOf(factory02.address)
   if(bal.eq(0)) {
     console.log(`Transferring USDB to factory02`)
-    //let tx2 = await usdb.connect(boombotseth).transfer(factory02.address, WeiPerEther.mul(100_000), networkSettings.overrides)
-    let tx2 = await usdb.connect(boombotseth).transfer(factory02.address, WeiPerEther.mul(100_000), networkSettings.overrides)
+    //let tx2 = await usdb.connect(agentfideployer).transfer(factory02.address, WeiPerEther.mul(100_000), networkSettings.overrides)
+    let tx2 = await usdb.connect(agentfideployer).transfer(factory02.address, WeiPerEther.mul(100_000), networkSettings.overrides)
     await tx2.wait(networkSettings.confirmations)
     console.log(`Transferred USDB to factory02`)
   }
@@ -581,6 +603,70 @@ async function transferFundsFromFactory02() {
   let tx3 = await factory02.connect(agentfideployer).sweep(agentfideployer.address, [AddressZero, USDB_ADDRESS], networkSettings.overrides)
   await tx3.wait(networkSettings.confirmations)
   console.log(`Transferred funds from factory02`)
+}
+
+// strategies
+
+async function whitelistStrategyFactories() {
+  let expectedSettings = [
+    {
+      factory: STRATEGY_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+  ]
+  let diffs = [] as any[]
+  for(let i = 0; i < expectedSettings.length; i++) {
+    let { factory , shouldWhitelist } = expectedSettings[i]
+    let isWhitelisted = await strategyCollection.connect(agentfideployer).factoryIsWhitelisted(factory)
+    if(isWhitelisted != shouldWhitelist) diffs.push(expectedSettings[i])
+  }
+  if(diffs.length > 0) {
+    console.log("Whitelisting strategy factories")
+    let tx = await strategyCollection.connect(agentfideployer).setWhitelist(diffs, networkSettings.overrides)
+    await tx.wait(networkSettings.confirmations)
+    console.log("Whitelisted strategy factories")
+  }
+}
+
+async function setMaxCreationsPerGenesisAgent() {
+  console.log("setMaxCreationsPerGenesisAgent")
+  let tx = await strategyFactory.connect(agentfideployer).setMaxCreationsPerGenesisAgent(100, networkSettings.overrides)
+  await tx.wait(networkSettings.confirmations)
+  console.log("setMaxCreationsPerGenesisAgent")
+}
+
+// 1: create new strategy agent
+// vanilla. has no overrides and no strategy managers
+async function postStrategyAgentCreationSettings_1() {
+  let expectedSettingsID = 1
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let blastcalldata0 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode0 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata0, 0]);
+  let blastcalldata1 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode1 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata1, 0]);
+  let blastPointsCalldata2 = iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS])
+  let agentInitializationCode2 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_POINTS_ADDRESS, 0, blastPointsCalldata2, 0]);
+
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      agentInitializationCode0,
+      agentInitializationCode1,
+      agentInitializationCode2,
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
 }
 
 main()

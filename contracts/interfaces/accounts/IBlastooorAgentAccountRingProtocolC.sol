@@ -3,11 +3,11 @@ pragma solidity 0.8.24;
 
 
 /**
- * @title IBlastAgentAccountRingProtocolC
+ * @title IBlastooorAgentAccountRingProtocolC
  * @author AgentFi
  * @notice An account type used by agents. Integrates with Ring Protocol.
 */
-interface IBlastAgentAccountRingProtocolC {
+interface IBlastooorAgentAccountRingProtocolC {
 
     /***************************************
     MUTATOR FUNCTIONS
