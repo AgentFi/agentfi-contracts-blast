@@ -81,9 +81,10 @@ async function main() {
 
   //await postAgentCreationSettings_blastooor();
   //await addSigners()
+  await postAgentCreationSettings_blastooor_2();
 
   //await whitelistFactories();
-  await setNftMetadata();
+  //await setNftMetadata();
 
   //await configureGasCollector();
   //await collectGasRewards();
@@ -198,7 +199,6 @@ async function postAgentCreationSettings_blastooor() {
 
   const timestampAllowlistMintStart = 1709355600
   const timestampAllowlistMintEnd = 1709398800
-  //const timestampPublicMintStart = 1809356500
   //const timestampPublicMintStart = 1709356500
 
   let params = {
@@ -219,6 +219,40 @@ async function postAgentCreationSettings_blastooor() {
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
 
   console.log(`Called postAgentCreationSettings_blastooor`)
+}
+
+// postAgentCreationSettings_blastooor_2
+async function postAgentCreationSettings_blastooor_2() {
+  console.log(`Calling postAgentCreationSettings_blastooor_2`)
+
+  let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+
+  //const timestampAllowlistMintStart = 1709355600
+  //const timestampAllowlistMintEnd = 1709398800
+
+  let params = {
+    agentImplementation: accountImplBase.address,
+    initializationCalls: [
+      agentInitializationCode3,
+      agentInitializationCode4,
+    ],
+    isActive: true,
+    paymentAmount: 0,
+    paymentReceiver: agentfideployer.address,
+    timestampAllowlistMintStart: 0,
+    timestampAllowlistMintEnd: 0,
+    timestampPublicMintStart: 0,
+  }
+  let txdata0 = genesisFactory.interface.encodeFunctionData("postAgentCreationSettings", [params])
+  let txdata1 = genesisFactory.interface.encodeFunctionData("addTreasuryMinter", [agentfideployer.address])
+  let tx = await genesisFactory.connect(agentfideployer).multicall([txdata0, txdata1], networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  //let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+
+  console.log(`Called postAgentCreationSettings_blastooor_2`)
 }
 
 async function addSigners() {
