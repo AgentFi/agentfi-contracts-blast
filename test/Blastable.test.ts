@@ -23,8 +23,11 @@ import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAb
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 
 describe("Blastable", function () {
   let deployer: SignerWithAddress;
@@ -71,13 +74,13 @@ describe("Blastable", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("can deploy gas burner", async function () {
-      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address]);
+      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasBurner.address);
       expect(await gasBurner.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy MockGasBurner", gasBurner.deployTransaction);
@@ -163,7 +166,7 @@ describe("Blastable", function () {
     });
     it("can init to address zero", async function () {
       // role begins revoked
-      gasBurner = await deployContract(deployer, "MockGasBurner", [AddressZero, BLAST_ADDRESS, gasCollector.address]);
+      gasBurner = await deployContract(deployer, "MockGasBurner", [AddressZero, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasBurner.address);
       expect(await gasBurner.owner()).eq(AddressZero);
       expect(await gasBurner.pendingOwner()).eq(AddressZero);
@@ -177,7 +180,7 @@ describe("Blastable", function () {
     before(async function () {
       console.log("Warning: These tests will fail. The blast address cannot be called on local testnet.")
       console.log("We're just going to call them here, then do the real tests in prod.")
-      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address]);
+      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await gasBurner.connect(owner).transferOwnership(owner.address);
       await user1.sendTransaction({
         to: gasBurner.address,
@@ -291,7 +294,7 @@ describe("Blastable", function () {
       //await mockblast.connect(user1).claimAllGas(user2.address, user3.address);
       //await mockblast.connect(user1).claimMaxGas(user2.address, user3.address);
 
-      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, mockblast.address, gasCollector.address]);
+      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, mockblast.address, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
     })
     it("burn gas", async function () {
       await gasBurner.connect(owner).burnGas(1)

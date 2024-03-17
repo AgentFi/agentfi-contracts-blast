@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect } = chai;
 
-import { IERC6551Registry, BlastAgentAccount, MockERC20, MockERC721, GasCollector } from "./../typechain-types";
+import { IERC6551Registry, BlastooorAgentAccount, MockERC20, MockERC721, GasCollector } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -20,15 +20,17 @@ import L1DataFeeAnalyzer from "../scripts/utils/L1DataFeeAnalyzer";
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
-const ENTRY_POINT_ADDRESS      = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const badcode = "0x000000000000000000000000000000000baDC0DE"
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD";
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
 
-describe("BlastAgentAccount", function () {
+describe("BlastooorAgentAccount", function () {
   let deployer: SignerWithAddress;
   let owner: SignerWithAddress;
   let user1: SignerWithAddress;
@@ -41,10 +43,10 @@ describe("BlastAgentAccount", function () {
   let erc6551Registry: IERC6551Registry;
   let erc721TBA: MockERC721; // the erc721 that may have token bound accounts
   let erc721Asset: MockERC721; // an erc721 that token bound accounts may hold
-  let erc6551AccountImplementation: BlastAgentAccount; // the base implementation for token bound accounts
-  let erc6551Account1: BlastAgentAccount; // an account bound to a token
-  let erc6551Account2: BlastAgentAccount; // an account bound to a token
-  let erc6551Account3: BlastAgentAccount; // an account bound to a token
+  let erc6551AccountImplementation: BlastooorAgentAccount; // the base implementation for token bound accounts
+  let erc6551Account1: BlastooorAgentAccount; // an account bound to a token
+  let erc6551Account2: BlastooorAgentAccount; // an account bound to a token
+  let erc6551Account3: BlastooorAgentAccount; // an account bound to a token
 
   let erc20: MockERC20;
 
@@ -94,7 +96,7 @@ describe("BlastAgentAccount", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
@@ -105,7 +107,7 @@ describe("BlastAgentAccount", function () {
       await expectDeployed(erc721TBA.address);
     });
     it("can deploy account implementation", async function () {
-      erc6551AccountImplementation = await deployContract(deployer, "BlastAgentAccount", [BLAST_ADDRESS, gasCollector.address, ENTRY_POINT_ADDRESS,badcode,ERC6551_REGISTRY_ADDRESS,AddressZero]) as BlastAgentAccount;
+      erc6551AccountImplementation = await deployContract(deployer, "BlastooorAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorAgentAccount;
       await expectDeployed(erc6551AccountImplementation.address);
     });
     it("implementation begins with null state", async function () {
@@ -149,7 +151,7 @@ describe("BlastAgentAccount", function () {
       let tx = await erc6551Registry.createAccount(erc6551AccountImplementation.address, salt, chainID, erc721TBA.address, tokenId);
       let isDeployed2 = await isDeployed(predictedAddress)
       expect(isDeployed2).to.be.true;
-      erc6551Account1 = await ethers.getContractAt("BlastAgentAccount", predictedAddress) as BlastAgentAccount;
+      erc6551Account1 = await ethers.getContractAt("BlastooorAgentAccount", predictedAddress) as BlastooorAgentAccount;
       l1DataFeeAnalyzer.register("registry.createAccount", tx);
     });
     it("account begins with state", async function () {
@@ -176,7 +178,7 @@ describe("BlastAgentAccount", function () {
       let chainId2 = 9999;
       let predictedAddress = await erc6551Registry.account(erc6551AccountImplementation.address, salt, chainId2, erc721TBA.address, tokenId2);
       let tx = await erc6551Registry.createAccount(erc6551AccountImplementation.address, salt, chainId2, erc721TBA.address, tokenId2);
-      erc6551Account2 = await ethers.getContractAt("BlastAgentAccount", predictedAddress) as BlastAgentAccount;
+      erc6551Account2 = await ethers.getContractAt("BlastooorAgentAccount", predictedAddress) as BlastooorAgentAccount;
 
       expect(await erc6551Account2.owner()).eq(AddressZero);
       let tokenRes = await erc6551Account2.token();

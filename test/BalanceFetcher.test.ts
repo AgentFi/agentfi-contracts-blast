@@ -24,8 +24,11 @@ const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 const AddressOne = "0x0000000000000000000000000000000000000001"
 const AddressTwo = "0x0000000000000000000000000000000000000002"
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 
 describe("BalanceFetcher", function () {
   let deployer: SignerWithAddress;
@@ -51,7 +54,6 @@ describe("BalanceFetcher", function () {
   let gasBurner2: MockGasBurner; // inherits blastable
   let iblast: any;
   let mockblast: MockBlast;
-  let preboom: PreBOOM;
 
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
@@ -76,18 +78,18 @@ describe("BalanceFetcher", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("can deploy BalanceFetcher", async function () {
-      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address]) as BalanceFetcher;
+      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as BalanceFetcher;
       await expectDeployed(balanceFetcher.address);
       l1DataFeeAnalyzer.register("deploy BalanceFetcher", balanceFetcher.deployTransaction);
     });
     it("can deploy gas burner", async function () {
-      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address]) as MockGasBurner;
+      gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MockGasBurner;
       await expectDeployed(gasBurner.address);
       expect(await gasBurner.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy MockGasBurner", gasBurner.deployTransaction);
@@ -102,7 +104,7 @@ describe("BalanceFetcher", function () {
       })
     })
     it("can deploy gas burner 2", async function () {
-      gasBurner2 = await deployContract(deployer, "MockGasBurner", [owner.address, mockblast.address, gasCollector.address]) as MockGasBurner;
+      gasBurner2 = await deployContract(deployer, "MockGasBurner", [owner.address, mockblast.address, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MockGasBurner;
       await expectDeployed(gasBurner2.address);
       expect(await gasBurner2.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy MockGasBurner", gasBurner2.deployTransaction);
@@ -314,51 +316,6 @@ describe("BalanceFetcher", function () {
       expect(res[2].quoteAmountMaxGas).eq(0)
       expect(res[3].quoteAmountAllGas).eq(0)
       expect(res[3].quoteAmountMaxGas).eq(0)
-    })
-  })
-
-  describe("preboom", function () {
-    it("can deploy", async function () {
-      preboom = await deployContract(deployer, "PreBOOM", [owner.address, BLAST_ADDRESS, gasCollector.address]) as PreBOOM;
-      await expectDeployed(preboom.address);
-      l1DataFeeAnalyzer.register("deploy PreBOOM", preboom.deployTransaction);
-      expect(await preboom.name()).eq('Precursor BOOM!')
-      expect(await preboom.symbol()).eq('PreBOOM')
-      expect(await preboom.decimals()).eq(18)
-      expect(await preboom.totalSupply()).eq(0)
-      expect(await preboom.balanceOf(user1.address)).eq(0)
-      expect(await preboom.isMinter(user1.address)).eq(false)
-      expect(await preboom.owner()).eq(owner.address)
-    })
-    it("non minter cannot mint", async function () {
-      await expect(preboom.connect(user1).mint(user1.address, 1)).to.be.revertedWithCustomError(preboom, "NotMinter")
-    })
-    it("non owner cannot set minters", async function () {
-      await expect(preboom.connect(user1).setMinters([])).to.be.revertedWithCustomError(preboom, "NotContractOwner")
-    })
-    it("owner set minters", async function () {
-      let params = [
-        {
-          account: user1.address,
-          isMinter: true,
-        },
-        {
-          account: user2.address,
-          isMinter: false,
-        }
-      ]
-      let tx = await preboom.connect(owner).setMinters(params)
-      for(const param of params) {
-        const { account, isMinter } = param
-        expect(await preboom.isMinter(account)).eq(isMinter)
-        await expect(tx).to.emit(preboom, "MinterSet").withArgs(account, isMinter)
-      }
-    })
-    it("minter can mint", async function () {
-      let tx = await preboom.connect(user1).mint(user2.address, 5)
-      expect(await preboom.totalSupply()).eq(5)
-      expect(await preboom.balanceOf(user1.address)).eq(0)
-      expect(await preboom.balanceOf(user2.address)).eq(5)
     })
   })
 

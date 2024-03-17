@@ -21,17 +21,18 @@ import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAb
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
-const ENTRY_POINT_ADDRESS      = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const badcode = "0x000000000000000000000000000000000baDC0DE"
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD";
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
 const MAGIC_VALUE_IS_VALID_SIGNATURE = "0x1626ba7e";
 
 const multicallSighash                 = "0xac9650d8";
-const diamondCutSighash                = "0x1f931c1c";
 const updateSupportedInterfacesSighash = "0xf71a8a0f";
 const dummy1Sighash                    = "0x11111111";
 const dummy2Sighash                    = "0x22222222";
@@ -42,7 +43,7 @@ const testFunc2Sighash                 = "0x08752360";
 const testFunc3Sighash                 = "0x9a5fb5a8";
 const inscribeSighash                  = "0xde52f07d";
 
-describe("BoomAgentCreation", function () {
+describe("AgentCreation", function () {
   let deployer: SignerWithAddress;
   let owner: SignerWithAddress;
   let user1: SignerWithAddress;
@@ -55,11 +56,10 @@ describe("BoomAgentCreation", function () {
 
   let gasCollector: GasCollector;
   let agentNft: Agents;
-  let boomAgentAccountImplementation: BoomBotDiamondAccount; // the base implementation for token bound accounts
+  let strategyAgentAccountImplementation: BlastooorStrategyAgentAccount; // the base implementation for strategy accounts
   let accountV3Implementation: AccountV3; // the base implementation for token bound accounts
-  let dataStore: DataStore;
   let tbaccount1: ERC6551; // an account bound to a token
-  let tbaccount2: BoomBotDiamondAccount; // an account bound to a token
+  let tbaccount2: BlastooorStrategyAgentAccount; // an account bound to a token
   // modules
   let modulePack100: ModulePack100;
   let erc2535Module: ERC2535Module;
@@ -69,9 +69,8 @@ describe("BoomAgentCreation", function () {
   let fallbackModule: FallbackModule;
   let revertModule: RevertModule;
   let revertAccount: RevertAccount;
-  // diamond cuts
-  let diamondCutInits: any[] = [];
-  for(let i = 0; i < 20; i++) diamondCutInits.push([])
+
+  let agentInitializationCode0: any;
   let agentInitializationCode1: any;
   let agentInitializationCode2: any;
   // factory
@@ -82,6 +81,9 @@ describe("BoomAgentCreation", function () {
   let erc20c: MockERC20;
 
   let mockERC1271: MockERC1271;
+
+  let iblast: IBlast;
+  let iblastpoints: IBlastPoints;
 
   //let token1: MockERC20;
   //let token2: MockERC20;
@@ -99,8 +101,7 @@ describe("BoomAgentCreation", function () {
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
   let abi = getCombinedAbi([
-    "artifacts/contracts/accounts/BoomBotDiamondAccount.sol/BoomBotDiamondAccount.json",
-    "artifacts/contracts/modules/ModulePack102.sol/ModulePack102.json",
+    "artifacts/contracts/accounts/BlastooorAgentAccount.sol/BlastooorAgentAccount.json",
     "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
     "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
     "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
@@ -108,8 +109,6 @@ describe("BoomAgentCreation", function () {
     "artifacts/contracts/mocks/modules/Test3Module.sol/Test3Module.json",
     "artifacts/contracts/libraries/Calls.sol/Calls.json",
     "artifacts/contracts/libraries/Errors.sol/Errors.json",
-    "artifacts/contracts/libraries/modules/ERC2535Library.sol/ERC2535Library.json",
-    "artifacts/contracts/libraries/modules/ERC165Library.sol/ERC165Library.json",
   ])
   let combinedAbi: any
 
@@ -138,15 +137,7 @@ describe("BoomAgentCreation", function () {
     await expectDeployed(ERC6551_REGISTRY_ADDRESS); // expect to be run on a fork of a testnet with registry deployed
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
     combinedAbi = getCombinedAbi([
-      "artifacts/contracts/accounts/BoomBotDiamondAccount.sol/BoomBotDiamondAccount.json",
-      //"artifacts/contracts/mocks/accounts/MockBlastableAccount.sol/MockBlastableAccount.json",
-      "artifacts/contracts/modules/ModulePack100.sol/ModulePack100.json",
-      /*
-      "artifacts/contracts/modules/ERC2535Module.sol/ERC2535Module.json",
-      "artifacts/contracts/modules/ERC6551AccountModule.sol/ERC6551AccountModule.json",
-      "artifacts/contracts/modules/MulticallModule.sol/MulticallModule.json",
-      "artifacts/contracts/modules/ERC721HolderModule.sol/ERC721HolderModule.json",
-      */
+      "artifacts/contracts/accounts/BlastooorAgentAccount.sol/BlastooorAgentAccount.json",
       "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
       "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
       "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
@@ -154,6 +145,9 @@ describe("BoomAgentCreation", function () {
       "artifacts/contracts/mocks/modules/Test3Module.sol/Test3Module.json",
       "artifacts/contracts/libraries/Errors.sol/Errors.json",
     ])
+
+    iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS) as IBlast;
+    iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS) as IBlastPoints;
   });
 
   after(async function () {
@@ -162,22 +156,22 @@ describe("BoomAgentCreation", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("can deploy Agents ERC721", async function () {
       // to deployer
-      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(deployer.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
       // to owner
-      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(owner.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
     });
     it("initializes properly", async function () {
       expect(await agentNft.totalSupply()).eq(0);
@@ -186,47 +180,15 @@ describe("BoomAgentCreation", function () {
     });
     it("can deploy account implementations", async function () {
       // AccountV3
-      accountV3Implementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS,badcode,ERC6551_REGISTRY_ADDRESS,AddressZero]) as AccountV3;
+      accountV3Implementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero]) as AccountV3;
       await expectDeployed(accountV3Implementation.address);
       l1DataFeeAnalyzer.register("deploy AccountV3 impl", accountV3Implementation.deployTransaction);
-      // BooomAgentAccount
-      boomAgentAccountImplementation = await deployContract(deployer, "BoomBotDiamondAccount", [BLAST_ADDRESS, deployer.address]) as BoomBotDiamondAccount;
-      await expectDeployed(boomAgentAccountImplementation.address);
-      l1DataFeeAnalyzer.register("deploy BoomBotDiamondAccount impl", boomAgentAccountImplementation.deployTransaction);
+      // BlastooorStrategyAgentAccount
+      strategyAgentAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorStrategyAgentAccount;
+      await expectDeployed(strategyAgentAccountImplementation.address);
+      l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgentAccount impl", strategyAgentAccountImplementation.deployTransaction);
     });
-    it("can deploy data store", async function () {
-      // to deployer
-      dataStore = await deployContract(deployer, "DataStore", [deployer.address, BLAST_ADDRESS, gasCollector.address]);
-      await expectDeployed(dataStore.address);
-      expect(await dataStore.owner()).eq(deployer.address);
-      l1DataFeeAnalyzer.register("deploy DataStore", dataStore.deployTransaction);
-      // to owner
-      dataStore = await deployContract(deployer, "DataStore", [owner.address, BLAST_ADDRESS, gasCollector.address]);
-      await expectDeployed(dataStore.address);
-      expect(await dataStore.owner()).eq(owner.address);
-      l1DataFeeAnalyzer.register("deploy DataStore", dataStore.deployTransaction);
-    })
     it("can deploy modules", async function () {
-      // ModulePack100
-      modulePack100 = await deployContract(deployer, "ModulePack100", []) as ERC2535Module;
-      await expectDeployed(modulePack100.address);
-      l1DataFeeAnalyzer.register("deploy ModulePack100 impl", modulePack100.deployTransaction);
-      // erc2535
-      erc2535Module = await deployContract(deployer, "ERC2535Module", []) as ERC2535Module;
-      await expectDeployed(erc2535Module.address);
-      l1DataFeeAnalyzer.register("deploy ERC2535Module impl", erc2535Module.deployTransaction);
-      // erc6551 account
-      erc6551AccountModule = await deployContract(deployer, "ERC6551AccountModule", []) as ERC6551AccountModule;
-      await expectDeployed(erc6551AccountModule.address);
-      l1DataFeeAnalyzer.register("deploy ERC6551AccountModule impl", erc6551AccountModule.deployTransaction);
-      // multicall
-      multicallModule = await deployContract(deployer, "MulticallModule", []) as MulticallModule;
-      await expectDeployed(multicallModule.address);
-      l1DataFeeAnalyzer.register("deploy MulticallModule impl", multicallModule.deployTransaction);
-      // erc165
-      erc165Module = await deployContract(deployer, "ERC165Module", []) as ERC165Module;
-      await expectDeployed(erc165Module.address);
-      l1DataFeeAnalyzer.register("deploy ERC165Module impl", erc165Module.deployTransaction);
       // FallbackModule
       fallbackModule = await deployContract(deployer, "FallbackModule", []) as FallbackModule;
       await expectDeployed(fallbackModule.address);
@@ -238,12 +200,12 @@ describe("BoomAgentCreation", function () {
     });
     it("can deploy AgentFactory01", async function () {
       // to deployer
-      factory = await deployContract(deployer, "AgentFactory01", [deployer.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory01;
+      factory = await deployContract(deployer, "AgentFactory01", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory01;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(deployer.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory01", factory.deployTransaction);
       // to owner
-      factory = await deployContract(deployer, "AgentFactory01", [owner.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory01;
+      factory = await deployContract(deployer, "AgentFactory01", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory01;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory01", factory.deployTransaction);
@@ -261,8 +223,8 @@ describe("BoomAgentCreation", function () {
       await expect(agentNft.connect(user1).createAgent(AddressZero)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
       await expect(agentNft.connect(owner).createAgent(accountV3Implementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
       await expect(agentNft.connect(user1).createAgent(accountV3Implementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
-      await expect(agentNft.connect(owner).createAgent(boomAgentAccountImplementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
-      await expect(agentNft.connect(user1).createAgent(boomAgentAccountImplementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
+      await expect(agentNft.connect(owner).createAgent(strategyAgentAccountImplementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
+      await expect(agentNft.connect(user1).createAgent(strategyAgentAccountImplementation.address)).to.be.revertedWithCustomError(agentNft, "FactoryNotWhitelisted");
     });
     it("non owner cannot whitelist", async function () {
       await expect(agentNft.connect(user1).setWhitelist([])).to.be.revertedWithCustomError(agentNft, "NotContractOwner");
@@ -349,7 +311,7 @@ describe("BoomAgentCreation", function () {
     })
     it("can non owner cannot postAgentCreationSettings", async function () {
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [],
         isPaused: false
       }
@@ -365,7 +327,7 @@ describe("BoomAgentCreation", function () {
     })
     it("owner can postAgentCreationSettings", async function () {
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [],
         isPaused: false
       }
@@ -406,54 +368,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-    });
-    it("owner can whitelist modules", async function () {
-      let modules = [
-        {
-          module: modulePack100.address,
-          shouldWhitelist: true,
-        },
-        {
-          module: erc2535Module.address,
-          shouldWhitelist: true,
-        },
-        {
-          module: erc6551AccountModule.address,
-          shouldWhitelist: true,
-        },
-        {
-          module: multicallModule.address,
-          shouldWhitelist: true,
-        },
-        {
-          module: erc165Module.address,
-          shouldWhitelist: true,
-        },
-        /*
-        {
-          module: erc721ReceiverModule.address,
-          shouldWhitelist: true,
-        },
-        {
-          module: revertModule.address,
-          shouldWhitelist: true,
-        },
-        */
-        {
-          module: user1.address,
-          shouldWhitelist: false,
-        },
-
-      ]
-      let tx = await dataStore.connect(owner).setModuleWhitelist(modules)
-      for(let m of modules) {
-        expect(await dataStore.moduleIsWhitelisted(m.module)).to.eq(m.shouldWhitelist)
-        expect(await dataStore.moduleCanBeInstalled(m.module)).to.eq(m.shouldWhitelist)
-        await expect(tx).to.emit(dataStore, "ModuleWhitelisted").withArgs(m.module, m.shouldWhitelist)
-      }
     });
     it("can create agent pt 3", async function () {
       let ts = await agentNft.totalSupply();
@@ -480,8 +397,8 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("owner can whitelist pt 2", async function () {
@@ -540,7 +457,7 @@ describe("BoomAgentCreation", function () {
     })
     it("owner can postAgentCreationSettings pt 2", async function () {
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [],
         isPaused: false
       }
@@ -581,8 +498,8 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
   });
@@ -592,7 +509,7 @@ describe("BoomAgentCreation", function () {
       let ts = await agentNft.totalSupply();
       let bal = await agentNft.balanceOf(user1.address);
       let agentID = ts.add(1);
-      let agentRes = await agentNft.connect(user1).callStatic.createAgent(boomAgentAccountImplementation.address);
+      let agentRes = await agentNft.connect(user1).callStatic.createAgent(strategyAgentAccountImplementation.address);
       expect(agentRes.agentID).eq(agentID);
       expect(await agentNft.exists(agentID)).eq(false);
       //await expect(agentNft.getAgentID(agentRes.agentAddress)).to.be.revertedWithCustomError(agentNft, "AgentDoesNotExist");
@@ -600,7 +517,7 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentRes.agentAddress)).eq(false);
       let isDeployed1 = await isDeployed(agentRes.agentAddress)
       expect(isDeployed1).to.be.false;
-      let tx = await agentNft.connect(user1).createAgent(boomAgentAccountImplementation.address);
+      let tx = await agentNft.connect(user1).createAgent(strategyAgentAccountImplementation.address);
       await expect(tx).to.emit(agentNft, "Transfer").withArgs(AddressZero, user1.address, agentRes.agentID);
       expect(await agentNft.totalSupply()).eq(ts.add(1));
       expect(await agentNft.balanceOf(user1.address)).eq(bal.add(1));
@@ -612,7 +529,7 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
       tbaccount1 = await ethers.getContractAt(abi, agentInfo.agentAddress);
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
@@ -621,7 +538,7 @@ describe("BoomAgentCreation", function () {
       let ts = await agentNft.totalSupply();
       let bal = await agentNft.balanceOf(user1.address);
       let agentID = ts.add(1);
-      let agentRes = await agentNft.connect(user1).callStatic.createAgent(boomAgentAccountImplementation.address);
+      let agentRes = await agentNft.connect(user1).callStatic.createAgent(strategyAgentAccountImplementation.address);
       expect(agentRes.agentID).eq(agentID);
       expect(await agentNft.exists(agentID)).eq(false);
       //await expect(agentNft.getAgentID(agentRes.agentAddress)).to.be.revertedWithCustomError(agentNft, "AgentDoesNotExist");
@@ -629,7 +546,7 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentRes.agentAddress)).eq(false);
       let isDeployed1 = await isDeployed(agentRes.agentAddress)
       expect(isDeployed1).to.be.false;
-      let tx = await agentNft.connect(user1).createAgent(boomAgentAccountImplementation.address);
+      let tx = await agentNft.connect(user1).createAgent(strategyAgentAccountImplementation.address);
       await expect(tx).to.emit(agentNft, "Transfer").withArgs(AddressZero, user1.address, agentRes.agentID);
       expect(await agentNft.totalSupply()).eq(ts.add(1));
       expect(await agentNft.balanceOf(user1.address)).eq(bal.add(1));
@@ -641,9 +558,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
       tbaccount1 = await ethers.getContractAt(abi, agentInfo.agentAddress);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       // diamond cut
       await user1.sendTransaction({
@@ -662,7 +579,7 @@ describe("BoomAgentCreation", function () {
       var settings = await factory.getAgentCreationSettings(1);
       var { agentImplementation, initializationCalls, isPaused } = settings
       //console.log(settings)
-      expect(agentImplementation).eq(boomAgentAccountImplementation.address)
+      expect(agentImplementation).eq(strategyAgentAccountImplementation.address)
     });
     it("can create agent pt 7", async function () {
       let ts = await agentNft.totalSupply();
@@ -690,23 +607,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-    });
-    it("owner can whitelist pt 3", async function () {
-      let modules = [
-        {
-          module: fallbackModule.address,
-          shouldWhitelist: true,
-        },
-      ]
-      let tx = await dataStore.connect(owner).setModuleWhitelist(modules)
-      for(let m of modules) {
-        expect(await dataStore.moduleIsWhitelisted(m.module)).to.eq(m.shouldWhitelist)
-        expect(await dataStore.moduleCanBeInstalled(m.module)).to.eq(m.shouldWhitelist)
-        await expect(tx).to.emit(dataStore, "ModuleWhitelisted").withArgs(m.module, m.shouldWhitelist)
-      }
     });
     it("can create agent pt 8", async function () {
       let ts = await agentNft.totalSupply();
@@ -734,8 +637,8 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("create fails if extra data is bad", async function () {
@@ -753,34 +656,9 @@ describe("BoomAgentCreation", function () {
       await expect(factory.connect(user1)['createAgent(uint256,bytes[],address)'](1,[multicallSighash+"ab"],user1.address)).to.be.revertedWithCustomError;
     });
     it("owner can postAgentCreationSettings pt 3", async function () {
-      let diamondCut = [
-        {
-          facetAddress: modulePack100.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(modulePack100, 'ModulePack100'),
-        },
-        {
-          facetAddress: fallbackModule.address,
-          action: FacetCutAction.Add,
-          functionSelectors: [dummy1Sighash],
-        },
-      ]
-      let interfaceIDs = [
-        "0x01ffc9a7", // ERC165
-        "0x1f931c1c", // DiamondCut
-        "0x48e2b093", // DiamondLoupe
-        "0x6faff5f1", // ERC6551Account
-        "0x51945447", // ERC6551Executable
-      ]
-      let support = interfaceIDs.map(id=>true)
-      agentInitializationCode1 = boomAgentAccountImplementation.interface.encodeFunctionData("initialize", [diamondCut, dataStore.address]);
-      agentInitializationCode2 = modulePack100.interface.encodeFunctionData("updateSupportedInterfaces", [interfaceIDs, support]);
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
-        initializationCalls: [
-          agentInitializationCode1,
-          agentInitializationCode2,
-        ],
+        agentImplementation: strategyAgentAccountImplementation.address,
+        initializationCalls: [],
         isPaused: false
       }
       let tx = await factory.connect(owner).postAgentCreationSettings(params)
@@ -791,14 +669,6 @@ describe("BoomAgentCreation", function () {
       expect(res.isPaused).eq(params.isPaused)
       await expect(tx).to.emit(factory, "AgentCreationSettingsPosted").withArgs(3)
       await expect(tx).to.emit(factory, "AgentCreationSettingsPaused").withArgs(3, params.isPaused)
-      diamondCut = [
-        {
-          facetAddress: boomAgentAccountImplementation.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(boomAgentAccountImplementation, 'boomAgentAccountImplementation'),
-        },
-      ].concat(diamondCut)
-      diamondCutInits[9] = diamondCut
     })
     it("can create agent pt 9", async function () {
       let ts = await agentNft.totalSupply();
@@ -826,37 +696,16 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-      diamondCutInits[9][0].facetAddress = agentInfo.agentAddress
     });
     it("owner can postAgentCreationSettings pt 4", async function () {
-      let diamondCut = [
-        {
-          facetAddress: modulePack100.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(modulePack100, 'ModulePack100'),
-        },
-        {
-          facetAddress: fallbackModule.address,
-          action: FacetCutAction.Add,
-          functionSelectors: [dummy1Sighash],
-        },
-      ]
-      let interfaceIDs = [
-        "0x01ffc9a7", // ERC165
-        "0x1f931c1c", // DiamondCut
-        "0x48e2b093", // DiamondLoupe
-        "0x6faff5f1", // ERC6551Account
-        "0x51945447", // ERC6551Executable
-      ]
-      let support = interfaceIDs.map(id=>true)
+      let agentInitializationCode0 = strategyAgentAccountImplementation.interface.encodeFunctionData("execute", [deployer.address, 0, "0xabcd", 0]);
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [
-          boomAgentAccountImplementation.interface.encodeFunctionData("initialize", [diamondCut, dataStore.address]),
-          erc165Module.interface.encodeFunctionData("updateSupportedInterfaces", [interfaceIDs, support]),
+          agentInitializationCode0
         ],
         isPaused: false
       }
@@ -868,18 +717,6 @@ describe("BoomAgentCreation", function () {
       expect(res.isPaused).eq(params.isPaused)
       await expect(tx).to.emit(factory, "AgentCreationSettingsPosted").withArgs(4)
       await expect(tx).to.emit(factory, "AgentCreationSettingsPaused").withArgs(4, params.isPaused)
-      diamondCut = [
-        {
-          facetAddress: boomAgentAccountImplementation.address,
-          action: FacetCutAction.Add,
-          //functionSelectors: calcSighashes(boomAgentAccountImplementation, 'boomAgentAccountImplementation'),
-          functionSelectors: calcSighashes(boomAgentAccountImplementation, 'boomAgentAccountImplementation'),
-        },
-      ].concat(diamondCut)
-      diamondCutInits[10] = JSON.parse(JSON.stringify(diamondCut))
-      diamondCutInits[11] = JSON.parse(JSON.stringify(diamondCut))
-      diamondCutInits[12] = JSON.parse(JSON.stringify(diamondCut))
-      diamondCutInits[13] = JSON.parse(JSON.stringify(diamondCut))
     })
     it("can create agent pt 10", async function () {
       let ts = await agentNft.totalSupply();
@@ -907,10 +744,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-      diamondCutInits[10][0].facetAddress = agentInfo.agentAddress
     });
     it("can create agent pt 11", async function () {
       let ts = await agentNft.totalSupply();
@@ -938,10 +774,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-      diamondCutInits[11][0].facetAddress = agentInfo.agentAddress
     });
     it("can create agent pt 12", async function () {
       let ts = await agentNft.totalSupply();
@@ -968,10 +803,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-      diamondCutInits[12][0].facetAddress = agentInfo.agentAddress
     });
     it("can create agent pt 13", async function () {
       let ts = await agentNft.totalSupply();
@@ -1003,10 +837,9 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
-      diamondCutInits[13][0].facetAddress = agentInfo.agentAddress
       expect(await provider.getBalance(factory.address)).eq(0)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(75)
     });
@@ -1040,12 +873,13 @@ describe("BoomAgentCreation", function () {
       expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
-      expect(agentInfo.implementationAddress).eq(boomAgentAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
+      expect(agentInfo.implementationAddress).eq(strategyAgentAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(0)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(75)
     });
+    /*
     it("cannot create agent with bad init code pt 1", async function () {
       // revert with reason
       let agentInitializationCode32 = revertModule.interface.encodeFunctionData("revertWithReason", [])
@@ -1057,7 +891,7 @@ describe("BoomAgentCreation", function () {
       let txdatas3 = [agentInitializationCode31, agentInitializationCode32]
       let agentInitializationCode33 = modulePack100.interface.encodeFunctionData("multicall", [txdatas3])
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [agentInitializationCode1, agentInitializationCode33],
         isPaused: false
       }
@@ -1076,7 +910,7 @@ describe("BoomAgentCreation", function () {
       let txdatas4 = [agentInitializationCode41, agentInitializationCode42]
       let agentInitializationCode43 = modulePack100.interface.encodeFunctionData("multicall", [txdatas4])
       let params = {
-        agentImplementation: boomAgentAccountImplementation.address,
+        agentImplementation: strategyAgentAccountImplementation.address,
         initializationCalls: [agentInitializationCode1, agentInitializationCode43],
         isPaused: false
       }
@@ -1084,6 +918,7 @@ describe("BoomAgentCreation", function () {
       expect(await factory.getAgentCreationSettingsCount()).eq(6)
       await expect(factory.connect(user1)['createAgent(uint256)'](6)).to.be.revertedWithCustomError;//(factory, "CallFailed");
     })
+    */
     it("cannot create agent with bad init code pt 3", async function () {
       await expect(user1.sendTransaction({
         to: revertModule.address,
@@ -1114,22 +949,10 @@ describe("BoomAgentCreation", function () {
       let salt = toBytes32(0);
       let tokenId2 = 2;
       let chainId2 = 9999;
-      let predictedAddress = await erc6551Registry.account(boomAgentAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
-      let tx = await erc6551Registry.createAccount(boomAgentAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
+      let predictedAddress = await erc6551Registry.account(strategyAgentAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
+      let tx = await erc6551Registry.createAccount(strategyAgentAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
       await expectDeployed(predictedAddress)
       let bbaccount2 = await ethers.getContractAt(combinedAbi, predictedAddress);
-      // before init
-      await expect(bbaccount2.owner()).to.be.reverted;
-      await expect(bbaccount2.token()).to.be.reverted;
-      // init
-      let diamondCutInit = [
-        {
-          facetAddress: modulePack100.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(modulePack100, 'ModulePack100'),
-        },
-      ]
-      await bbaccount2.initialize(diamondCutInit, dataStore.address)
       // after init
       expect(await bbaccount2.owner()).eq(AddressZero);
       let tokenRes = await bbaccount2.token();
@@ -1141,7 +964,8 @@ describe("BoomAgentCreation", function () {
       expect(await bbaccount2['isValidSigner(address,bytes)'](user1.address, "0x")).eq(MAGIC_VALUE_0);
       expect(await bbaccount2['isValidSigner(address,bytes)'](user1.address, "0x00abcd")).eq(MAGIC_VALUE_0);
       expect(await bbaccount2['isValidSigner(address,bytes)'](user2.address, "0x")).eq(MAGIC_VALUE_0);
-      expect(await bbaccount2.isValidSignature(toBytes32(0), "0x")).eq(MAGIC_VALUE_0);
+      await expect(bbaccount2.isValidSignature(toBytes32(0), "0x")).to.be.reverted;
+      //expect(await bbaccount2.isValidSignature(toBytes32(0), "0x")).eq(MAGIC_VALUE_0);
       l1DataFeeAnalyzer.register("registry.createAccount", tx);
     });
   })
@@ -1152,84 +976,88 @@ describe("BoomAgentCreation", function () {
       accountType: "AccountV3",
       createdBy: "EOA",
       createdState: "correct",
-    },{ // created by factory, improperly setup
+    },{ // created by factory, properly setup
       agentID: 2,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
+      createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 3,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
+      createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 4,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
-    },{ // created by eoa, improperly setup
+      createdState: "correct",
+    },{ // created by eoa, properly setup
       agentID: 5,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "EOA",
-      createdState: "incorrect",
+      createdState: "correct",
     },{ // created by eoa, properly setup
       agentID: 6,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "EOA",
-      createdState: "incorrect",
+      createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 7,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
+      createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 8,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
+      createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 9,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
+      hasInitialState: false,
     },{ // created by factory, properly setup
       agentID: 10,
-      accountType: "MockBlastableAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
+      hasInitialState: true,
     },{ // created by factory, properly setup
       agentID: 11,
-      accountType: "MockBlastableAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
-      initialStateNum: 1
+      hasInitialState: true,
     },{ // created by factory, properly setup
       agentID: 12,
-      accountType: "MockBlastableAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
+      hasInitialState: true,
     },{ // created by factory, properly setup
       agentID: 13,
-      accountType: "MockBlastableAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
+      hasInitialState: true,
     },{ // created by factory, properly setup
       agentID: 14,
-      accountType: "BoomBotDiamondAccount",
+      accountType: "BlastooorStrategyAgentAccount",
       createdBy: "contract",
-      createdState: "incorrect",
+      createdState: "correct",
     }
   ];
 
   describe("agents in prod", function () {
     for(const agentMetadata of agentMetadatas) {
-      const { agentID, accountType, createdBy, createdState, initialStateNum } = agentMetadata;
+      const { agentID, accountType, createdBy, createdState, hasInitialState } = agentMetadata;
       const extraModules = agentMetadata.extraModules || ""
       let agentAccount:any;
       let agentOwner: any;
@@ -1245,9 +1073,9 @@ describe("BoomAgentCreation", function () {
             agentAccount = await ethers.getContractAt(abi, agentInfo.agentAddress);
             accountIsModular = true;
           }
-          //else if(accountType == "BoomBotDiamondAccount") agentAccount = await ethers.getContractAt("BoomBotDiamondAccount", agentInfo.agentAddress) as BoomBotDiamondAccount;
-          //else if(accountType == "BoomBotDiamondAccount") agentAccount = await ethers.getContractAt(abi, agentInfo.agentAddress);
-          else if(accountType == "BoomBotDiamondAccount" || accountType == "MockBlastableAccount") {
+          //else if(accountType == "BlastooorStrategyAgentAccount") agentAccount = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
+          //else if(accountType == "BlastooorStrategyAgentAccount") agentAccount = await ethers.getContractAt(abi, agentInfo.agentAddress);
+          else if(accountType == "BlastooorStrategyAgentAccount") {
             agentAccount = await ethers.getContractAt(combinedAbi, agentInfo.agentAddress);
             accountIsModular = false;
           }
@@ -1270,7 +1098,8 @@ describe("BoomAgentCreation", function () {
             expect(tokenRes.tokenContract).eq(agentNft.address);
             expect(tokenRes.tokenId).eq(agentID);
             // other info
-            expect(await agentAccount.state()).eq(initialStateNum||0);
+            if(!!hasInitialState) expect(await agentAccount.state()).not.eq(0);
+            else expect(await agentAccount.state()).eq(0);
             /*
             expect(await agentAccount.isValidSigner(agentOwner.address)).eq(true);
             expect(await agentAccount.isValidSigner(deployer.address)).eq(false);
@@ -1284,7 +1113,8 @@ describe("BoomAgentCreation", function () {
             expect(await agentAccount['isValidSigner(address,bytes)'](agentOwner.address, "0x00abcd")).eq(MAGIC_VALUE_IS_VALID_SIGNER);
             expect(await agentAccount['isValidSigner(address,bytes)'](deployer.address, "0x")).eq(MAGIC_VALUE_0);
             expect(await agentAccount['isValidSigner(address,bytes)'](AddressZero, "0x")).eq(MAGIC_VALUE_0);
-            if(accountType == "BoomBotDiamondAccount" || accountType == "MockBlastableAccount") {
+            //if(accountType == "OtherTypeAccount") {
+            if(false) {
               expect(await agentAccount.isValidSignature(toBytes32(0), "0x")).eq(MAGIC_VALUE_0);
             } else {
               await expect(agentAccount.isValidSignature(toBytes32(0), "0x")).to.be.reverted;
@@ -1294,90 +1124,7 @@ describe("BoomAgentCreation", function () {
             expect(await agentAccount.supportsInterface("0x51945447")).eq(true); // ERC6551Executable
             expect(await agentAccount.supportsInterface("0xffffffff")).eq(false);
             expect(await agentAccount.supportsInterface("0x00000000")).eq(false);
-            if(accountType == "BoomBotDiamondAccount" || accountType == "MockBlastableAccount") {
-              expect(await agentAccount['isValidSigner(address)'](agentOwner.address)).eq(true);
-              expect(await agentAccount['isValidSigner(address)'](deployer.address)).eq(false);
-              expect(await agentAccount['isValidSigner(address)'](AddressZero)).eq(false);
-              expect(await agentAccount.dataStore()).eq(dataStore.address)
-              expect(await agentAccount.reentrancyGuardState()).eq(1)
-              expect(await agentAccount.supportsInterface("0x1f931c1c")).eq(true); // DiamondCut
-              expect(await agentAccount.supportsInterface("0x48e2b093")).eq(true); // DiamondLoupe
-            } else {
-              expect(await agentAccount.supportsInterface("0x1f931c1c")).eq(false); // DiamondCut
-              expect(await agentAccount.supportsInterface("0x48e2b093")).eq(false); // DiamondLoupe
-            }
           });
-          if(accountType == "BoomBotDiamondAccount" || accountType == "MockBlastableAccount") {
-            it("has the correct modules", async function () {
-              let diamondAccount = await ethers.getContractAt("ERC2535Module", agentAccount.address) as ERC2535Module;
-              /*
-              // facets()
-              let facets = await diamondAccount.facets();
-              console.log(facets)
-              expect(facets.length).eq(3);
-              expect(facets[0].facetAddress).eq(erc2535Module.address);
-              expect(facets[1].facetAddress).eq(diamondLoupeModule.address);
-              expect(facets[2].facetAddress).eq(erc6551AccountModule.address);
-              // facetAddresses()
-              facets = await diamondAccount.facetAddresses();
-              console.log(facets)
-              expect(facets.length).eq(3);
-              expect(facets[0]).eq(diamondCutModule.address);
-              expect(facets[1]).eq(diamondLoupeModule.address);
-              expect(facets[2]).eq(erc6551AccountModule.address);
-              */
-              // facets(), facetAddresses()
-              let facets = await diamondAccount.facets();
-              let facetAddresses = await diamondAccount.facetAddresses();
-              let c = (accountType == "BoomBotDiamondAccount" ? boomAgentAccountImplementation : boomAgentAccountImplementation)
-
-              let diamondCutExpected = diamondCutInits[agentID]
-              /*
-              let sighashes = calcSighashes(c)
-              diamondCutExpected = [
-                {
-                  facetAddress: diamondAccount.address,
-                  action: FacetCutAction.Add,
-                  functionSelectors: sighashes,
-                },
-                ...diamondCutExpected
-              ]
-              */
-              //console.log(`testing correct modules ${agentID}`)
-              //console.log(agentAccount.address, "agent account")
-              //console.log(boomAgentAccountImplementation.address, "impl")
-              //console.log(facets.map(f=>f.facetAddress))
-              //console.log(diamondCutExpected.map(f=>f.facetAddress))
-              //console.log(facets)
-              //console.log(facetAddresses)
-              //let diamondCutExpected = diamondCutInit
-              //if(!!extraModules && extraModules == "fallback") diamondCutExpected = diamondCutInit2
-              expect(facets.length).eq(diamondCutExpected.length);
-              for(let i = 0; i < diamondCutExpected.length; i++) {
-                expect(facets[i].facetAddress).eq(diamondCutExpected[i].facetAddress);
-                expect(facetAddresses[i]).eq(diamondCutExpected[i].facetAddress);
-                assert.sameMembers(facets[i].functionSelectors, diamondCutExpected[i].functionSelectors);
-                // facetFunctionSelectors()
-                let selectors = await diamondAccount.facetFunctionSelectors(facetAddresses[i]);
-                assert.sameMembers(selectors, diamondCutExpected[i].functionSelectors);
-                // facetAddress()
-                for(let j = 0; j < diamondCutExpected[i].functionSelectors.length; j++) {
-                  let selector = diamondCutExpected[i].functionSelectors[j];
-                  let facetAddress = await diamondAccount.facetAddress(selector);
-                  expect(facetAddress).eq(diamondCutExpected[i].facetAddress);
-                }
-              }
-            });
-          } else {
-            it("has no modules", async function () {
-              let diamondAccount = await ethers.getContractAt("ERC2535Module", agentAccount.address) as ERC2535Module;
-              await expect(diamondAccount.facets()).to.be.reverted;
-              await expect(diamondAccount.facetFunctionSelectors(AddressZero)).to.be.reverted;
-              await expect(diamondAccount.facetFunctionSelectors(user1.address)).to.be.reverted;
-              await expect(diamondAccount.facetAddresses()).to.be.reverted;
-              await expect(diamondAccount.facetAddress("0x01ffc9a7")).to.be.reverted;
-            });
-          }
           //it("it can isValidSignature on an eoa", async function () {})
           it("it can isValidSignature on an erc1271", async function () {
             let tx1 = await agentNft.connect(agentOwner).transferFrom(agentOwner.address, mockERC1271.address, agentID);
@@ -1387,7 +1134,8 @@ describe("BoomAgentCreation", function () {
             expect(await agentAccount['isValidSigner(address,bytes)'](mockERC1271.address, "0x")).eq(MAGIC_VALUE_IS_VALID_SIGNER);
             expect(await agentAccount['isValidSigner(address,bytes)'](mockERC1271.address, "0x00abcd")).eq(MAGIC_VALUE_IS_VALID_SIGNER);
 
-            if(accountType == "BoomBotDiamondAccount" || accountType == "MockBlastableAccount") {
+            //if(accountType == "OtherTypeAccount") {
+            if(false) {
               expect(await agentAccount.isValidSignature(toBytes32(0), "0x")).eq(MAGIC_VALUE_IS_VALID_SIGNATURE);
               expect(await agentAccount.isValidSignature(toBytes32(123), "0x9988776655")).eq(MAGIC_VALUE_IS_VALID_SIGNATURE);
             } else {

@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, Agents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastAgentAccount } from "./../typechain-types";
+import { IERC6551Registry, Agents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorAgentAccount } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -22,10 +22,12 @@ const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const { formatUnits } = ethers.utils;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
-const ENTRY_POINT_ADDRESS      = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const badcode                  = "0x000000000000000000000000000000000baDC0DE";
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD";
 
 const UNIVERSAL_ROUTER_ADDRESS = "0x334e3F7f5A9740627fA47Fa9Aa51cE0ccbD765cF";
 const FEW_ROUTER_ADDRESS       = "0x02F1e7A518e3E286C8E305E39cA7D4f25e0a44Aa";
@@ -64,7 +66,7 @@ const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
 const MAGIC_VALUE_IS_VALID_SIGNATURE = "0x1626ba7e";
 
-describe("BlastAgentAccountRingProtocolD", function () {
+describe("BlastooorAgentAccountRingProtocolD", function () {
   let deployer: SignerWithAddress;
   let owner: SignerWithAddress;
   let user1: SignerWithAddress;
@@ -77,9 +79,9 @@ describe("BlastAgentAccountRingProtocolD", function () {
 
   let gasCollector: GasCollector;
   let agentNft: Agents;
-  let blastAccountImplementation: BlastAgentAccount; // the base implementation for token bound accounts
-  let tbaccount1: BlastAgentAccount; // an account bound to a token
-  let tbaccount2: BlastAgentAccount; // an account bound to a token
+  let blastAccountImplementation: BlastooorAgentAccount; // the base implementation for token bound accounts
+  let tbaccount1: BlastooorAgentAccount; // an account bound to a token
+  let tbaccount2: BlastooorAgentAccount; // an account bound to a token
   let agentInitializationCode1: any;
   let agentInitializationCode2: any;
   // factory
@@ -142,22 +144,22 @@ describe("BlastAgentAccountRingProtocolD", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("can deploy Agents ERC721", async function () {
       // to deployer
-      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(deployer.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
       // to owner
-      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(owner.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
     });
     it("initializes properly", async function () {
       expect(await agentNft.totalSupply()).eq(0);
@@ -165,19 +167,19 @@ describe("BlastAgentAccountRingProtocolD", function () {
       expect(await agentNft.getERC6551Registry()).eq(ERC6551_REGISTRY_ADDRESS);
     });
     it("can deploy account implementations", async function () {
-      // BlastAgentAccountRingProtocolD
-      blastAccountImplementation = await deployContract(deployer, "BlastAgentAccountRingProtocolD", [BLAST_ADDRESS, deployer.address,ENTRY_POINT_ADDRESS,badcode,ERC6551_REGISTRY_ADDRESS,AddressZero]) as BlastAgentAccountRingProtocolD;
+      // BlastooorAgentAccountRingProtocolD
+      blastAccountImplementation = await deployContract(deployer, "BlastooorAgentAccountRingProtocolD", [BLAST_ADDRESS, deployer.address, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS,ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS,ERC6551_REGISTRY_ADDRESS,AddressZero]) as BlastooorAgentAccountRingProtocolD;
       await expectDeployed(blastAccountImplementation.address);
-      l1DataFeeAnalyzer.register("deploy BlastAgentAccountRingProtocolD impl", blastAccountImplementation.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy BlastooorAgentAccountRingProtocolD impl", blastAccountImplementation.deployTransaction);
     });
     it("can deploy AgentFactory02", async function () {
       // to deployer
-      factory = await deployContract(deployer, "AgentFactory02", [deployer.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory02;
+      factory = await deployContract(deployer, "AgentFactory02", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory02;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(deployer.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory02", factory.deployTransaction);
       // to owner
-      factory = await deployContract(deployer, "AgentFactory02", [owner.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory02;
+      factory = await deployContract(deployer, "AgentFactory02", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory02;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory02", factory.deployTransaction);
@@ -249,7 +251,7 @@ describe("BlastAgentAccountRingProtocolD", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccountRingProtocolD", agentInfo.agentAddress) as BlastAgentAccountRingProtocolD;
+      tbaccount2 = await ethers.getContractAt("BlastooorAgentAccountRingProtocolD", agentInfo.agentAddress) as BlastooorAgentAccountRingProtocolD;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await weth.balanceOf(tbaccount2.address)).eq(0)
       expect(await usdc.balanceOf(tbaccount2.address)).eq(0)
@@ -293,7 +295,8 @@ describe("BlastAgentAccountRingProtocolD", function () {
       expect(balances2.ring).eq(0)
       expect(balances2.lptoken).eq(0)
       expect(balances2.stakingbalance).gt(0)
-      expect(balances2.stakingearned).gt(0)
+      expect(balances2.stakingearned).eq(0)
+      //expect(balances2.stakingearned).gt(0) // staking program over
     })
     it("non owner cannot withdraw", async function () {
       await expect(tbaccount2.connect(user2).withdrawRingProtocolStrategyD()).to.be.revertedWithCustomError(tbaccount2, "NotAuthorized")
@@ -305,12 +308,14 @@ describe("BlastAgentAccountRingProtocolD", function () {
       expect(balances3.ring).eq(0)
       expect(balances3.lptoken).eq(0)
       expect(balances3.stakingbalance).gt(0)
-      expect(balances3.stakingearned).gt(0)
+      expect(balances3.stakingearned).eq(0)
+      //expect(balances3.stakingearned).gt(0) // staking program over
       let tx = await tbaccount2.connect(user1).withdrawRingProtocolStrategyD()
       let balances4 = await getBalances(tbaccount2.address)
       expect(balances4.weth).gt(0)
       expect(balances4.usdc).gt(0)
-      expect(balances4.ring).gt(0)
+      expect(balances4.ring).eq(0)
+      //expect(balances4.ring).gt(0) // staking program over
       expect(balances4.lptoken).eq(0)
       expect(balances4.stakingbalance).eq(0)
       expect(balances4.stakingearned).eq(0)
