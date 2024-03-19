@@ -24,6 +24,11 @@ function convertToStruct(res: any) {
     }, {} as Record<string, any>);
 }
 
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
+
 describe("Balancer Fetch Forked Test", function () {
   let deployer: SignerWithAddress;
   let chainID: number;
@@ -49,11 +54,8 @@ describe("Balancer Fetch Forked Test", function () {
     snapshot = await provider.send("evm_snapshot", []);
     await deployer.sendTransaction({ to: deployer.address }); // for some reason this helps solidity-coverage
 
-    agentFetcher = (await deployContract(deployer, "BalanceFetcher", [
-      deployer.address,
-      "0x4300000000000000000000000000000000000002",
-      "0xf237c20584DaCA970498917470864f4d027de4ca", // genesis
-    ])) as AgentFetcher;
+    const args = [deployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    agentFetcher = (await deployContract(deployer, "BalanceFetcher", args)) as AgentFetcher;
     await expectDeployed(agentFetcher.address);
   });
 
@@ -92,7 +94,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0xEfAce6eF46De81389DcD34849564EA5179E7A43c",
           implementation: "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c",
           owner: "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("80"),
           balances: [
             BN.from("0"),
@@ -104,7 +106,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x7ef72c9f6Cf1e50a96Aed7B1EFa4ea25B710B81C",
           implementation: "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c",
           owner: "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("92"),
           balances: [
             BN.from("0"),
@@ -116,7 +118,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x5206eB38E635ac1875afeD421dA83b8Fe8FF50Ce",
           implementation: "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c",
           owner: "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("96"),
           balances: [
             BN.from("0"),
@@ -128,7 +130,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x8Fa34e3B7c5857A011aE0482A14d18Af20a54399",
           implementation: "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8",
           owner: "0xEfAce6eF46De81389DcD34849564EA5179E7A43c",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("81"),
           balances: [
             BN.from("0"),
@@ -140,7 +142,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0xF8568528B2eD70C9cA78694f302B41B62a65A965",
           implementation: "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8",
           owner: "0x7ef72c9f6Cf1e50a96Aed7B1EFa4ea25B710B81C",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("93"),
           balances: [
             BN.from("0"),
@@ -152,7 +154,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0xdEEBE64D24eCb86B351Bb83Baf0D62EFA78CfA8C",
           implementation: "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8",
           owner: "0x5206eB38E635ac1875afeD421dA83b8Fe8FF50Ce",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("97"),
           balances: [
             BN.from("0"),
@@ -164,7 +166,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x5D2f332E759c0C0397e15110cf3d72BEB0F1Ef0e",
           implementation: "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64",
           owner: "0x8Fa34e3B7c5857A011aE0482A14d18Af20a54399",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("82"),
           balances: [
             BN.from("0"),
@@ -176,7 +178,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x33EA056c4ab58d2c0736B5C6906FFBAcE782C759",
           implementation: "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f",
           owner: "0x8Fa34e3B7c5857A011aE0482A14d18Af20a54399",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("83"),
           balances: [
             BN.from("0"),
@@ -188,7 +190,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x6179dE7Bf7816387D18a706F51767Be748629eea",
           implementation: "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64",
           owner: "0xF8568528B2eD70C9cA78694f302B41B62a65A965",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("94"),
           balances: [
             BN.from("0"),
@@ -200,7 +202,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x9C0CD367Fb078b4abc092E9DbaB8E93Fee4c8bc4",
           implementation: "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f",
           owner: "0xF8568528B2eD70C9cA78694f302B41B62a65A965",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("95"),
           balances: [
             BN.from("0"),
@@ -212,7 +214,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x06e7d4775C5b26310025902536Eb5E842fbB5B2C",
           implementation: "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64",
           owner: "0xdEEBE64D24eCb86B351Bb83Baf0D62EFA78CfA8C",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("98"),
           balances: [
             BN.from("0"),
@@ -224,7 +226,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x14C0f5ef52460F9d58672077e5F7E1D2D56baEB9",
           implementation: "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f",
           owner: "0xdEEBE64D24eCb86B351Bb83Baf0D62EFA78CfA8C",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("99"),
           balances: [
             BN.from("0"),
@@ -247,7 +249,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0xC541D6cb7302535390Ff10b2AFFcf95DFD190629",
           implementation: "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8",
           owner: "0xa9b7B191DA5749A203D8e6637C71cE4A92803F99",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("21"),
           balances: [
             BN.from("0"),
@@ -259,7 +261,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x5A117d079b2C1272bC2B13f57B80687D5002483f",
           implementation: "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64",
           owner: "0xC541D6cb7302535390Ff10b2AFFcf95DFD190629",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("22"),
           balances: [
             BN.from("0"),
@@ -271,7 +273,7 @@ describe("Balancer Fetch Forked Test", function () {
           agentAddress: "0x0879DcE6101cF72545F59aE8d0b6A1A099464F8F",
           implementation: "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f",
           owner: "0xC541D6cb7302535390Ff10b2AFFcf95DFD190629",
-          tokenAddress: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
+          collection: "0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b",
           tokenId: BN.from("23"),
           balances: [
             BN.from("0"),
