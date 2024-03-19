@@ -15,6 +15,7 @@ import { IBlastooorGenesisAgents } from "./../interfaces/tokens/IBlastooorGenesi
  * @notice The BalanceFetcher is a purely utility contract that helps offchain components efficiently fetch an account's balance of tokens.
  */
 contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
+
     /**
      * @notice Constructs the BalanceFetcher contract.
      * @param owner_ The owner of the contract.

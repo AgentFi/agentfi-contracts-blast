@@ -8,6 +8,7 @@ pragma solidity 0.8.24;
  * @notice The BalanceFetcher is a purely utility contract that helps offchain components efficiently fetch an account's balance of tokens.
  */
 interface IBalanceFetcher {
+
     struct Agent {
         address agentAddress;
         address implementation;
@@ -26,12 +27,12 @@ interface IBalanceFetcher {
     function fetchBalances(address account, address[] calldata tokens) external payable returns (uint256[] memory balances);
 
     /**
-     * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account
+     * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account.
      * @param account The account to query.
-     * @param tokens The list of nfts tokens to query.
-     * @param balances The list of erc20 tokens to query.
+     * @param collections The list of nfts tokens to query.
+     * @param tokens The list of erc20 tokens to query.
      */
-    function fetchAgents(address account, address[] calldata tokens, address[] calldata balances) external payable returns (Agent[] memory agents);
+    function fetchAgents(address account, address[] calldata collections, address[] calldata tokens) external payable returns (Agent[] memory agents);
 
     struct GasQuote {
         uint256 quoteAmountAllGas;
