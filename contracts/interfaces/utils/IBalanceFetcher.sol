@@ -18,6 +18,13 @@ interface IBalanceFetcher {
         uint256[] balances;
     }
 
+    struct Position {
+        address owner;
+        address pool;
+        address token;
+        uint256 balance;
+    }
+
     /**
      * @notice Given an account and a list of tokens, returns that account's balance of each token.
      * Supports ERC20s and the gas token.
@@ -45,4 +52,21 @@ interface IBalanceFetcher {
      * @return quotes The list of quotes.
      */
     function fetchBlastableGasQuotes(address[] calldata accounts) external payable returns (GasQuote[] memory quotes);
+
+    /**
+     * @notice Fetches the underlying balances of a uniswap v2 style LP pool
+     * @param account The account to query.
+     * @param poolAddress The uniswap v2 pool to query.
+     * @param pos0 token 0 position
+     * @param pos1 token 1 position
+     */
+    function fetchPositionV2(address account, address poolAddress) external view returns (Position memory pos0, Position memory pos1);
+
+    /**
+     * @notice Given an list of accounts and list of lp tokens, returns underlying balance across all pools
+     * @param accounts The list of accounts to query.
+     * @param pools The list of uniswap v2 style tokens to query.
+     * @param positions List of uniswap v2 positions 
+     */
+    function fetchPositionsV2(address[] calldata accounts, address[] calldata pools) external view returns (Position[] memory positions);
 }

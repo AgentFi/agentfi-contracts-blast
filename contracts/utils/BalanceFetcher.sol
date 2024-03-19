@@ -4,6 +4,7 @@ pragma solidity 0.8.24;
 import { Multicall } from "./Multicall.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IBalanceFetcher } from "./../interfaces/utils/IBalanceFetcher.sol";
+import { IRingV2Pair } from "./../interfaces/external/RingProtocol/IRingV2Pair.sol";
 import { Blastable } from "./Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 import { IBlastooorGenesisAgents } from "./../interfaces/tokens/IBlastooorGenesisAgents.sol";
@@ -50,7 +51,7 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
             else balances[i] = IERC20(token).balanceOf(account);
         }
     }
-
+    
     /**
      * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account
      * @param account The account to query.
@@ -112,6 +113,51 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
         }
     }
 
+    /**
+     * @notice Fetches the underlying balances of a uniswap v2 style LP pool
+     * @param account The account to query.
+     * @param poolAddress The uniswap v2 pool to query.
+     * @param pos0 token 0 position
+     * @param pos1 token 1 position
+     */
+    function fetchPositionV2(address account, address poolAddress) public view returns (Position memory pos0, Position memory pos1)  {
+        IRingV2Pair pool = IRingV2Pair(poolAddress);
+
+        uint256 balance = pool.balanceOf(account);
+        uint256 total = pool.totalSupply();
+        (uint112 token0, uint112 token1,) = pool.getReserves();
+        
+        pos0 = Position({
+            owner: account,
+            pool: poolAddress,
+            token: pool.token0(),
+            balance: uint256(token0) * balance / total
+        });
+        pos1 = Position({
+            owner: account,
+            pool: poolAddress,
+            token: pool.token1(),
+            balance: uint256(token1) * balance / total
+        });
+    }
+
+    /**
+     * @notice Given an list of accounts and list of lp tokens, returns underlying balance across all pools
+     * @param accounts The list of accounts to query.
+     * @param pools The list of uniswap v2 style tokens to query.
+     * @param positions List of uniswap v2 positions 
+     */
+    function fetchPositionsV2(address[] calldata accounts, address[] calldata pools) public view returns (Position[] memory positions) {
+        positions = new Position[](accounts.length * pools.length * 2);
+        uint256 count = 0; 
+        for(uint256 a = 0; a < accounts.length; a++) {
+            for(uint256 p = 0; p < pools.length; p++) {
+                (Position memory pos0, Position memory pos1) = fetchPositionV2(accounts[a], pools[p]);
+                positions[count++] = pos0;
+                positions[count++] = pos1;
+            }
+        }
+    }
     /**
      * @notice Fetch information about a particular agent
      * @param account Owner

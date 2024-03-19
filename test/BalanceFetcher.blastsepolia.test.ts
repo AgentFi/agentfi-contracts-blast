@@ -18,18 +18,22 @@ import { deployContract } from "../scripts/utils/deployContract";
 function convertToStruct(res: any) {
   return Object.keys(res)
     .filter((x) => Number.isNaN(parseInt(x)))
-    .reduce((acc, k) => {
-      acc[k] = res[k];
-      return acc;
-    }, {} as Record<string, any>);
+    .reduce(
+      (acc, k) => {
+        acc[k] = res[k];
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
 }
 
-const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
-const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
-const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
-const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
+const BLAST_ADDRESS = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS =
+  "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const GAS_COLLECTOR_ADDRESS = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
 
-describe("Balancer Fetch Forked Test", function () {
+describe("Balancer Fetch Forked Sepolia Test", function () {
   let deployer: SignerWithAddress;
   let chainID: number;
   let networkSettings: any;
@@ -42,7 +46,7 @@ describe("Balancer Fetch Forked Test", function () {
     if (blockNumber !== 2311403) {
       // Note: Block height chosen at random, done to make tests deterministic
       throw new Error(
-        "Tests expected to run against forked blast sepolia network at block 2311403"
+        "Tests expected to run against forked blast sepolia network at block 2311403",
       );
     }
 
@@ -54,8 +58,18 @@ describe("Balancer Fetch Forked Test", function () {
     snapshot = await provider.send("evm_snapshot", []);
     await deployer.sendTransaction({ to: deployer.address }); // for some reason this helps solidity-coverage
 
-    const args = [deployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
-    agentFetcher = (await deployContract(deployer, "BalanceFetcher", args)) as AgentFetcher;
+    const args = [
+      deployer.address,
+      BLAST_ADDRESS,
+      GAS_COLLECTOR_ADDRESS,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+    ];
+    agentFetcher = (await deployContract(
+      deployer,
+      "BalanceFetcher",
+      args,
+    )) as AgentFetcher;
     await expectDeployed(agentFetcher.address);
   });
 
@@ -83,7 +97,7 @@ describe("Balancer Fetch Forked Test", function () {
         .fetchAgents(
           account,
           ["0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"],
-          erc20s
+          erc20s,
         )
         .then((r) => r.map(convertToStruct));
 
@@ -241,7 +255,7 @@ describe("Balancer Fetch Forked Test", function () {
       let res = await agentFetcher.callStatic.fetchAgents(
         "0xa9b7B191DA5749A203D8e6637C71cE4A92803F99",
         ["0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"],
-        erc20s
+        erc20s,
       );
 
       expect(res.map(convertToStruct)).deep.eq([
