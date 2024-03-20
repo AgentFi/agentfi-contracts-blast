@@ -18,13 +18,10 @@ import { deployContract } from "../scripts/utils/deployContract";
 function convertToStruct(res: any) {
   return Object.keys(res)
     .filter((x) => Number.isNaN(parseInt(x)))
-    .reduce(
-      (acc, k) => {
-        acc[k] = res[k];
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
+    .reduce((acc, k) => {
+      acc[k] = res[k];
+      return acc;
+    }, {} as Record<string, any>);
 }
 
 const BLAST_ADDRESS = "0x4300000000000000000000000000000000000002";
@@ -46,7 +43,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
     if (blockNumber !== 2311403) {
       // Note: Block height chosen at random, done to make tests deterministic
       throw new Error(
-        "Tests expected to run against forked blast sepolia network at block 2311403",
+        "Tests expected to run against forked blast sepolia network at block 2311403"
       );
     }
 
@@ -68,7 +65,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
     agentFetcher = (await deployContract(
       deployer,
       "BalanceFetcher",
-      args,
+      args
     )) as AgentFetcher;
     await expectDeployed(agentFetcher.address);
   });
@@ -83,12 +80,37 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
     "0x0000000000000000000000000000000000000002",
   ];
 
+  describe("Fetch v2 pool info", function () {
+    it("Can fetch pool info", async function () {
+      let res = await agentFetcher.fetchPoolInfoV2(
+        "0x024Dd95113137f04E715B2fC8F637FBe678e9512"
+      );
+      expect(convertToStruct(res)).deep.eq({
+        total: BN.from("22378028822220145"),
+        address0: "0x798dE0520497E28E8eBfF0DF1d791c2E942eA881",
+        address1: "0xa7870cf9143084ED04f4C2311f48CB24a2b4A097",
+        reserve0: BN.from("466423206243094388647"),
+        reserve1: BN.from("1108438138384"),
+      });
+    });
+  });
+
   describe("Fetch agents", function () {
     it("Can handle empty nft collection array", async function () {
       let account = "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986";
-      let res = await agentFetcher.callStatic.fetchAgents(account, [], []);
-
-      expect(res).deep.eq([]);
+      let res = await agentFetcher.callStatic
+        .fetchAgents(account, [], [])
+        .then((r) => r.map(convertToStruct));
+      expect(res).deep.eq([
+        {
+          agentAddress: "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986",
+          implementation: "0x0000000000000000000000000000000000000000",
+          owner: "0x0000000000000000000000000000000000000000",
+          collection: "0x0000000000000000000000000000000000000000",
+          tokenId: 0,
+          balances: [],
+        },
+      ]);
     });
 
     it("Can fetch agents for eoa on one nft collection", async function () {
@@ -97,13 +119,21 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
         .fetchAgents(
           account,
           ["0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"],
-          erc20s,
+          erc20s
         )
         .then((r) => r.map(convertToStruct));
 
       // console.table(res);
 
       expect(res).deep.eq([
+        {
+          agentAddress: "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986",
+          implementation: "0x0000000000000000000000000000000000000000",
+          owner: "0x0000000000000000000000000000000000000000",
+          collection: "0x0000000000000000000000000000000000000000",
+          tokenId: 0,
+          balances: [BN.from("409824705266887190"), BN.from("0"), BN.from("0")],
+        },
         {
           agentAddress: "0xEfAce6eF46De81389DcD34849564EA5179E7A43c",
           implementation: "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c",
@@ -255,10 +285,22 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
       let res = await agentFetcher.callStatic.fetchAgents(
         "0xa9b7B191DA5749A203D8e6637C71cE4A92803F99",
         ["0xd1c6ABe9BEa98CA9875A4b3EEed3a62bC121963b"],
-        erc20s,
+        erc20s
       );
 
       expect(res.map(convertToStruct)).deep.eq([
+        {
+          agentAddress: "0xa9b7B191DA5749A203D8e6637C71cE4A92803F99",
+          implementation: "0x0000000000000000000000000000000000000000",
+          owner: "0x0000000000000000000000000000000000000000",
+          collection: "0x0000000000000000000000000000000000000000",
+          tokenId: BN.from("0"),
+          balances: [
+            BN.from("1000012543876720"),
+            BN.from("102857996857574"),
+            BN.from("17194496341910"),
+          ],
+        },
         {
           agentAddress: "0xC541D6cb7302535390Ff10b2AFFcf95DFD190629",
           implementation: "0x68e362fC50d62af91Aba1d9184c63505C9EA02c8",
