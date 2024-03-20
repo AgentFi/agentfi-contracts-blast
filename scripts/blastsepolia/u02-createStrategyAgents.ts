@@ -26,7 +26,7 @@ import { MulticallProvider, MulticallContract } from "./../utils/multicall";
 import { multicallChunked } from "./../utils/network";
 import { sign, assembleSignature, getMintFromAllowlistDigest, getMintFromAllowlistSignature } from "./../utils/signature";
 
-const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
+const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 
 let networkSettings: any;
 let chainID: number;
@@ -80,16 +80,16 @@ const LP_TOKEN_ADDRESS           = "0x024Dd95113137f04E715B2fC8F637FBe678e9512";
 const RING_ADDRESS               = "0x0BD5539E33a1236bA69228271e60f3bFf8fDB7DB";
 const STAKING_REWARDS_INDEX      = 2;
 
-const DOMAIN_NAME = "AgentFi-BlastooorGenesisFactory";
-const MINT_FROM_ALLOWLIST_TYPEHASH = utils.keccak256(utils.toUtf8Bytes("MintFromAllowlist(address receiver)"));
-
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
+let gasCollector: GasCollector;
+let balanceFetcher: BalanceFetcher;
 
-let genesisCollection: Agents;
+let genesisCollection: BlastooorGenesisAgents;
 let genesisCollectionMC: any;
 let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastooorAgentAccount; // the base implementation for agentfi accounts
+
 let accountImplRingC: BlastooorAgentAccountRingProtocolC;
 let accountImplRingD: BlastooorAgentAccountRingProtocolD;
 let accountImplThrusterA: BlastooorAgentAccountThrusterA;
@@ -100,6 +100,12 @@ let strategyCollectionMC: any;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
 let dispatcher: Dispatcher;
+
+let weth: MockERC20;
+let usdb: MockERC20;
+
+let genesisAgent4640Address = "0x7BEdF6D85E522a30f4eb9b5158dAbDCf31aC0160";
+let genesisAgent4640: BlastooorAgentAccount;
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -115,6 +121,7 @@ async function main() {
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
+  balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;
 
   genesisCollection = await ethers.getContractAt("Agents", GENESIS_COLLECTION_ADDRESS, boombotseth) as Agents;
   genesisCollectionMC = new MulticallContract(GENESIS_COLLECTION_ADDRESS, ABI_AGENTS_NFT)
@@ -127,15 +134,26 @@ async function main() {
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
 
+  weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
+  usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
+
+  genesisAgent4640 = await ethers.getContractAt("BlastooorAgentAccount", genesisAgent4640Address, boombotseth) as BlastooorAgentAccount;
+
   //await listGenesisAgents();
   await listStrategyAgents();
+  //await listGenesisAgents(boombotseth.address);
+  //await listStrategyAgents(boombotseth.address);
 
   await createAgents();
 
   await listStrategyAgents();
+
+  //await listAgentsOf(agentfideployer.address);
+  //await listAgentsOf(boombotseth.address);
+
 }
 
-async function listGenesisAgents() {
+async function listGenesisAgents(filterbyowner=undefined) {
   let ts = (await genesisCollection.totalSupply()).toNumber();
   console.log(`Number genesis agents created: ${ts}`);
   if(ts == 0) return;
@@ -147,18 +165,19 @@ async function listGenesisAgents() {
   }
   const results = await multicallChunked(mcProvider, calls, "latest", 500)
   for(let agentID = 1; agentID <= ts; agentID++) {
-    console.log(`Agent ID ${agentID}`)
     let agentInfo = results[agentID*2-2]
     let agentAddress = agentInfo.agentAddress
     let implementationAddress = agentInfo.implementationAddress
     let owner = results[agentID*2-1]
+    if(!!filterbyowner && owner != filterbyowner) continue
+    console.log(`Agent ID ${agentID}`)
     console.log(`  Agent Address  ${agentAddress}`)
     console.log(`  TBA Impl       ${implementationAddress}`)
     console.log(`  Owner          ${owner}`)
   }
 }
 
-async function listStrategyAgents() {
+async function listStrategyAgents(filterbyowner=undefined) {
   let ts = (await strategyCollection.totalSupply()).toNumber();
   console.log(`Number strategy agents created: ${ts}`);
   if(ts == 0) return;
@@ -168,22 +187,46 @@ async function listStrategyAgents() {
     calls.push(strategyCollectionMC.getAgentInfo(agentID))
     calls.push(strategyCollectionMC.ownerOf(agentID))
   }
-  const results = await multicallChunked(mcProvider, calls, "latest", 200)
+  const results = await multicallChunked(mcProvider, calls, "latest", 500)
   for(let agentID = 1; agentID <= ts; agentID++) {
-    console.log(`Agent ID ${agentID}`)
     let agentInfo = results[agentID*2-2]
     let agentAddress = agentInfo.agentAddress
     let implementationAddress = agentInfo.implementationAddress
     let owner = results[agentID*2-1]
+    if(!!filterbyowner && owner != filterbyowner) continue
+    console.log(`Agent ID ${agentID}`)
     console.log(`  Agent Address  ${agentAddress}`)
     console.log(`  TBA Impl       ${implementationAddress}`)
     console.log(`  Owner          ${owner}`)
   }
 }
 
+async function listAgentsOf(account:string) {
+  let collections = [
+    GENESIS_COLLECTION_ADDRESS,
+    STRATEGY_COLLECTION_ADDRESS
+  ]
+  let tokens = [
+    ETH_ADDRESS,
+    ALL_CLAIMABLE_GAS_ADDRESS,
+    MAX_CLAIMABLE_GAS_ADDRESS,
+    WETH_ADDRESS,
+    USDB_ADDRESS,
+  ]
+  let res = await balanceFetcher.callStatic.fetchAgents(account, collections, tokens)
+  console.log(res)
+  console.log(`genesis:   ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
+  console.log(`strategy:  ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
+}
+
 async function createAgents() {
   //await createStrategyAgent1();
-  await createStrategyAgent2();
+  //await createStrategyAgent2();
+  //await createStrategyAgent3();
+  //await createStrategyAgent3();
+
+  //await createStrategyAgent17();
+  await createStrategyAgent19();
 }
 
 /*
@@ -208,9 +251,6 @@ async function createStrategyAgent1() {
 
   let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [1])
   //let txdata1 = strategyAccountImpl.interface.encodeFunctionData("execute", [STRATEGY_FACTORY_ADDRESS, 0, calldata1, 0]);
-
-  let genesisAgent4640Address = "0x7BEdF6D85E522a30f4eb9b5158dAbDCf31aC0160"
-  let genesisAgent4640 = await ethers.getContractAt("BlastooorAgentAccount", genesisAgent4640Address, boombotseth) as BlastooorAgentAccount;
 
   let batch = [
     {
@@ -238,20 +278,227 @@ async function createStrategyAgent1() {
 async function createStrategyAgent2() {
   console.log(`createStrategyAgent2`)
 
-  let depositAmount = WeiPerEther.div(100)
+  let depositAmountETH = WeiPerEther.div(100)
   let deposits = [{
     token: AddressZero,
-    amount: depositAmount
+    amount: depositAmountETH
   }]
   let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [1, deposits])
 
-  let genesisAgent4640Address = "0x7BEdF6D85E522a30f4eb9b5158dAbDCf31aC0160"
-  let genesisAgent4640 = await ethers.getContractAt("BlastooorAgentAccount", genesisAgent4640Address, boombotseth) as BlastooorAgentAccount;
-
-  let tx = await genesisAgent4640.execute(STRATEGY_FACTORY_ADDRESS, depositAmount, calldata1, 0, {...networkSettings.overrides, value: depositAmount})
+  let tx = await genesisAgent4640.execute(STRATEGY_FACTORY_ADDRESS, depositAmountETH, calldata1, 0, {...networkSettings.overrides, value: depositAmountETH})
   await watchTxForCreatedAgentID(tx)
 
   console.log(`createStrategyAgent2`)
+}
+
+// creates strategy agent 3
+// and funds with 0.01 eth
+// has a strategy manager
+async function createStrategyAgent3() {
+  console.log(`createStrategyAgent3`)
+
+  let depositAmountETH = WeiPerEther.div(100)
+  let deposits = [{
+    token: AddressZero,
+    amount: depositAmountETH
+  }]
+  let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [2, deposits])
+
+  let tx = await genesisAgent4640.execute(STRATEGY_FACTORY_ADDRESS, depositAmountETH, calldata1, 0, {...networkSettings.overrides, value: depositAmountETH})
+  await watchTxForCreatedAgentID(tx)
+
+  console.log(`createStrategyAgent3`)
+}
+
+// creates strategy agent 17
+// funds with 0.01 ETH and 1000 USDB
+// has a strategy manager
+async function createStrategyAgent17() {
+  console.log(`createStrategyAgent17`)
+
+  let depositAmountETH = WeiPerEther.div(100)
+  let depositAmountUSDB = WeiPerEther.mul(1000)
+  let deposits = [
+    {
+      token: AddressZero,
+      amount: depositAmountETH,
+    },{
+      token: USDB_ADDRESS,
+      amount: depositAmountUSDB,
+    },
+  ]
+
+  // check eoa balances
+  let usdbBalance1 = await usdb.balanceOf(agentfideployer.address);
+  if(usdbBalance1.lt(depositAmountUSDB)) {
+    throw new Error("Insufficient USDB balance")
+  }
+  // check eoa allowances
+  let usdbAllowance1 = await usdb.allowance(agentfideployer.address, genesisAgent4640Address);
+  if(usdbAllowance1.lt(depositAmountUSDB)) {
+    console.log(`Approving USDB from EOA to root agent`)
+    let tx = await usdb.connect(agentfideployer).approve(genesisAgent4640Address, MaxUint256, networkSettings.overrides)
+    await tx.wait(networkSettings.confirmations)
+    console.log(`Approved USDB from EOA to root agent`)
+  }
+  // main calls
+  let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [2, deposits])
+  let batch = [
+    {
+      to: USDB_ADDRESS,
+      value: 0,
+      data: usdb.interface.encodeFunctionData("transferFrom", [agentfideployer.address, genesisAgent4640Address, depositAmountUSDB]),
+      operation: 0
+    },
+    {
+      to: STRATEGY_FACTORY_ADDRESS,
+      value: depositAmountETH,
+      data: calldata1,
+      operation: 0,
+    }
+  ]
+  // check agent allowances
+  let usdbAllowance = await usdb.allowance(genesisAgent4640Address, strategyFactory.address);
+  if(usdbAllowance.lt(depositAmountUSDB)) {
+    batch.unshift({
+      to: USDB_ADDRESS,
+      value: 0,
+      data: usdb.interface.encodeFunctionData("approve", [STRATEGY_FACTORY_ADDRESS, MaxUint256]),
+      operation: 0
+    })
+  }
+  // check points operator
+  let pointsOperator = await iblastpoints.operatorMap(genesisAgent4640Address);
+  console.log(`pointsOperator: ${pointsOperator}`)
+  if(pointsOperator == AddressZero) {
+    batch.unshift({
+      to: BLAST_POINTS_ADDRESS,
+      value: 0,
+      data: iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS]),
+      operation: 0,
+    })
+  }
+
+  // send transaction
+  var tx
+  if(batch.length == 1) {
+    tx = await genesisAgent4640.execute(STRATEGY_FACTORY_ADDRESS, depositAmountETH, calldata1, 0, {...networkSettings.overrides, value: depositAmountETH})
+  }
+  else {
+    tx = await genesisAgent4640.executeBatch(batch, {...networkSettings.overrides, value: depositAmountETH})
+  }
+  await watchTxForCreatedAgentID(tx)
+
+  console.log(`createStrategyAgent17`)
+}
+
+// creates strategy agent 19
+// funds with 0.01 WETH and 1000 USDB
+// has a strategy manager
+async function createStrategyAgent19() {
+  console.log(`createStrategyAgent19`)
+
+  let depositAmountETH = Zero
+  let depositAmountWETH = WeiPerEther.div(100)
+  let depositAmountUSDB = WeiPerEther.mul(1000)
+  let deposits = [
+    {
+      token: WETH_ADDRESS,
+      amount: depositAmountWETH,
+    },{
+      token: USDB_ADDRESS,
+      amount: depositAmountUSDB,
+    },
+  ]
+
+  // check eoa balances
+  let wethBalance1 = await weth.balanceOf(agentfideployer.address);
+  if(wethBalance1.lt(depositAmountWETH)) {
+    throw new Error("Insufficient WETH balance")
+  }
+  let usdbBalance1 = await usdb.balanceOf(agentfideployer.address);
+  if(usdbBalance1.lt(depositAmountUSDB)) {
+    throw new Error("Insufficient USDB balance")
+  }
+  // check eoa allowances
+  let wethAllowance1 = await weth.allowance(agentfideployer.address, genesisAgent4640Address);
+  if(wethAllowance1.lt(depositAmountWETH)) {
+    console.log(`Approving WETH from EOA to root agent`)
+    let tx = await weth.connect(agentfideployer).approve(genesisAgent4640Address, MaxUint256, networkSettings.overrides)
+    await tx.wait(networkSettings.confirmations)
+    console.log(`Approved WETH from EOA to root agent`)
+  }
+  let usdbAllowance1 = await usdb.allowance(agentfideployer.address, genesisAgent4640Address);
+  if(usdbAllowance1.lt(depositAmountUSDB)) {
+    console.log(`Approving USDB from EOA to root agent`)
+    let tx = await usdb.connect(agentfideployer).approve(genesisAgent4640Address, MaxUint256, networkSettings.overrides)
+    await tx.wait(networkSettings.confirmations)
+    console.log(`Approved USDB from EOA to root agent`)
+  }
+  // main calls
+  let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [2, deposits])
+  let batch = [
+    {
+      to: WETH_ADDRESS,
+      value: 0,
+      data: weth.interface.encodeFunctionData("transferFrom", [agentfideployer.address, genesisAgent4640Address, depositAmountWETH]),
+      operation: 0
+    },
+    {
+      to: USDB_ADDRESS,
+      value: 0,
+      data: usdb.interface.encodeFunctionData("transferFrom", [agentfideployer.address, genesisAgent4640Address, depositAmountUSDB]),
+      operation: 0
+    },
+    {
+      to: STRATEGY_FACTORY_ADDRESS,
+      value: depositAmountETH,
+      data: calldata1,
+      operation: 0,
+    }
+  ]
+  // check agent allowances
+  let wethAllowance = await weth.allowance(genesisAgent4640Address, strategyFactory.address);
+  if(wethAllowance.lt(depositAmountWETH)) {
+    batch.unshift({
+      to: WETH_ADDRESS,
+      value: 0,
+      data: weth.interface.encodeFunctionData("approve", [STRATEGY_FACTORY_ADDRESS, MaxUint256]),
+      operation: 0
+    })
+  }
+  let usdbAllowance = await usdb.allowance(genesisAgent4640Address, strategyFactory.address);
+  if(usdbAllowance.lt(depositAmountUSDB)) {
+    batch.unshift({
+      to: USDB_ADDRESS,
+      value: 0,
+      data: usdb.interface.encodeFunctionData("approve", [STRATEGY_FACTORY_ADDRESS, MaxUint256]),
+      operation: 0
+    })
+  }
+  // check points operator
+  let pointsOperator = await iblastpoints.operatorMap(genesisAgent4640Address);
+  console.log(`pointsOperator: ${pointsOperator}`)
+  if(pointsOperator == AddressZero) {
+    batch.unshift({
+      to: BLAST_POINTS_ADDRESS,
+      value: 0,
+      data: iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS]),
+      operation: 0,
+    })
+  }
+
+  // send transaction
+  var tx
+  if(batch.length == 1) {
+    tx = await genesisAgent4640.execute(STRATEGY_FACTORY_ADDRESS, depositAmountETH, calldata1, 0, {...networkSettings.overrides, value: depositAmountETH})
+  }
+  else {
+    tx = await genesisAgent4640.executeBatch(batch, {...networkSettings.overrides, value: depositAmountETH})
+  }
+  await watchTxForCreatedAgentID(tx)
+
+  console.log(`createStrategyAgent19`)
 }
 
 async function watchTxForCreatedAgentID(tx:any) {

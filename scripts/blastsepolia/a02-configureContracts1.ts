@@ -50,6 +50,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xF62f98e2aF80BB65e544D38783254bE294a45
 
 const DISPATCHER_ADDRESS              = "0xC9EB588498e911bdeB081A927c8059FaC4480260"; // v1.0.1
 
+const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -76,12 +78,16 @@ const STAKING_REWARDS_INDEX      = 2;
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
 let gasCollector: GasCollector;
+let balanceFetcher: BalanceFetcher;
+
 let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
 let accountImplBase: BlastooorAgentAccount; // the base implementation for agentfi accounts
+
 let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
+
 let dispatcher: Dispatcher;
 
 let usdb: MockERC20;
@@ -102,6 +108,7 @@ async function main() {
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
 
   gasCollector = await ethers.getContractAt("GasCollector", GAS_COLLECTOR_ADDRESS, agentfideployer) as GasCollector;
+  balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;
   genesisCollection = await ethers.getContractAt("BlastooorGenesisAgents", GENESIS_COLLECTION_ADDRESS, agentfideployer) as BlastooorGenesisAgents;
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastooorAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastooorAgentAccount;
@@ -134,7 +141,10 @@ async function main() {
   //await whitelistStrategyFactories();
   //await setMaxCreationsPerGenesisAgent();
   //await setStrategyNftMetadata();
-  await postStrategyAgentCreationSettings_1();
+  //await postStrategyAgentCreationSettings_1();
+  //await postStrategyAgentCreationSettings_2();
+
+  //await addOperatorsToDispatcher();
 }
 
 async function configureContractFactoryGasGovernor() {
@@ -645,11 +655,11 @@ async function postStrategyAgentCreationSettings_1() {
   console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
 
   let blastcalldata0 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode0 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata0, 0]);
+  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata0, 0]);
   let blastcalldata1 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode1 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata1, 0]);
+  let agentInitializationCode1 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata1, 0]);
   let blastPointsCalldata2 = iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS])
-  let agentInitializationCode2 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_POINTS_ADDRESS, 0, blastPointsCalldata2, 0]);
+  let agentInitializationCode2 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_POINTS_ADDRESS, 0, blastPointsCalldata2, 0]);
 
   let params = {
     agentImplementation: strategyAccountImpl.address,
@@ -667,6 +677,79 @@ async function postStrategyAgentCreationSettings_1() {
   if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
 
   console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+// 2: create new strategy agent
+// has a strategy manager
+async function postStrategyAgentCreationSettings_2() {
+  let expectedSettingsID = 2
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let calldata0 = iblast.interface.encodeFunctionData("configureAutomaticYield")
+  let calldata1 = iblast.interface.encodeFunctionData("configureClaimableGas")
+  let calldata2 = iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS])
+
+  let batch = [
+    {
+      to: BLAST_ADDRESS,
+      value: 0,
+      data: calldata0,
+      operation: 0,
+    },
+    {
+      to: BLAST_ADDRESS,
+      value: 0,
+      data: calldata1,
+      operation: 0,
+    },
+    {
+      to: BLAST_POINTS_ADDRESS,
+      value: 0,
+      data: calldata2,
+      operation: 0,
+    },
+  ]
+
+  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("executeBatch", [batch]);
+
+  let roles = [
+    {
+      role: STRATEGY_MANAGER_ROLE,
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    }
+  ]
+  let agentInitializationCode1 = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles]);
+
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      agentInitializationCode0,
+      agentInitializationCode1,
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+async function addOperatorsToDispatcher() {
+  console.log('addOperatorsToDispatcher')
+  let operators = [{
+      account: agentfideployer.address,
+      isAuthorized: true,
+  }]
+  let tx = await dispatcher.connect(agentfideployer).setOperators(operators, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  console.log('addOperatorsToDispatcher')
 }
 
 main()

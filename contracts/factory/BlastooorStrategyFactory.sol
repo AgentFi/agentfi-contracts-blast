@@ -260,7 +260,7 @@ contract BlastooorStrategyFactory is Multicall, Blastable, Ownable2Step, IBlasto
     * Can only be called by the contract owner.
     * @param count The count to set.
     */
-    function setMaxCreationsPerGenesisAgent(uint256 count) external payable override {
+    function setMaxCreationsPerGenesisAgent(uint256 count) external payable override onlyOwner {
         _maxCreationsPerGenesisAgent = count;
         emit SetMaxCreationsPerGenesisAgent(count);
     }

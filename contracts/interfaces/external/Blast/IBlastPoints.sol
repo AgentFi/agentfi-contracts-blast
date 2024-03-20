@@ -6,4 +6,6 @@ pragma solidity 0.8.24;
 interface IBlastPoints {
     function configurePointsOperator(address operator) external;
     function configurePointsOperatorOnBehalf(address contractAddress, address operator) external;
+
+    function operatorMap(address contractAddress) external view returns (address operator);
 }
