@@ -34,7 +34,7 @@ const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F3
 const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD"; // v1.0.0
+const MULTICALL_FORWARDER_ADDRESS     = "0x91074d0AB2e5E4b61c4ff03A40E6491103bEB14a"; // v1.0.1
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
@@ -42,13 +42,16 @@ const BALANCE_FETCHER_ADDRESS         = "0xecBa5144eeFEebceC60e0Bfb0D19e6F860486
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // v1.0.0
+const GENESIS_ACCOUNT_IMPL_ADDRESS    = "0x9DE8d1AfA3eF64AcC41Cd84533EE09A0Cd87fefF"; // v1.0.1
+const GENESIS_ACCOUNT_FACTORY_ADDRESS = "0xed545485E59C4Dec4156340871CEA8242674b6a2"; // v1.0.1
 
-const STRATEGY_COLLECTION_ADDRESS     = "0x07A10106e8cA35D3ca976A63B93aCECF56Ef10dF"; // v1.0.1
-const STRATEGY_FACTORY_ADDRESS        = "0x91e82c028C1b7015225a7bCFa7a430E46C8DCFb6"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xF62f98e2aF80BB65e544D38783254bE294a4526d"; // v1.0.1
+const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCfe23"; // v1.0.1
 
-const DISPATCHER_ADDRESS              = "0xC9EB588498e911bdeB081A927c8059FaC4480260"; // v1.0.1
+const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
+const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+
+const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
@@ -77,12 +80,18 @@ const STAKING_REWARDS_INDEX      = 2;
 
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
+
+let multicallForwarder: MulticallForwarder;
+let contractFactory: ContractFactory;
 let gasCollector: GasCollector;
 let balanceFetcher: BalanceFetcher;
 
 let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
-let accountImplBase: BlastooorAgentAccount; // the base implementation for agentfi accounts
+let genesisAccountImpl: BlastooorGenesisAgentAccount;
+let genesisAccountFactory: BlastooorAccountFactory;
+
+let agentRegistry: AgentRegistry;
 
 let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
@@ -103,6 +112,20 @@ async function main() {
   }
   if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
   //await expectDeployed(ERC6551_REGISTRY_ADDRESS)
+  await expectDeployed(ENTRY_POINT_ADDRESS)
+  await expectDeployed(MULTICALL_FORWARDER_ADDRESS)
+  await expectDeployed(CONTRACT_FACTORY_ADDRESS)
+  await expectDeployed(GAS_COLLECTOR_ADDRESS)
+  await expectDeployed(BALANCE_FETCHER_ADDRESS)
+  await expectDeployed(GENESIS_COLLECTION_ADDRESS)
+  await expectDeployed(GENESIS_FACTORY_ADDRESS)
+  await expectDeployed(GENESIS_ACCOUNT_IMPL_ADDRESS)
+  await expectDeployed(GENESIS_ACCOUNT_FACTORY_ADDRESS)
+  await expectDeployed(AGENT_REGISTRY_ADDRESS)
+  await expectDeployed(STRATEGY_COLLECTION_ADDRESS)
+  await expectDeployed(STRATEGY_FACTORY_ADDRESS)
+  await expectDeployed(STRATEGY_ACCOUNT_IMPL_ADDRESS)
+  await expectDeployed(DISPATCHER_ADDRESS)
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -111,21 +134,23 @@ async function main() {
   balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;
   genesisCollection = await ethers.getContractAt("BlastooorGenesisAgents", GENESIS_COLLECTION_ADDRESS, agentfideployer) as BlastooorGenesisAgents;
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
-  accountImplBase = await ethers.getContractAt("BlastooorAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastooorAgentAccount;
+  genesisAccountImpl = await ethers.getContractAt("BlastooorGenesisAgentAccount", GENESIS_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorGenesisAgentAccount;
+  genesisAccountFactory = await ethers.getContractAt("BlastooorAccountFactory", GENESIS_ACCOUNT_FACTORY_ADDRESS, agentfideployer) as BlastooorAccountFactory;
+  agentRegistry = await ethers.getContractAt("AgentRegistry", AGENT_REGISTRY_ADDRESS, agentfideployer) as AgentRegistry;
   strategyCollection = await ethers.getContractAt("BlastooorStrategyAgents", STRATEGY_COLLECTION_ADDRESS, agentfideployer) as BlastooorStrategyAgents;
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
-
+  multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
 
-  //await postAgentCreationSettings_blastooor();
-  //await addSigners()
+  //await postAgentCreationSettings_blastooor_genesis();
+  //await addGenesisMintSigners()
 
-  //await whitelistFactories();
-  //await setNftMetadata();
+  //await whitelistGenesisFactories();
+  //await setGenesisNftMetadata();
 
   //await configureGasCollector();
   //await collectGasRewards();
@@ -138,12 +163,17 @@ async function main() {
   //await postAgentCreationSettings03_6();
   //await postAgentCreationSettings03_7();
 
+
+
+
+  //await agentRegistrySetOperators();
+  await setGenesisMaxAccountCreationsPerAgent();
+  //await postGenesisAccountCreationSettings_1();
   //await whitelistStrategyFactories();
   //await setMaxCreationsPerGenesisAgent();
   //await setStrategyNftMetadata();
   //await postStrategyAgentCreationSettings_1();
   //await postStrategyAgentCreationSettings_2();
-
   //await addOperatorsToDispatcher();
 }
 
@@ -154,7 +184,7 @@ async function configureContractFactoryGasGovernor() {
   console.log("Configured contract factory gas governor")
 }
 
-async function whitelistFactories() {
+async function whitelistGenesisFactories() {
   let expectedSettings = [
     {
       factory: GENESIS_FACTORY_ADDRESS,
@@ -175,10 +205,10 @@ async function whitelistFactories() {
   }
 }
 
-async function setNftMetadata() {
+async function setGenesisNftMetadata() {
   let txdatas = [] as any[]
-  let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI.json"
-  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&v=0.1.4&agentID="
+  let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI-blastooor-genesis.json"
+  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&collection=genesis&agentID="
   let currentContractURI = await genesisCollection.contractURI()
   let currentBaseURI = await genesisCollection.baseURI()
   if(currentContractURI != desiredContractURI) {
@@ -189,7 +219,7 @@ async function setNftMetadata() {
   }
   if(txdatas.length == 0) return
   var tx
-  console.log("Setting NFT metadata");
+  console.log("Setting Genesis NFT metadata");
   if(txdatas.length == 1) {
     tx = await agentfideployer.sendTransaction({
       to: genesisCollection.address,
@@ -202,54 +232,17 @@ async function setNftMetadata() {
   }
   //console.log("tx:", tx);
   await tx.wait(networkSettings.confirmations);
-  console.log("Set NFT metadata");
+  console.log("Set Genesis NFT metadata");
 }
-/*
-async function pauseAgentCreationSettings03() {
-  let expectedSettings = [
-    {
-      settingsID: 1,
-      isPaused: true,
-    },
-    {
-      settingsID: 2,
-      isPaused: true,
-    },
-    {
-      settingsID: 3,
-      isPaused: true,
-    },
-    {
-      settingsID: 5,
-      isPaused: true,
-    },
-  ]
-  let diffs = []
-  for(let i = 0; i < expectedSettings.length; ++i) {
-    let { settingsID, isPaused } = expectedSettings[i]
-    let res = await factory03.getAgentCreationSettings(settingsID)
-    if(res.isPaused != isPaused) {
-      diffs.push(expectedSettings[i])
-    }
-  }
-  if(diffs.length == 0) return
-  console.log(`Pausing factory03 agent creation settings`)
-  console.log(diffs)
-  let txdatas = diffs.map(d=>factory03.interface.encodeFunctionData("setPaused",[d.settingsID,d.isPaused]))
-  let tx = await factory03.connect(agentfideployer).multicall(txdatas, networkSettings.overrides)
-  await tx.wait(networkSettings.confirmations)
-  console.log(`Paused factory03 agent creation settings`)
-}
-*/
 
-// postAgentCreationSettings_blastooor
-async function postAgentCreationSettings_blastooor() {
-  console.log(`Calling postAgentCreationSettings_blastooor`)
+// postAgentCreationSettings_blastooor_genesis
+async function postAgentCreationSettings_blastooor_genesis() {
+  console.log(`Calling postAgentCreationSettings_blastooor_genesis`)
 
   let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let agentInitializationCode3 = genesisAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
   let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+  let agentInitializationCode4 = genesisAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
 
   const startTimePast = 1705735600
 
@@ -258,7 +251,7 @@ async function postAgentCreationSettings_blastooor() {
   const timestampPublicMintStart = 1709355600
 
   let params = {
-    agentImplementation: accountImplBase.address,
+    agentImplementation: genesisAccountImpl.address,
     initializationCalls: [
       agentInitializationCode3,
       agentInitializationCode4,
@@ -274,10 +267,10 @@ async function postAgentCreationSettings_blastooor() {
   let receipt = await tx.wait(networkSettings.confirmations)
   let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
 
-  console.log(`Called postAgentCreationSettings_blastooor`)
+  console.log(`Called postAgentCreationSettings_blastooor_genesis`)
 }
 
-async function addSigners() {
+async function addGenesisMintSigners() {
   console.log(`Adding signers`)
   let tx = await genesisFactory.connect(agentfideployer).addSigner(allowlistSignerAddress, networkSettings.overrides)
   let receipt = await tx.wait(networkSettings.confirmations)
@@ -293,12 +286,12 @@ async function postAgentCreationSettings03_1() {
   console.log(`Calling postAgentCreationSettings03_${expectedSettingsID}`)
 
   let blastcalldata3 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode3 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
+  let agentInitializationCode3 = genesisAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata3, 0]);
   let blastcalldata4 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode4 = accountImplBase.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
+  let agentInitializationCode4 = genesisAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata4, 0]);
 
   let params = {
-    agentImplementation: accountImplBase.address,
+    agentImplementation: genesisAccountImpl.address,
     initializationCalls: [
       agentInitializationCode3,
       agentInitializationCode4,
@@ -541,7 +534,7 @@ async function configureGasCollector() {
     GAS_COLLECTOR_ADDRESS,
     //CONTRACT_FACTORY_ADDRESS,
     AGENT_NFT_ADDRESS,
-    ACCOUNT_IMPL_BASE_ADDRESS,
+    ACCOUNT_IMPL_BROKEN_ADDRESS,
     AGENT_FACTORY01_ADDRESS,
     AGENT_FACTORY02_ADDRESS,
     BALANCE_FETCHER_ADDRESS,
@@ -615,6 +608,65 @@ async function transferFundsFromFactory02() {
   console.log(`Transferred funds from factory02`)
 }
 
+// agent registry
+
+async function agentRegistrySetOperators() {
+  let expectedSettings = [
+    {
+      account: genesisAccountFactory.address,
+      isAuthorized: true,
+    },
+    {
+      account: strategyFactory.address,
+      isAuthorized: true,
+    },
+  ]
+  let diffs = [] as any[]
+  for(let i = 0; i < expectedSettings.length; i++) {
+    let { account , isAuthorized } = expectedSettings[i]
+    let isOperator = await agentRegistry.connect(agentfideployer).isOperator(account)
+    if(isOperator != isAuthorized) diffs.push(expectedSettings[i])
+  }
+  if(diffs.length > 0) {
+    console.log("AgentRegistry setting operators")
+    let tx = await agentRegistry.connect(agentfideployer).setOperators(diffs, networkSettings.overrides)
+    await tx.wait(networkSettings.confirmations)
+    console.log("AgentRegistry set operators")
+  }
+}
+
+// genesis account factory
+
+async function setGenesisMaxAccountCreationsPerAgent() {
+  console.log("calling genesisAccountFactory.setMaxCreationsPerAgent()")
+  let tx = await genesisAccountFactory.connect(agentfideployer).setMaxCreationsPerAgent(1, networkSettings.overrides)
+  await tx.wait(networkSettings.confirmations)
+  console.log("called genesisAccountFactory.setMaxCreationsPerAgent()")
+}
+
+async function postGenesisAccountCreationSettings_1() {
+  let expectedSettingsID = 1
+  let count = (await genesisAccountFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postGenesisAccountCreationSettings_${expectedSettingsID}`)
+
+  let params = {
+    agentImplementation: genesisAccountImpl.address,
+    initializationCalls: [
+      genesisAccountImpl.interface.encodeFunctionData("blastConfigure"),
+    ],
+    isActive: true
+  }
+  let tx = await genesisAccountFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postGenesisAccountCreationSettings_${expectedSettingsID}`)
+}
+
 // strategies
 
 async function whitelistStrategyFactories() {
@@ -638,6 +690,37 @@ async function whitelistStrategyFactories() {
   }
 }
 
+
+async function setStrategyNftMetadata() {
+  let txdatas = [] as any[]
+  let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI-blastooor-strategy.json"
+  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=168587773&collection=strategy&agentID="
+  let currentContractURI = await strategyCollection.contractURI()
+  let currentBaseURI = await strategyCollection.baseURI()
+  if(currentContractURI != desiredContractURI) {
+    txdatas.push(strategyCollection.interface.encodeFunctionData("setContractURI", [desiredContractURI]))
+  }
+  if(currentBaseURI != desiredBaseURI) {
+    txdatas.push(strategyCollection.interface.encodeFunctionData("setBaseURI", [desiredBaseURI]))
+  }
+  if(txdatas.length == 0) return
+  var tx
+  console.log("Setting Strategy NFT metadata");
+  if(txdatas.length == 1) {
+    tx = await agentfideployer.sendTransaction({
+      to: strategyCollection.address,
+      data: txdatas[0],
+      ...networkSettings.overrides,
+      gasLimit: 1_000_000
+    })
+  } else { // length > 1
+    tx = await strategyCollection.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 1_000_000});
+  }
+  //console.log("tx:", tx);
+  await tx.wait(networkSettings.confirmations);
+  console.log("Set Strategy NFT metadata");
+}
+
 async function setMaxCreationsPerGenesisAgent() {
   console.log("setMaxCreationsPerGenesisAgent")
   let tx = await strategyFactory.connect(agentfideployer).setMaxCreationsPerGenesisAgent(100, networkSettings.overrides)
@@ -654,19 +737,10 @@ async function postStrategyAgentCreationSettings_1() {
   if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
   console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
 
-  let blastcalldata0 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata0, 0]);
-  let blastcalldata1 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let agentInitializationCode1 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_ADDRESS, 0, blastcalldata1, 0]);
-  let blastPointsCalldata2 = iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS])
-  let agentInitializationCode2 = strategyAccountImpl.interface.encodeFunctionData("execute", [BLAST_POINTS_ADDRESS, 0, blastPointsCalldata2, 0]);
-
   let params = {
     agentImplementation: strategyAccountImpl.address,
     initializationCalls: [
-      agentInitializationCode0,
-      agentInitializationCode1,
-      agentInitializationCode2,
+      strategyAccountImpl.interface.encodeFunctionData("blastConfigure"),
     ],
     isActive: true,
   }
@@ -688,33 +762,6 @@ async function postStrategyAgentCreationSettings_2() {
   if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
   console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
 
-  let calldata0 = iblast.interface.encodeFunctionData("configureAutomaticYield")
-  let calldata1 = iblast.interface.encodeFunctionData("configureClaimableGas")
-  let calldata2 = iblastpoints.interface.encodeFunctionData("configurePointsOperator", [BLAST_POINTS_OPERATOR_ADDRESS])
-
-  let batch = [
-    {
-      to: BLAST_ADDRESS,
-      value: 0,
-      data: calldata0,
-      operation: 0,
-    },
-    {
-      to: BLAST_ADDRESS,
-      value: 0,
-      data: calldata1,
-      operation: 0,
-    },
-    {
-      to: BLAST_POINTS_ADDRESS,
-      value: 0,
-      data: calldata2,
-      operation: 0,
-    },
-  ]
-
-  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("executeBatch", [batch]);
-
   let roles = [
     {
       role: STRATEGY_MANAGER_ROLE,
@@ -722,6 +769,7 @@ async function postStrategyAgentCreationSettings_2() {
       grantAccess: true,
     }
   ]
+  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("blastConfigure")
   let agentInitializationCode1 = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles]);
 
   let params = {

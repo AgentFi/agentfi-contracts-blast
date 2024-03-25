@@ -9,7 +9,7 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastooorAgentAccount, BlastooorAgentAccountRingProtocolC, BlastooorAgentAccountRingProtocolD, BlastooorAgentAccountThrusterA, BlastooorAgentAccountBasketA, AgentFactory01, AgentFactory02, AgentFactory03, BlastooorGenesisFactory, IBlast, ContractFactory, GasCollector, BalanceFetcher, Multicall3Blastable, BlastooorGenesisAgents, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher } from "../../typechain-types";
+import { BlastooorGenesisAgentAccount, BlastooorGenesisFactory, IBlast, ContractFactory, GasCollector, BalanceFetcher, MulticallForwarder, BlastooorGenesisAgents, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher, AgentRegistry } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -30,7 +30,7 @@ const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F3
 const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD"; // v1.0.0
+const MULTICALL_FORWARDER_ADDRESS     = "0x91074d0AB2e5E4b61c4ff03A40E6491103bEB14a"; // v1.0.1
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
@@ -38,30 +38,38 @@ const BALANCE_FETCHER_ADDRESS         = "0xecBa5144eeFEebceC60e0Bfb0D19e6F860486
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // v1.0.0
+const GENESIS_ACCOUNT_IMPL_ADDRESS    = "0x9DE8d1AfA3eF64AcC41Cd84533EE09A0Cd87fefF"; // v1.0.1
+const GENESIS_ACCOUNT_FACTORY_ADDRESS = "0xed545485E59C4Dec4156340871CEA8242674b6a2"; // v1.0.1
 
-const STRATEGY_COLLECTION_ADDRESS     = "0x07A10106e8cA35D3ca976A63B93aCECF56Ef10dF"; // v1.0.1
-const STRATEGY_FACTORY_ADDRESS        = "0x91e82c028C1b7015225a7bCFa7a430E46C8DCFb6"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xF62f98e2aF80BB65e544D38783254bE294a4526d"; // v1.0.1
+const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCfe23"; // v1.0.1
 
-const DISPATCHER_ADDRESS              = "0xC9EB588498e911bdeB081A927c8059FaC4480260"; // v1.0.1
+const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
+const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+
+const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
 let iblast: IBlast;
 
-let multicall3: Multicall3Blastable;
+let multicallForwarder: MulticallForwarder;
 let contractFactory: ContractFactory;
 let gasCollector: GasCollector;
 let balanceFetcher: BalanceFetcher;
 
 let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
-let accountImplBase: BlastooorAgentAccount; // the base implementation for genesis agent accounts
+let genesisAccountImpl: BlastooorGenesisAgentAccount;
+let genesisAccountFactory: BlastooorAccountFactory;
+
+let agentRegistry: AgentRegistry;
 
 let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
+
+//let strategyModuleA: DexBalancerModuleA;
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -80,11 +88,14 @@ async function main() {
   await deployContractFactory();
   await deployGasCollector();
   await deployBalanceFetcher();
-  await deployMulticall3();
+  await deployMulticallForwarder();
 
   await deployGenesisCollection();
   await deployBlastooorGenesisFactory();
-  await deployBlastooorAgentAccount();
+  await deployBlastooorGenesisAgentAccount();
+
+  await deployAgentRegistry();
+  await deployGenesisAccountFactory();
 
   await deployStrategyCollection();
   await deployBlastooorStrategyFactory();
@@ -130,20 +141,20 @@ async function deployBalanceFetcher() {
     balanceFetcher = await deployContractUsingContractFactory(agentfideployer, "BalanceFetcher", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BalanceFetcher;
     console.log(`Deployed BalanceFetcher to ${balanceFetcher.address}`);
     if(chainID != 31337) await verifyContract(balanceFetcher.address, args);
-    if(!!BALANCE_FETCHER_ADDRESS && balanceFetcher.address != BALANCE_FETCHER_ADDRESS) throw new Error(`Deployed ModulePack100 to ${balanceFetcher.address}, expected ${BALANCE_FETCHER_ADDRESS}`)
+    if(!!BALANCE_FETCHER_ADDRESS && balanceFetcher.address != BALANCE_FETCHER_ADDRESS) throw new Error(`Deployed BalanceFetcher to ${balanceFetcher.address}, expected ${BALANCE_FETCHER_ADDRESS}`)
   }
 }
 
-async function deployMulticall3() {
+async function deployMulticallForwarder() {
   if(await isDeployed(MULTICALL_FORWARDER_ADDRESS)) {
-    multicall3 = await ethers.getContractAt("Multicall3Blastable", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as Multicall3Blastable;
+    multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
   } else {
-    console.log("Deploying Multicall3Blastable");
-    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS];
-    multicall3 = await deployContractUsingContractFactory(agentfideployer, "Multicall3Blastable", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as Multicall3Blastable;
-    console.log(`Deployed Multicall3Blastable to ${multicall3.address}`);
-    if(chainID != 31337) await verifyContract(multicall3.address, args);
-    if(!!MULTICALL_FORWARDER_ADDRESS && multicall3.address != MULTICALL_FORWARDER_ADDRESS) throw new Error(`Deployed ModulePack100 to ${multicall3.address}, expected ${MULTICALL_FORWARDER_ADDRESS}`)
+    console.log("Deploying MulticallForwarder");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    multicallForwarder = await deployContractUsingContractFactory(agentfideployer, "MulticallForwarder", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as MulticallForwarder;
+    console.log(`Deployed MulticallForwarder to ${multicallForwarder.address}`);
+    if(chainID != 31337) await verifyContract(multicallForwarder.address, args);
+    if(!!MULTICALL_FORWARDER_ADDRESS && multicallForwarder.address != MULTICALL_FORWARDER_ADDRESS) throw new Error(`Deployed MulticallForwarder to ${multicallForwarder.address}, expected ${MULTICALL_FORWARDER_ADDRESS}`)
   }
 }
 
@@ -173,16 +184,42 @@ async function deployBlastooorGenesisFactory() {
   }
 }
 
-async function deployBlastooorAgentAccount() {
-  if(await isDeployed(ACCOUNT_IMPL_BASE_ADDRESS)) {
-    accountImplBase = await ethers.getContractAt("BlastooorAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastooorAgentAccount;
+async function deployBlastooorGenesisAgentAccount() {
+  if(await isDeployed(GENESIS_ACCOUNT_IMPL_ADDRESS)) {
+    genesisAccountImpl = await ethers.getContractAt("BlastooorGenesisAgentAccount", GENESIS_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorGenesisAgentAccount;
   } else {
-    console.log("Deploying BlastooorAgentAccount");
-    let args = [BLAST_ADDRESS, gasCollector.address, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
-    accountImplBase = await deployContractUsingContractFactory(agentfideployer, "BlastooorAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorAgentAccount;
-    console.log(`Deployed BlastooorAgentAccount to ${accountImplBase.address}`);
-    if(chainID != 31337) await verifyContract(accountImplBase.address, args);
-    if(!!ACCOUNT_IMPL_BASE_ADDRESS && accountImplBase.address != ACCOUNT_IMPL_BASE_ADDRESS) throw new Error(`Deployed BlastooorAgentAccount to ${accountImplBase.address}, expected ${ACCOUNT_IMPL_BASE_ADDRESS}`)
+    console.log("Deploying BlastooorGenesisAgentAccount");
+    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    genesisAccountImpl = await deployContractUsingContractFactory(agentfideployer, "BlastooorGenesisAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorGenesisAgentAccount;
+    console.log(`Deployed BlastooorGenesisAgentAccount to ${genesisAccountImpl.address}`);
+    if(chainID != 31337) await verifyContract(genesisAccountImpl.address, args);
+    if(!!GENESIS_ACCOUNT_IMPL_ADDRESS && genesisAccountImpl.address != GENESIS_ACCOUNT_IMPL_ADDRESS) throw new Error(`Deployed BlastooorGenesisAgentAccount to ${genesisAccountImpl.address}, expected ${GENESIS_ACCOUNT_IMPL_ADDRESS}`)
+  }
+}
+
+async function deployAgentRegistry() {
+  if(await isDeployed(AGENT_REGISTRY_ADDRESS)) {
+    agentRegistry = await ethers.getContractAt("AgentRegistry", AGENT_REGISTRY_ADDRESS, agentfideployer) as AgentRegistry;
+  } else {
+    console.log("Deploying AgentRegistry");
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    agentRegistry = await deployContractUsingContractFactory(agentfideployer, "AgentRegistry", args, toBytes32(1), undefined, {...networkSettings.overrides, gasLimit: 10_000_000}, networkSettings.confirmations) as AgentRegistry;
+    console.log(`Deployed AgentRegistry to ${agentRegistry.address}`);
+    if(chainID != 31337) await verifyContract(agentRegistry.address, args);
+    if(!!AGENT_REGISTRY_ADDRESS && agentRegistry.address != AGENT_REGISTRY_ADDRESS) throw new Error(`Deployed AgentRegistry to ${agentRegistry.address}, expected ${AGENT_REGISTRY_ADDRESS}`)
+  }
+}
+
+async function deployGenesisAccountFactory() {
+  if(await isDeployed(GENESIS_ACCOUNT_FACTORY_ADDRESS)) {
+    genesisAccountFactory = await ethers.getContractAt("BlastooorAccountFactory", GENESIS_ACCOUNT_FACTORY_ADDRESS, agentfideployer) as BlastooorAccountFactory;
+  } else {
+    console.log("Deploying BlastooorAccountFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, multicallForwarder.address, genesisCollection.address, agentRegistry.address, ERC6551_REGISTRY_ADDRESS];
+    genesisAccountFactory = await deployContractUsingContractFactory(agentfideployer, "BlastooorAccountFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorAccountFactory;
+    console.log(`Deployed BlastooorAccountFactory to ${genesisAccountFactory.address}`);
+    if(chainID != 31337) await verifyContract(genesisAccountFactory.address, args);
+    if(!!GENESIS_ACCOUNT_FACTORY_ADDRESS && genesisAccountFactory.address != GENESIS_ACCOUNT_FACTORY_ADDRESS) throw new Error(`Deployed BlastooorAccountFactory to ${genesisAccountFactory.address}, expected ${GENESIS_ACCOUNT_FACTORY_ADDRESS}`)
   }
 }
 
@@ -191,7 +228,7 @@ async function deployStrategyCollection() {
     strategyCollection = await ethers.getContractAt("BlastooorStrategyAgents", STRATEGY_COLLECTION_ADDRESS, agentfideployer) as BlastooorStrategyAgents;
   } else {
     console.log("Deploying BlastooorStrategyAgents");
-    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS];
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
     strategyCollection = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgents", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgents;
     console.log(`Deployed BlastooorStrategyAgents to ${strategyCollection.address}`);
     if(chainID != 31337) await verifyContract(strategyCollection.address, args, "contracts/tokens/BlastooorStrategyAgents.sol:BlastooorStrategyAgents");
@@ -204,7 +241,7 @@ async function deployBlastooorStrategyFactory() {
     strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   } else {
     console.log("Deploying BlastooorStrategyFactory");
-    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, genesisCollection.address, strategyCollection.address];
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, genesisCollection.address, strategyCollection.address, ERC6551_REGISTRY_ADDRESS, agentRegistry.address];
     strategyFactory = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyFactory;
     console.log(`Deployed BlastooorStrategyFactory to ${strategyFactory.address}`);
     if(chainID != 31337) await verifyContract(strategyFactory.address, args);
@@ -217,7 +254,7 @@ async function deployBlastooorStrategyAgentAccount() {
     strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   } else {
     console.log("Deploying BlastooorStrategyAgentAccount");
-    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
     strategyAccountImpl = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccount;
     console.log(`Deployed BlastooorStrategyAgentAccount to ${strategyAccountImpl.address}`);
     if(chainID != 31337) await verifyContract(strategyAccountImpl.address, args);
@@ -246,13 +283,15 @@ function logAddresses() {
   logContractAddress("ContractFactory", contractFactory.address);
   logContractAddress("GasCollector", gasCollector.address);
   logContractAddress("BalanceFetcher", balanceFetcher.address);
-  logContractAddress("Multicall3", multicall3.address);
+  logContractAddress("MulticallForwarder", multicallForwarder.address);
   logContractAddress("BlastooorGenesisAgents", genesisCollection.address);
   logContractAddress("BlastooorGenesisFactory", genesisFactory.address);
-  logContractAddress("BlastooorAgentAccount", accountImplBase.address);
+  logContractAddress("BlastooorGenesisAgentAccount", genesisAccountImpl.address);
+  logContractAddress("BlastooorGenesisAccountFactory", genesisAccountFactory.address);
   logContractAddress("BlastooorStrategyAgents", strategyCollection.address);
   logContractAddress("BlastooorStrategyFactory", strategyFactory.address);
   logContractAddress("BlastooorStrategyAgentAccount", strategyAccountImpl.address);
+  logContractAddress("AgentRegistry", agentRegistry.address);
   logContractAddress("Dispatcher", dispatcher.address);
 }
 
