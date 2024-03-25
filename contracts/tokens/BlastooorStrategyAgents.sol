@@ -31,15 +31,6 @@ contract BlastooorStrategyAgents is IBlastooorStrategyAgents, ERC721Enumerable, 
 
     mapping(address => bool) internal _factoryIsWhitelisted;
 
-    struct AgentInfo {
-        address agentAddress;
-        address implementationAddress;
-    }
-    mapping(uint256 => AgentInfo) internal _agentInfo;
-    mapping(address => uint256) internal _agentAddressToID;
-
-    address internal _erc6551Registry;
-
     // uri data
 
     string internal _tokenURIbase;
@@ -50,63 +41,23 @@ contract BlastooorStrategyAgents is IBlastooorStrategyAgents, ERC721Enumerable, 
      * @notice Constructs the BlastooorStrategyAgents nft contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
-     * @param erc6551Registry_ The address of the ERC6551Registry.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
-        address pointsOperator_,
-        address erc6551Registry_
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) ERC721("Blastooor Strategy", "BLASTOOOR STRATEGY") {
+        address pointsOperator_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) ERC721("Blastooor Strategy", "BLASTOOOR STRATEGY") {
         _transferOwnership(owner_);
-        _erc6551Registry = erc6551Registry_;
     }
 
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-
-    /**
-     * @notice Returns the address of an agent.
-     * Reverts if the agent does not exist.
-     * @param agentID The ID of the agent to query.
-     * @return agentAddress The address of the agent account.
-     * @return implementationAddress The address of the agent implementation.
-     */
-    function getAgentInfo(uint256 agentID) external view override returns (
-        address agentAddress,
-        address implementationAddress
-    ) {
-        _requireMinted(agentID);
-        AgentInfo memory agentinfo = _agentInfo[agentID];
-        agentAddress = agentinfo.agentAddress;
-        implementationAddress = agentinfo.implementationAddress;
-    }
-
-    /**
-     * @notice Returns the ID of an agent given its address.
-     * Returns ID 0 if the address is not an agent.
-     * @param agentAddress The address of the agent to query.
-     * @return agentID The ID of the agent.
-     */
-    function getAgentID(address agentAddress) external view override returns (uint256 agentID) {
-        agentID = _agentAddressToID[agentAddress];
-    }
-
-    /**
-     * @notice Given the address of the agent, returns if it is a known agent.
-     * @param agentAddress The address of the agent to query.
-     * @return isAgent True if is a known agent, false otherwise.
-     */
-    function isAddressAgent(address agentAddress) external view override returns (bool isAgent) {
-        uint256 agentID = _agentAddressToID[agentAddress];
-        isAgent = agentID > 0;
-    }
 
     /**
      * @notice Returns true if the agent exists.
@@ -117,14 +68,6 @@ contract BlastooorStrategyAgents is IBlastooorStrategyAgents, ERC721Enumerable, 
         status = _exists(agentID);
     }
 
-    /**
-     * @notice Returns the address of the ERC6551 registry.
-     * @return registry_ The address of the registry.
-     */
-    function getERC6551Registry() external view override returns (address registry_) {
-        registry_ = _erc6551Registry;
-    }
-
     /***************************************
     CREATE AGENT FUNCTIONS
     ***************************************/
@@ -132,37 +75,15 @@ contract BlastooorStrategyAgents is IBlastooorStrategyAgents, ERC721Enumerable, 
     /**
      * @notice Creates a new agent.
      * @dev The new agent will be minted to `msg.sender`. This function is designed to be called from another contract to perform additional setup.
-     * @param implementation The address of the implementation to use in the new agent.
      * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
      */
-    function createAgent(
-        address implementation
-    ) external payable override returns (
-        uint256 agentID,
-        address agentAddress
-    ) {
+    function createAgent() external payable override returns (uint256 agentID) {
         // msg.sender must be whitelisted
         if(!(_factoryIsWhitelisted[address(0)]||_factoryIsWhitelisted[msg.sender])) revert Errors.FactoryNotWhitelisted();
         // calculate agentID. autoincrement from 1
         agentID = totalSupply() + 1;
         // mint nft
         _mint(msg.sender, agentID);
-        // combine many sources of randomness for address salt
-        uint256 chainid = block.chainid;
-        bytes32 salt = keccak256(abi.encode(agentID, implementation, chainid, block.number, block.timestamp, blockhash(block.number), tx.origin, gasleft()));
-        // use erc6551 to create and register the account
-        agentAddress = IERC6551Registry(_erc6551Registry).createAccount(
-            implementation,
-            salt,
-            chainid,
-            address(this),
-            agentID
-        );
-        // store agent info
-        _agentInfo[agentID].agentAddress = agentAddress;
-        _agentInfo[agentID].implementationAddress = implementation;
-        _agentAddressToID[agentAddress] = agentID;
     }
 
     /***************************************

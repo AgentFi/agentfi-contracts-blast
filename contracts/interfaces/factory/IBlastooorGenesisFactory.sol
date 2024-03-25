@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 
 /**
- * @title IBlastooorGenesisAgents
+ * @title IBlastooorGenesisFactory
  * @author AgentFi
  * @notice A factory for agents.
  *

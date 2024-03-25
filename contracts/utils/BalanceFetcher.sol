@@ -20,17 +20,17 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
      * @notice Constructs the BalanceFetcher contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) {
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
     }
 
@@ -62,14 +62,17 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
         Agent[] memory queue = new Agent[](10000);
 
         // Add the queried account as the first item in the queue
+        queue[0].agentAddress = account;
+        /*
         queue[0] = Agent({
             collection: address(0),
             tokenId: 0,
             agentAddress: account,
-            implementation:address(0),
+            implementation: address(0),
             owner: address(0),
             balances: new uint256[](0)
         });
+        */
 
         // For each item in the queue, add children agents to the end.
         // Keep searching until we check all agents
@@ -79,10 +82,10 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
             address parent = queue[start++].agentAddress;
 
             for(uint256 i = 0; i < collections.length; i++) {
-                IBlastooorGenesisAgents token = IBlastooorGenesisAgents(collections[i]);
-                uint256 balance = token.balanceOf(parent);
+                IBlastooorGenesisAgents collection = IBlastooorGenesisAgents(collections[i]);
+                uint256 balance = collection.balanceOf(parent);
                 for(uint256 n = 0; n < balance; ++n) {
-                    uint256 tokenId = token.tokenOfOwnerByIndex(parent, n);
+                    uint256 tokenId = collection.tokenOfOwnerByIndex(parent, n);
                     queue[count++] = _fetchAgent(parent, collections[i], tokenId, tokens);
                 }
             }

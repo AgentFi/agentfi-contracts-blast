@@ -6,7 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IAgentFactory03 } from "./../interfaces/factory/IAgentFactory03.sol";
-import { BlastooorAgentAccount } from "./BlastooorAgentAccount.sol";
+import { BlastooorGenesisAgentAccount } from "./BlastooorGenesisAgentAccount.sol";
 import { BlastooorAgentAccountRingProtocolD } from "./BlastooorAgentAccountRingProtocolD.sol";
 import { BlastooorAgentAccountThrusterA } from "./BlastooorAgentAccountThrusterA.sol";
 
@@ -16,7 +16,7 @@ import { BlastooorAgentAccountThrusterA } from "./BlastooorAgentAccountThrusterA
  * @author AgentFi
  * @notice An account type used by agents. Creates a basket strategy with Thruster and Ring Protocol.
  */
-contract BlastooorAgentAccountBasketA is BlastooorAgentAccount {
+contract BlastooorAgentAccountBasketA is BlastooorGenesisAgentAccount {
 
     /***************************************
     CONSTANTS
@@ -33,9 +33,9 @@ contract BlastooorAgentAccountBasketA is BlastooorAgentAccount {
     ***************************************/
 
     /**
-     * @notice Constructs the BlastooorAgentAccount contract.
+     * @notice Constructs the BlastooorGenesisAgentAccount contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      * @param entryPoint_ The ERC-4337 EntryPoint address.
@@ -45,14 +45,14 @@ contract BlastooorAgentAccountBasketA is BlastooorAgentAccount {
      */
     constructor(
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_,
         address entryPoint_,
         address multicallForwarder,
         address erc6551Registry,
         address _guardian
-    ) BlastooorAgentAccount(blast_, governor_, blastPoints_, pointsOperator_, entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
+    ) BlastooorGenesisAgentAccount(blast_, gasCollector_, blastPoints_, pointsOperator_, entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
 
     /***************************************
     MUTATOR FUNCTIONS

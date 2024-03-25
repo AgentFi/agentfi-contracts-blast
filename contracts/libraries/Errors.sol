@@ -22,6 +22,8 @@ library Errors {
     error NotAContract();
     /// @notice Thrown when a contract deployment fails.
     error ContractNotDeployed();
+    /// @notice Thrown when the sender has an insufficient balance of the token they are sending.
+    error InsufficientBalance();
 
     // ownership & authentication errors
     /// @notice Thrown when calling a function reserved for the contract owner.
@@ -31,7 +33,7 @@ library Errors {
     /// @notice Thrown when calling a function reserved for the owner of a erc6551 account.
     error ERC6551InvalidSigner();
     /// @notice Thrown when attempting a function reserved for the owner of the agent.
-    //error NotOwnerOfAgent();
+    error NotOwnerOfAgent();
     /// @notice Thrown when a signature is invalid.
     error InvalidSignature();
 
@@ -54,6 +56,8 @@ library Errors {
     error OutOfRange();
     /// @notice Thrown when gas token values do not match.
     error ValueMismatch();
+    /// @notice Thrown when an entry has already been registered.
+    error AlreadyRegistered();
 
     // execution errors
     /// @notice Thrown when a call reenters illegally.
@@ -98,6 +102,8 @@ library Errors {
     error NotTreasuryMinter();
     /// @notice Thrown when minting more agents than allowed per user.
     error OverMaxCreationsPerUser();
+    /// @notice Thrown when minting more agents than allowed per agent.
+    error OverMaxCreationsPerAgent();
 
     // erc2535 errors
     /// @notice Thrown when installing a function that is already installed.
@@ -128,6 +134,7 @@ library Errors {
     /// @notice Thrown when calling the dispatcher without the operator role.
     error NotOperator();
 
+    // erc6551 errors
     error InvalidOperation();
     error ContractCreationFailed();
     error NotAuthorized();

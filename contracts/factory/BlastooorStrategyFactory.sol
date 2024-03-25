@@ -6,7 +6,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Multicall } from "./../utils/Multicall.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
-import { IAgents } from "./../interfaces/tokens/IAgents.sol";
+import { IBlastooorStrategyAgents } from "./../interfaces/tokens/IBlastooorStrategyAgents.sol";
+import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
+import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { IBlastooorStrategyFactory } from "./../interfaces/factory/IBlastooorStrategyFactory.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
@@ -27,6 +29,8 @@ contract BlastooorStrategyFactory is Multicall, Blastable, Ownable2Step, IBlasto
 
     address internal _genesisAgentNft;
     address internal _strategyAgentNft;
+    address internal _erc6551Registry;
+    address internal _agentRegistry;
 
     mapping(uint256 => AgentCreationSettings) internal _agentCreationSettings;
 
@@ -43,24 +47,30 @@ contract BlastooorStrategyFactory is Multicall, Blastable, Ownable2Step, IBlasto
      * @notice Constructs the factory contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
-     * @param genesisAgentNft The genesis agents contract.
-     * @param strategyAgentNft The strategy agents contract.
+     * @param genesisAgentNft_ The genesis agents contract.
+     * @param strategyAgentNft_ The strategy agents contract.
+     * @param erc6551Registry_ The erc6551 registry contract.
+     * @param agentRegistry_ The agent registry contract.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_,
-        address genesisAgentNft,
-        address strategyAgentNft
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) {
+        address genesisAgentNft_,
+        address strategyAgentNft_,
+        address erc6551Registry_,
+        address agentRegistry_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
-        _genesisAgentNft = genesisAgentNft;
-        _strategyAgentNft = strategyAgentNft;
+        _genesisAgentNft = genesisAgentNft_;
+        _strategyAgentNft = strategyAgentNft_;
+        _erc6551Registry = erc6551Registry_;
+        _agentRegistry = agentRegistry_;
     }
 
     /***************************************
@@ -122,101 +132,157 @@ contract BlastooorStrategyFactory is Multicall, Blastable, Ownable2Step, IBlasto
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID) external payable override returns (AgentInfo memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, 1)[0];
+        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID);
+        address strategyAgentNft = _strategyAgentNft;
+        info = _createAgent(strategyAgentNft, creationSettings.agentImplementation);
+        _initCalls(info.agentAddress, creationSettings.initializationCalls);
+        IBlastooorStrategyAgents(strategyAgentNft).transferFrom(address(this), msg.sender, info.agentID);
     }
 
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @param callDatas Extra data to pass to the agent after it is created.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas) external payable override returns (AgentInfo memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, callDatas, 1)[0];
+        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID);
+        address strategyAgentNft = _strategyAgentNft;
+        info = _createAgent(strategyAgentNft, creationSettings.agentImplementation);
+        _initCalls(info.agentAddress, creationSettings.initializationCalls);
+        _setupCalls(info.agentAddress, callDatas);
+        IBlastooorStrategyAgents(strategyAgentNft).transferFrom(address(this), msg.sender, info.agentID);
     }
 
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
+     * @param creationSettingsID The ID of the creation settings to use.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID, TokenDeposit[] calldata deposits) external payable override returns (AgentInfo memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, deposits, 1)[0];
+        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID);
+        address strategyAgentNft = _strategyAgentNft;
+        info = _createAgent(strategyAgentNft, creationSettings.agentImplementation);
+        _deposit(info.agentAddress, deposits);
+        _initCalls(info.agentAddress, creationSettings.initializationCalls);
+        IBlastooorStrategyAgents(strategyAgentNft).transferFrom(address(this), msg.sender, info.agentID);
     }
 
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
+     * @param creationSettingsID The ID of the creation settings to use.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
      * @param callDatas Extra data to pass to the agent after it is created.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits) external payable override returns (AgentInfo memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, deposits, callDatas, 1)[0];
+        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID);
+        address strategyAgentNft = _strategyAgentNft;
+        info = _createAgent(strategyAgentNft, creationSettings.agentImplementation);
+        _deposit(info.agentAddress, deposits);
+        _initCalls(info.agentAddress, creationSettings.initializationCalls);
+        _setupCalls(info.agentAddress, callDatas);
+        IBlastooorStrategyAgents(strategyAgentNft).transferFrom(address(this), msg.sender, info.agentID);
+    }
+
+    /***************************************
+    HELPER FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice A series of checks performed before any agent is created.
+     * @param creationSettingsID The ID of the creation settings to use.
+     * @return creationSettings The creation settings to use.
+     */
+    function _createAgentPrecheck(
+        uint256 creationSettingsID
+    ) internal returns (AgentCreationSettings memory creationSettings) {
+        // dev: for efficiency also returns the creation settings
+        // can only be called from registered genesis TBAs
+        (address collection, ) = IAgentRegistry(_agentRegistry).getNftOfTba(msg.sender);
+        if(collection != _genesisAgentNft) revert Errors.NotAuthorized();
+        // can only create a maximum amount per sender
+        uint256 newCount = _createCount[msg.sender] + 1;
+        if(newCount > _maxCreationsPerGenesisAgent) revert Errors.OverMaxCreationsPerUser();
+        _createCount[msg.sender] = newCount;
+        // creation settings id must be valid
+        if(creationSettingsID == 0 || creationSettingsID > _agentCreationSettingsCount) revert Errors.OutOfRange();
+        creationSettings = _agentCreationSettings[creationSettingsID];
+        // creation settings must not be paused
+        if(!creationSettings.isActive) revert Errors.CreationSettingsPaused();
     }
 
     /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
+     * @notice Creates a new agent.
+     * @param strategyAgentNft The strategy agent nft contract.
+     * @param agentImplementation The implementation contract for the agent TBA.
+     * @return info Information about the newly created agent.
      */
-    function createAgents(uint256 creationSettingsID, uint256 count) external payable override returns (AgentInfo[] memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, count);
+    function _createAgent(
+        address strategyAgentNft,
+        address agentImplementation
+    ) internal returns (AgentInfo memory info) {
+        uint256 agentID = IBlastooorStrategyAgents(strategyAgentNft).createAgent();
+        info.agentID = agentID;
+        address agentAddress = IERC6551Registry(_erc6551Registry).createAccount(
+            agentImplementation,
+            bytes32(0),
+            block.chainid,
+            strategyAgentNft,
+            agentID
+        );
+        info.agentAddress = agentAddress;
+        IAgentRegistry(_agentRegistry).registerAgent(IAgentRegistry.RegisterAgentParam({
+            agentAddress: agentAddress,
+            implementationAddress: agentImplementation,
+            collection: strategyAgentNft,
+            agentID: agentID
+        }));
     }
 
     /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
+     * @notice Deposits tokens into the new agent.
+     * Assumes tokens are in this contract.
+     * @param agentAddress The account to deposit into.
+     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
      */
-    function createAgents(uint256 creationSettingsID, bytes[] calldata callDatas, uint256 count) external payable override returns (AgentInfo[] memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, callDatas, count);
+    function _deposit(address agentAddress, TokenDeposit[] calldata deposits) internal {
+        for(uint256 i = 0; i < deposits.length; ++i) {
+            address token = deposits[i].token;
+            uint256 amount = deposits[i].amount;
+            if(token == address(0)) Calls.sendValue(agentAddress, amount);
+            else SafeERC20.safeTransfer(IERC20(token), agentAddress, amount);
+        }
     }
 
     /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
+     * @notice Makes the initialization calls on the agent.
+     * @param agentAddress The account to initialize.
+     * @param callDatas The calls to make.
      */
-    function createAgents(uint256 creationSettingsID, TokenDeposit[] calldata deposits, uint256 count) external payable override returns (AgentInfo[] memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, deposits, count);
+    function _initCalls(address agentAddress, bytes[] memory callDatas) internal {
+        for(uint256 i = 0; i < callDatas.length; ++i) {
+            Calls.functionCall(agentAddress, callDatas[i]);
+        }
     }
 
     /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
+     * @notice Makes the setup calls on the agent.
+     * @param agentAddress The account to setup.
+     * @param callDatas The calls to make.
      */
-    function createAgents(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits, uint256 count) external payable override returns (AgentInfo[] memory info) {
-        IAgents strategyAgentNft = IAgents(_strategyAgentNft);
-        info = _createAgents(strategyAgentNft, creationSettingsID, deposits, callDatas, count);
+    function _setupCalls(address agentAddress, bytes[] calldata callDatas) internal {
+        for(uint256 i = 0; i < callDatas.length; ++i) {
+            Calls.functionCall(agentAddress, callDatas[i]);
+        }
     }
 
     /***************************************
@@ -263,188 +329,5 @@ contract BlastooorStrategyFactory is Multicall, Blastable, Ownable2Step, IBlasto
     function setMaxCreationsPerGenesisAgent(uint256 count) external payable override onlyOwner {
         _maxCreationsPerGenesisAgent = count;
         emit SetMaxCreationsPerGenesisAgent(count);
-    }
-
-    /***************************************
-    HELPER FUNCTIONS
-    ***************************************/
-
-    /**
-     * @notice Creates multiple new agents.
-     * @param agentNft The agent nft contract.
-     * @param creationSettingsID The creation settings to use.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agent.
-     */
-    function _createAgents(
-        IAgents agentNft,
-        uint256 creationSettingsID,
-        uint256 count
-    ) internal returns (AgentInfo[] memory info) {
-        // checks
-        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID, count);
-        // create agents
-        info = new AgentInfo[](count);
-        for(uint256 i = 0; i < count; ++i) {
-            (uint256 agentID, address agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
-            info[i].agentID = agentID;
-            info[i].agentAddress = agentAddress;
-            // initialize
-            for(uint256 j = 0; j < creationSettings.initializationCalls.length; ++j) {
-                _callAgent(agentAddress, creationSettings.initializationCalls[j]);
-            }
-        }
-        for(uint256 i = 0; i < count; ++i) {
-            agentNft.transferFrom(address(this), msg.sender, info[i].agentID);
-        }
-    }
-
-    /**
-     * @notice Creates multiple new agents.
-     * @param agentNft The agent nft contract.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function _createAgents(
-        IAgents agentNft,
-        uint256 creationSettingsID,
-        TokenDeposit[] calldata deposits,
-        uint256 count
-    ) internal returns (AgentInfo[] memory info) {
-        // checks
-        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID, count);
-        // create agents
-        info = new AgentInfo[](count);
-        for(uint256 i = 0; i < count; ++i) {
-            (uint256 agentID, address agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
-            info[i].agentID = agentID;
-            info[i].agentAddress = agentAddress;
-            // deposit tokens
-            for(uint256 j = 0; j < deposits.length; ++j) {
-                address token = deposits[j].token;
-                uint256 amount = deposits[j].amount;
-                if(token == address(0)) Calls.sendValue(agentAddress, amount);
-                else SafeERC20.safeTransferFrom(IERC20(token), msg.sender, agentAddress, amount);
-            }
-            // initialize
-            for(uint256 j = 0; j < creationSettings.initializationCalls.length; ++j) {
-                _callAgent(agentAddress, creationSettings.initializationCalls[j]);
-            }
-        }
-        for(uint256 i = 0; i < count; ++i) {
-            agentNft.transferFrom(address(this), msg.sender, info[i].agentID);
-        }
-    }
-
-    /**
-     * @notice Creates multiple new agents.
-     * @param agentNft The agent nft contract.
-     * @param creationSettingsID The creation settings to use.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agent.
-     */
-    function _createAgents(
-        IAgents agentNft,
-        uint256 creationSettingsID,
-        bytes[] calldata callDatas,
-        uint256 count
-    ) internal returns (AgentInfo[] memory info) {
-        // checks
-        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID, count);
-        // create agents
-        info = new AgentInfo[](count);
-        for(uint256 i = 0; i < count; ++i) {
-            (uint256 agentID, address agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
-            info[i].agentID = agentID;
-            info[i].agentAddress = agentAddress;
-            // initialize
-            for(uint256 j = 0; j < creationSettings.initializationCalls.length; ++j) {
-                _callAgent(agentAddress, creationSettings.initializationCalls[j]);
-            }
-            _multicallAgent(agentAddress, callDatas);
-        }
-        for(uint256 i = 0; i < count; ++i) {
-            agentNft.transferFrom(address(this), msg.sender, info[i].agentID);
-        }
-    }
-
-    /**
-     * @notice Creates multiple new agents.
-     * @param agentNft The agent nft contract.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agent.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function _createAgents(
-        IAgents agentNft,
-        uint256 creationSettingsID,
-        TokenDeposit[] calldata deposits,
-        bytes[] calldata callDatas,
-        uint256 count
-    ) internal returns (AgentInfo[] memory info) {
-        // checks
-        AgentCreationSettings memory creationSettings = _createAgentPrecheck(creationSettingsID, count);
-        // create agents
-        info = new AgentInfo[](count);
-        for(uint256 i = 0; i < count; ++i) {
-            (uint256 agentID, address agentAddress) = agentNft.createAgent(creationSettings.agentImplementation);
-            info[i].agentID = agentID;
-            info[i].agentAddress = agentAddress;
-            // deposit tokens
-            for(uint256 j = 0; j < deposits.length; ++j) {
-                address token = deposits[j].token;
-                uint256 amount = deposits[j].amount;
-                if(token == address(0)) Calls.sendValue(agentAddress, amount);
-                else SafeERC20.safeTransferFrom(IERC20(token), msg.sender, agentAddress, amount);
-            }
-            // initialize
-            for(uint256 j = 0; j < creationSettings.initializationCalls.length; ++j) {
-                _callAgent(agentAddress, creationSettings.initializationCalls[j]);
-            }
-            _multicallAgent(agentAddress, callDatas);
-        }
-        for(uint256 i = 0; i < count; ++i) {
-            agentNft.transferFrom(address(this), msg.sender, info[i].agentID);
-        }
-    }
-
-    /**
-     * @notice Calls an agent.
-     * @param agentAddress The address of the agent.
-     * @param callData The data to pass to the agent.
-     */
-    function _callAgent(address agentAddress, bytes memory callData) internal {
-        uint256 balance = address(this).balance;
-        Calls.functionCallWithValue(agentAddress, callData, balance);
-    }
-
-    /**
-     * @notice Calls an agent multiple times.
-     * @param agentAddress The address of the agent.
-     * @param callDatas The data to pass to the agent.
-     */
-    function _multicallAgent(address agentAddress, bytes[] calldata callDatas) internal {
-        for(uint256 i = 0; i < callDatas.length; ++i) {
-            _callAgent(agentAddress, callDatas[i]);
-        }
-    }
-
-    function _createAgentPrecheck(
-        uint256 creationSettingsID,
-        uint256 count
-    ) internal returns (AgentCreationSettings memory creationSettings) {
-        uint256 genesisAgentID = IAgents(_genesisAgentNft).getAgentID(msg.sender);
-        if(genesisAgentID == 0) revert Errors.NotAuthorized();
-        uint256 newCount = _createCount[msg.sender] + count;
-        if(newCount > _maxCreationsPerGenesisAgent) revert Errors.OverMaxCreationsPerUser();
-        _createCount[msg.sender] = newCount;
-        if(creationSettingsID == 0 || creationSettingsID > _agentCreationSettingsCount) revert Errors.OutOfRange();
-        creationSettings = _agentCreationSettings[creationSettingsID];
-        if(!creationSettings.isActive) revert Errors.CreationSettingsPaused();
     }
 }

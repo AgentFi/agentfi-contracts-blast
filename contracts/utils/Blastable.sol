@@ -9,32 +9,38 @@ import { IBlastable } from "./../interfaces/utils/IBlastable.sol";
  * @author AgentFi
  * @notice An abstract contract that configures the connection to Blast during deployment
  *
- * This primarily involves collecting ETH yield and gas rewards. Control is delegated to a governor.
+ * This involves collecting ETH yield, gas rewards, and Blast Points. ETH yield is earned by this contract automatically, while gas rewards and Blast Points are delegated to dedicated collectors.
  */
 abstract contract Blastable is IBlastable {
 
-    address private immutable _blast;
+    address internal immutable __blast;
+    address internal immutable __gasCollector;
+    address internal immutable __blastPoints;
+    address internal immutable __pointsOperator;
 
     /**
      * @notice Constructs the Blastable contract.
-     * Configures the contract to receive automatic yield, claimable gas, and assigns a governor.
+     * Configures the contract to receive automatic yield, claimable gas, and assigns a gas collector.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_
     ) {
-        _blast = blast_;
+        __blast = blast_;
+        __gasCollector = gasCollector_;
+        __blastPoints = blastPoints_;
+        __pointsOperator = pointsOperator_;
         // allow these calls to fail on local fork
         // check success after deployment
         blast_.call(abi.encodeWithSignature("configureAutomaticYield()"));
         blast_.call(abi.encodeWithSignature("configureClaimableGas()"));
-        if(governor_ != address(0)) blast_.call(abi.encodeWithSignature("configureGovernor(address)", governor_));
+        if(gasCollector_ != address(0)) blast_.call(abi.encodeWithSignature("configureGovernor(address)", gasCollector_));
         if(pointsOperator_ != address(0)) blastPoints_.call(abi.encodeWithSignature("configurePointsOperator(address)", pointsOperator_));
     }
 
@@ -43,7 +49,15 @@ abstract contract Blastable is IBlastable {
      * @return blast_ The adress of the Blast contract.
      */
     function blast() public view override returns (address blast_) {
-        blast_ = _blast;
+        blast_ = __blast;
+    }
+
+    /**
+     * @notice Returns the address of the BlastPoints contract.
+     * @return blastPoints_ The adress of the BlastPoints contract.
+     */
+    function blastPoints() public view override returns (address blastPoints_) {
+        blastPoints_ = __blastPoints;
     }
 
     /**

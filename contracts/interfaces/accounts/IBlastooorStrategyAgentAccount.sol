@@ -77,30 +77,76 @@ interface IBlastooorStrategyAgentAccount {
     /**
      * @notice Executes an external call from this account.
      * Can only be called by an authorized executor or strategy manager.
+     * @param params The call to execute.
+     * @return result The result of the call.
      */
     function executeByStrategyManager(ExecuteByStrategyManagerParam calldata params) external payable returns (bytes memory result);
 
     /**
      * @notice Executes an external call from this account.
      * Can only be called by an authorized executor or strategy manager.
+     * @param params The call to execute.
+     * @return result The result of the call.
      */
     function executePayableByStrategyManager(ExecutePayableByStrategyManagerParam calldata params) external payable returns (bytes memory result);
 
     /**
      * @notice Executes a batch of external calls from this account.
      * Can only be called by an authorized executor or strategy manager.
+     * @param params The calls to execute.
+     * @return results The results of the calls.
      */
     function executeBatchByStrategyManager(ExecuteByStrategyManagerParam[] calldata params) external payable returns (bytes[] memory results);
 
     /**
      * @notice Executes a batch of external calls from this account.
      * Can only be called by an authorized executor or strategy manager.
+     * @param params The calls to execute.
+     * @return results The results of the calls.
      */
     function executePayableBatchByStrategyManager(ExecutePayableByStrategyManagerParam[] calldata params) external payable returns (bytes[] memory results);
+
+    struct FunctionSetting {
+        address implementation;
+        bool isProtected;
+    }
+
+    struct FunctionParam {
+        bytes4 selector;
+        bool isProtected;
+    }
+
+    struct SetOverridesParam {
+        address implementation;
+        FunctionParam[] functionParams;
+    }
+
+    /**
+     * @notice Sets the implementation address for a given array of function selectors.
+     * Can only be called by an authorized executor or strategy manager.
+     * @param params The overrides to add.
+     */
+    function setOverrides(SetOverridesParam[] calldata params) external payable;
+
+    /***************************************
+    MULTICALL
+    ***************************************/
+
+    /**
+     * @notice Receives and executes a batch of function calls on this contract.
+     * @param data A list of function calls to execute.
+     * @return results The results of each function call.
+     */
+    function multicall(bytes[] calldata data) external returns (bytes[] memory results);
 
     /***************************************
     GAS REWARD CLAIM FUNCTIONS
     ***************************************/
+
+    /**
+     * @notice Configures the Blast ETH native yield, gas rewards, and Blast Points for this contract.
+     */
+    function blastConfigure() external payable;
 
     /**
      * @notice Claims all gas from the blast gas reward contract.

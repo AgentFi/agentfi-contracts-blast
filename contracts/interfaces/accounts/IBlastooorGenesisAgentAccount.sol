@@ -3,7 +3,7 @@ pragma solidity 0.8.24;
 
 
 /**
- * @title IBlastooorAgentAccount
+ * @title IBlastooorGenesisAgentAccount
  * @author AgentFi
  * @notice An account type used by agents.
  *
@@ -13,7 +13,7 @@ pragma solidity 0.8.24;
  *
  * Also comes with some features that integrate the accounts with the Blast ecosystem. The factory configures the account to automatically collect Blast yield and gas rewards on deployment. The TBA owner can claim these gas rewards with [`claimAllGas()`](#claimallgas) or [`claimMaxGas()`](#claimmaxgas). The rewards can also be quoted offchain with [`quoteClaimAllGas()`](#quoteclaimallgas) or [`quoteClaimMaxGas()`](#quoteclaimmaxgas).
 */
-interface IBlastooorAgentAccount {
+interface IBlastooorGenesisAgentAccount {
 
     /***************************************
     VIEW FUNCTIONS
@@ -62,6 +62,11 @@ interface IBlastooorAgentAccount {
     /***************************************
     GAS REWARD CLAIM FUNCTIONS
     ***************************************/
+
+    /**
+     * @notice Configures the Blast ETH native yield, gas rewards, and Blast Points for this contract.
+     */
+    function blastConfigure() external payable;
 
     /**
      * @notice Claims all gas from the blast gas reward contract.

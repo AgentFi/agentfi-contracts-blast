@@ -83,7 +83,7 @@ interface IBlastooorStrategyFactory {
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID) external payable returns (AgentInfo memory info);
@@ -91,7 +91,7 @@ interface IBlastooorStrategyFactory {
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @param callDatas Extra data to pass to the agent after it is created.
      * @return info Information about the newly created agent.
      */
@@ -100,7 +100,7 @@ interface IBlastooorStrategyFactory {
     /**
     * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @param deposits Tokens to transfer from `msg.sender` to the new agent.
      * @return info Information about the newly created agent.
      */
@@ -109,52 +109,12 @@ interface IBlastooorStrategyFactory {
     /**
      * @notice Creates a new agent.
      * The new agent will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
+     * @param creationSettingsID The ID of the creation settings to use.
      * @param callDatas Extra data to pass to the agent after it is created.
      * @param deposits Tokens to transfer from `msg.sender` to the new agent.
      * @return info Information about the newly created agent.
      */
     function createAgent(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits) external payable returns (AgentInfo memory info);
-
-    /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function createAgents(uint256 creationSettingsID, uint256 count) external payable returns (AgentInfo[] memory info);
-
-    /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function createAgents(uint256 creationSettingsID, bytes[] calldata callDatas, uint256 count) external payable returns (AgentInfo[] memory info);
-
-    /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function createAgents(uint256 creationSettingsID, TokenDeposit[] calldata deposits, uint256 count) external payable returns (AgentInfo[] memory info);
-
-    /**
-     * @notice Creates multiple new agents.
-     * The new agents will be transferred to `msg.sender`.
-     * @param creationSettingsID The creation settings to use.
-     * @param deposits Tokens to transfer from `msg.sender` to the new agents.
-     * @param callDatas Extra data to pass to the agent after it is created.
-     * @param count The number of agents to create.
-     * @return info Information about the newly created agents.
-     */
-    function createAgents(uint256 creationSettingsID, bytes[] calldata callDatas, TokenDeposit[] calldata deposits, uint256 count) external payable returns (AgentInfo[] memory info);
 
     /***************************************
     OWNER FUNCTIONS

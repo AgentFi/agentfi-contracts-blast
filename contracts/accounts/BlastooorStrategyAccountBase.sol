@@ -11,7 +11,6 @@ import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
 import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
 
 import { Lockable } from "./../abstract/Lockable.sol";
-import { StrategyOverridable } from "./../abstract/StrategyOverridable.sol";
 import { Permissioned } from "./../abstract/Permissioned.sol";
 import { Signatory } from "./../abstract/Signatory.sol";
 import { ERC6551Account } from "./../abstract/ERC6551Account.sol";
@@ -32,7 +31,6 @@ contract BlastooorStrategyAccountBase is
     ERC721Holder,
     ERC1155Holder,
     Lockable,
-    StrategyOverridable,
     Permissioned,
     ERC6551Account,
     ERC4337Account,
@@ -285,15 +283,6 @@ contract BlastooorStrategyAccountBase is
     }
 
     /**
-     * @dev Called before setting overrides on the account. Reverts if account is locked. Updates
-     * account state.
-     */
-    function _beforeSetOverrides() internal override {
-        _verifyIsUnlocked();
-        _updateState();
-    }
-
-    /**
      * @dev Called before setting permissions on the account. Reverts if account is locked. Updates
      * account state.
      */
@@ -315,11 +304,10 @@ contract BlastooorStrategyAccountBase is
         internal
         view
         virtual
-        override(StrategyOverridable, Permissioned, Lockable)
+        override(Permissioned, Lockable)
         returns (address)
     {
         address _owner = _tokenOwner(chainId, tokenContract, tokenId);
-
         return _rootTokenOwner(_owner, chainId, tokenContract, tokenId);
     }
 
@@ -362,4 +350,22 @@ contract BlastooorStrategyAccountBase is
             return address(0);
         }
     }
+
+    /***************************************
+    OVERRIDES
+    ***************************************/
+
+    /**
+     * @notice Delegatecalls into the implementation address using sandbox if override is set for the current
+     * function selector. If an implementation is defined, this function will either revert or
+     * return with the return value of the implementation.
+     */
+    function _handleOverride() internal virtual {}
+
+    /**
+     * @notice Static calls into the implementation address if override is set for the current function
+     * selector. If an implementation is defined, this function will either revert or return with
+     * the return value of the implementation.
+     */
+    function _handleOverrideStatic() internal view virtual {}
 }

@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import { BlastooorStrategyAccountBase } from "./BlastooorStrategyAccountBase.sol";
+import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { AccessControlLibrary } from "./../libraries/AccessControlLibrary.sol";
@@ -29,6 +30,13 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     /// @notice The role for strategy managers.
     bytes32 public constant STRATEGY_MANAGER_ROLE = keccak256("STRATEGY_MANAGER_ROLE");
 
+    /// @notice mapping from selector => implementation, isProtected
+    mapping(bytes4 => FunctionSetting) public overrides;
+
+    event OverrideUpdated(bytes4 indexed selector, address indexed implementation, bool isProtected);
+
+    bool internal _isBlastConfigured;
+
     /***************************************
     CONSTRUCTOR
     ***************************************/
@@ -36,7 +44,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     /**
      * @notice Constructs the BlastooorStrategyAgentAccount contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      * @param entryPoint_ The ERC-4337 EntryPoint address.
@@ -46,14 +54,14 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      */
     constructor(
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_,
         address entryPoint_,
         address multicallForwarder,
         address erc6551Registry,
         address _guardian
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) BlastooorStrategyAccountBase(entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) BlastooorStrategyAccountBase(entryPoint_, multicallForwarder, erc6551Registry, _guardian) {}
 
     /***************************************
     VIEW FUNCTIONS
@@ -95,9 +103,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      * @param params The list of roles to set.
      */
     function setRoles(SetRolesParam[] calldata params) external payable override {
-        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
-        _verifyIsUnlocked();
-        _updateState();
+        _strategyManagerPrecheck();
         AccessControlLibrary.AccessControlLibraryStorage storage acls = AccessControlLibrary.accessControlLibraryStorage();
         for(uint256 i = 0; i < params.length; ++i) {
             bytes32 role = params[i].role;
@@ -166,6 +172,27 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     }
 
     /**
+     * @notice Sets the implementation address for a given array of function selectors.
+     * Can only be called by an authorized executor or strategy manager.
+     * @param params The overrides to add.
+     */
+    function setOverrides(SetOverridesParam[] calldata params) external payable virtual override {
+        _strategyManagerPrecheck();
+        for(uint256 i = 0; i < params.length; ++i) {
+            address implementation = params[i].implementation;
+            for(uint256 j = 0; j < params[i].functionParams.length; ++j) {
+                bytes4 selector = params[i].functionParams[j].selector;
+                bool isProtected = params[i].functionParams[j].isProtected;
+                overrides[selector] = FunctionSetting({
+                    implementation: implementation,
+                    isProtected: isProtected
+                });
+                emit OverrideUpdated(selector, implementation, isProtected);
+            }
+        }
+    }
+
+    /**
      * @notice Precheck for all execute by strategy manager calls.
      */
     function _strategyManagerPrecheck() internal {
@@ -176,8 +203,46 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     }
 
     /***************************************
+    MULTICALL
+    ***************************************/
+
+    /**
+     * @notice Receives and executes a batch of function calls on this contract.
+     * @param data A list of function calls to execute.
+     * @return results The results of each function call.
+     */
+    function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
+    		results = new bytes[](data.length);
+    		address sender = _msgSender();
+    		bool isForwarder = msg.sender != sender;
+        for(uint256 i = 0; i < data.length; ++i) {
+    				if(isForwarder) {
+    						results[i] = Calls.functionDelegateCall(address(this), abi.encodePacked(data[i], sender));
+            } else {
+                results[i] = Calls.functionDelegateCall(address(this), data[i]);
+            }
+        }
+    }
+
+    /***************************************
     GAS REWARD CLAIM FUNCTIONS
     ***************************************/
+
+    /**
+     * @notice Configures the Blast ETH native yield, gas rewards, and Blast Points for this contract.
+     */
+    function blastConfigure() external payable override {
+        // if this account has not yet been configured, allow anyone to configure it. should be configured by the factory
+        // if this account has been configured, only allow someone authorized to call it
+        if(_isBlastConfigured) _verifySenderIsValidExecutor();
+        else _isBlastConfigured = true;
+        _verifyIsUnlocked();
+        _updateState();
+        // configure
+        __blast.call(abi.encodeWithSignature("configureAutomaticYield()"));
+        __blast.call(abi.encodeWithSignature("configureClaimableGas()"));
+        if(__pointsOperator != address(0)) __blastPoints.call(abi.encodeWithSignature("configurePointsOperator(address)", __pointsOperator));
+    }
 
     /**
      * @notice Claims all gas from the blast gas reward contract.
@@ -185,11 +250,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      * @return amountClaimed The amount of gas claimed.
      */
     function claimAllGas() external payable override returns (uint256 amountClaimed) {
-        // checks
-        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
-        _verifyIsUnlocked();
-        _updateState();
-        // effects
+        _strategyManagerPrecheck();
         amountClaimed = IBlast(blast()).claimAllGas(address(this), address(this));
     }
 
@@ -199,11 +260,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      * @return amountClaimed The amount of gas claimed.
      */
     function claimMaxGas() external payable override returns (uint256 amountClaimed) {
-        // checks
-        _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
-        _verifyIsUnlocked();
-        _updateState();
-        // effects
+        _strategyManagerPrecheck();
         amountClaimed = IBlast(blast()).claimMaxGas(address(this), address(this));
     }
 
@@ -259,6 +316,49 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     function quoteClaimMaxGasWithRevert() external payable override virtual {
         uint256 quoteAmount = IBlast(blast()).claimMaxGas(address(this), address(this));
         revert Errors.RevertForAmount(quoteAmount);
+    }
+
+    /***************************************
+    OVERRIDES
+    ***************************************/
+
+    /**
+     * @notice Delegatecalls into the implementation address using sandbox if override is set for the current
+     * function selector. If an implementation is defined, this function will either revert or
+     * return with the return value of the implementation.
+     */
+    function _handleOverride() internal virtual override {
+        FunctionSetting memory settings = overrides[msg.sig];
+        address implementation = settings.implementation;
+        if(implementation != address(0)) {
+            if(settings.isProtected) _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
+            _verifyIsUnlocked();
+            _updateState();
+            _beforeExecute();
+            (bool success, bytes memory result) = implementation.delegatecall(msg.data);
+            assembly {
+                if iszero(success) { revert(add(result, 32), mload(result)) }
+                return(add(result, 32), mload(result))
+            }
+        }
+    }
+
+    /**
+     * @notice Static calls into the implementation address if override is set for the current function
+     * selector. If an implementation is defined, this function will either revert or return with
+     * the return value of the implementation.
+     */
+    function _handleOverrideStatic() internal view virtual override {
+        FunctionSetting memory settings = overrides[msg.sig];
+        address implementation = settings.implementation;
+        if(implementation != address(0)) {
+            if(settings.isProtected) _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
+            (bool success, bytes memory result) = implementation.staticcall(msg.data);
+            assembly {
+                if iszero(success) { revert(add(result, 32), mload(result)) }
+                return(add(result, 32), mload(result))
+            }
+        }
     }
 
     /***************************************

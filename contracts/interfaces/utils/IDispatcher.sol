@@ -11,7 +11,9 @@ pragma solidity 0.8.24;
  */
 interface IDispatcher {
 
+    /// @notice Emitted when an operator is added or removed.
     event OperatorSet(address indexed account, bool isOperator);
+    /// @notice Emitted when calldata is stored.
     event CalldataStored(uint256 indexed calldataID);
 
     struct Call {

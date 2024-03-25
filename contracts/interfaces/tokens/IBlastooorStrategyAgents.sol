@@ -33,44 +33,11 @@ interface IBlastooorStrategyAgents is IERC721Enumerable {
     ***************************************/
 
     /**
-     * @notice Returns the address of an agent.
-     * Reverts if the agent does not exist.
-     * @param agentID The ID of the agent to query.
-     * @return agentAddress The address of the agent account.
-     * @return implementationAddress The address of the agent implementation.
-     */
-    function getAgentInfo(uint256 agentID) external view returns (
-        address agentAddress,
-        address implementationAddress
-    );
-
-    /**
-     * @notice Returns the ID of an agent given its address.
-     * Returns ID 0 if the address is not an agent.
-     * @param agentAddress The address of the agent to query.
-     * @return agentID The ID of the agent.
-     */
-    function getAgentID(address agentAddress) external view returns (uint256 agentID);
-
-    /**
-     * @notice Given the address of the agent, returns if it is a known agent.
-     * @param agentAddress The address of the agent to query.
-     * @return isAgent True if is a known agent, false otherwise.
-     */
-    function isAddressAgent(address agentAddress) external view returns (bool isAgent);
-
-    /**
      * @notice Returns true if the agent exists.
      * @param agentID The ID of the agent to query.
      * @return status True if the agent exists, false otherwise.
      */
     function exists(uint256 agentID) external view returns (bool status);
-
-    /**
-     * @notice Returns the address of the ERC6551 registry.
-     * @return registry_ The address of the registry.
-     */
-    function getERC6551Registry() external view returns (address registry_);
 
     /***************************************
     CREATE AGENT FUNCTIONS
@@ -79,16 +46,9 @@ interface IBlastooorStrategyAgents is IERC721Enumerable {
     /**
      * @notice Creates a new agent.
      * @dev The new agent will be minted to `msg.sender`. This function is designed to be called from another contract to perform additional setup.
-     * @param implementation The address of the implementation to use in the new agent.
      * @return agentID The ID of the newly created agent.
-     * @return agentAddress The address of the newly created agent.
      */
-    function createAgent(
-        address implementation
-    ) external payable returns (
-        uint256 agentID,
-        address agentAddress
-    );
+    function createAgent() external payable returns (uint256 agentID);
 
     /***************************************
     WHITELIST FUNCTIONS

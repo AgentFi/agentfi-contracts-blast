@@ -33,7 +33,7 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
      * @notice Constructs the factory contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      * @param agentNft The Agents contract.
@@ -41,11 +41,11 @@ contract AgentFactory01 is Multicall, Blastable, Ownable2Step, IAgentFactory01 {
     constructor(
         address owner_,
         address blast_,
-        address governor_,
+        address gasCollector_,
         address blastPoints_,
         address pointsOperator_,
         address agentNft
-    ) Blastable(blast_, governor_, blastPoints_, pointsOperator_) {
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
         _agentNft = agentNft;
     }

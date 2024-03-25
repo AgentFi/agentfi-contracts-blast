@@ -1,18 +1,31 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: none
 pragma solidity 0.8.24;
 // code borrowed from https://etherscan.io/address/0xca1167915584462449ee5b4ea51c37fe81ecdccd
 
+import { Blastable } from "./Blastable.sol";
 
-/// @title Multicall3
-/// @notice Aggregate results from multiple function calls
-/// @dev Multicall & Multicall2 backwards-compatible
-/// @dev Aggregate methods are marked `payable` to save 24 gas per call
-/// @author Michael Elliot <mike@makerdao.com>
-/// @author Joshua Levine <joshua@makerdao.com>
-/// @author Nick Johnson <arachnid@notdot.net>
-/// @author Andreas Bigger <andreas@nascent.xyz>
-/// @author Matt Solomon <matt@mattsolomon.dev>
-contract Multicall3 {
+
+/**
+ * @title MulticallForwarder
+ * @author AgentFi
+ * @notice A variant of Multicall3 that enforces ERC2771 and allows collecting the gas rewards.
+ */
+contract MulticallForwarder is Blastable {
+
+    /**
+     * @notice Constructs the MulticallForwarder contract.
+     * @param blast_ The address of the blast gas reward contract.
+     * @param gasCollector_ The address of the gas collector.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
+     */
+    constructor(
+        address blast_,
+        address gasCollector_,
+        address blastPoints_,
+        address pointsOperator_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {}
+
     struct Call {
         address target;
         bytes callData;
@@ -36,10 +49,12 @@ contract Multicall3 {
         bytes returnData;
     }
 
-    /// @notice Backwards-compatible call aggregation with Multicall
-    /// @param calls An array of Call structs
-    /// @return blockNumber The block number where the calls were executed
-    /// @return returnData An array of bytes containing the responses
+    /**
+     * @notice Backwards-compatible call aggregation with Multicall
+     * @param calls An array of Call structs
+     * @return blockNumber The block number where the calls were executed
+     * @return returnData An array of bytes containing the responses
+     */
     function aggregate(Call[] calldata calls) public payable returns (uint256 blockNumber, bytes[] memory returnData) {
         blockNumber = block.number;
         uint256 length = calls.length;
@@ -48,55 +63,79 @@ contract Multicall3 {
         for (uint256 i = 0; i < length;) {
             bool success;
             call = calls[i];
-            (success, returnData[i]) = call.target.call(call.callData);
+            (success, returnData[i]) = call.target.call(abi.encodePacked(call.callData, msg.sender));
             require(success, "Multicall3: call failed");
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    /// @notice Backwards-compatible with Multicall2
-    /// @notice Aggregate calls without requiring success
-    /// @param requireSuccess If true, require all calls to succeed
-    /// @param calls An array of Call structs
-    /// @return returnData An array of Result structs
-    function tryAggregate(bool requireSuccess, Call[] calldata calls) public payable returns (Result[] memory returnData) {
+    /**
+     * @notice Backwards-compatible with Multicall2
+     * @notice Aggregate calls without requiring success
+     * @param requireSuccess If true, require all calls to succeed
+     * @param calls An array of Call structs
+     * @return returnData An array of Result structs
+     */
+    function tryAggregate(bool requireSuccess, Call[] calldata calls)
+        public
+        payable
+        returns (Result[] memory returnData)
+    {
         uint256 length = calls.length;
         returnData = new Result[](length);
         Call calldata call;
         for (uint256 i = 0; i < length;) {
             Result memory result = returnData[i];
             call = calls[i];
-            (result.success, result.returnData) = call.target.call(call.callData);
+            (result.success, result.returnData) = call.target.call(abi.encodePacked(call.callData, msg.sender));
             if (requireSuccess) require(result.success, "Multicall3: call failed");
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    /// @notice Backwards-compatible with Multicall2
-    /// @notice Aggregate calls and allow failures using tryAggregate
-    /// @param calls An array of Call structs
-    /// @return blockNumber The block number where the calls were executed
-    /// @return blockHash The hash of the block where the calls were executed
-    /// @return returnData An array of Result structs
-    function tryBlockAndAggregate(bool requireSuccess, Call[] calldata calls) public payable returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
+    /**
+     * @notice Backwards-compatible with Multicall2
+     * @notice Aggregate calls and allow failures using tryAggregate
+     * @param calls An array of Call structs
+     * @return blockNumber The block number where the calls were executed
+     * @return blockHash The hash of the block where the calls were executed
+     * @return returnData An array of Result structs
+     */
+    function tryBlockAndAggregate(bool requireSuccess, Call[] calldata calls)
+        public
+        payable
+        returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData)
+    {
         blockNumber = block.number;
         blockHash = blockhash(block.number);
         returnData = tryAggregate(requireSuccess, calls);
     }
 
-    /// @notice Backwards-compatible with Multicall2
-    /// @notice Aggregate calls and allow failures using tryAggregate
-    /// @param calls An array of Call structs
-    /// @return blockNumber The block number where the calls were executed
-    /// @return blockHash The hash of the block where the calls were executed
-    /// @return returnData An array of Result structs
-    function blockAndAggregate(Call[] calldata calls) public payable returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData) {
+    /**
+     * @notice Backwards-compatible with Multicall2
+     * @notice Aggregate calls and allow failures using tryAggregate
+     * @param calls An array of Call structs
+     * @return blockNumber The block number where the calls were executed
+     * @return blockHash The hash of the block where the calls were executed
+     * @return returnData An array of Result structs
+     */
+    function blockAndAggregate(Call[] calldata calls)
+        public
+        payable
+        returns (uint256 blockNumber, bytes32 blockHash, Result[] memory returnData)
+    {
         (blockNumber, blockHash, returnData) = tryBlockAndAggregate(true, calls);
     }
 
-    /// @notice Aggregate calls, ensuring each returns success if required
-    /// @param calls An array of Call3 structs
-    /// @return returnData An array of Result structs
+    /**
+     * @notice Aggregate calls, ensuring each returns success if required
+     * @param calls An array of Call3 structs
+     * @return returnData An array of Result structs
+     */
     function aggregate3(Call3[] calldata calls) public payable returns (Result[] memory returnData) {
         uint256 length = calls.length;
         returnData = new Result[](length);
@@ -104,7 +143,7 @@ contract Multicall3 {
         for (uint256 i = 0; i < length;) {
             Result memory result = returnData[i];
             calli = calls[i];
-            (result.success, result.returnData) = calli.target.call(calli.callData);
+            (result.success, result.returnData) = calli.target.call(abi.encodePacked(calli.callData, msg.sender));
             assembly {
                 // Revert if the call fails and failure is not allowed
                 // `allowFailure := calldataload(add(calli, 0x20))` and `success := mload(result)`
@@ -120,14 +159,18 @@ contract Multicall3 {
                     revert(0x00, 0x64)
                 }
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
     }
 
-    /// @notice Aggregate calls with a msg value
-    /// @notice Reverts if msg.value is less than the sum of the call values
-    /// @param calls An array of Call3Value structs
-    /// @return returnData An array of Result structs
+    /**
+     * @notice Aggregate calls with a msg value
+     * @notice Reverts if msg.value is less than the sum of the call values
+     * @param calls An array of Call3Value structs
+     * @return returnData An array of Result structs
+     */
     function aggregate3Value(Call3Value[] calldata calls) public payable returns (Result[] memory returnData) {
         uint256 valAccumulator;
         uint256 length = calls.length;
@@ -139,8 +182,11 @@ contract Multicall3 {
             uint256 val = calli.value;
             // Humanity will be a Type V Kardashev Civilization before this overflows - andreas
             // ~ 10^25 Wei in existence << ~ 10^76 size uint fits in a uint256
-            unchecked { valAccumulator += val; }
-            (result.success, result.returnData) = calli.target.call{value: val}(calli.callData);
+            unchecked {
+                valAccumulator += val;
+            }
+            (result.success, result.returnData) =
+                calli.target.call{value: val}(abi.encodePacked(calli.callData, msg.sender));
             assembly {
                 // Revert if the call fails and failure is not allowed
                 // `allowFailure := calldataload(add(calli, 0x20))` and `success := mload(result)`
@@ -156,62 +202,84 @@ contract Multicall3 {
                     revert(0x00, 0x84)
                 }
             }
-            unchecked { ++i; }
+            unchecked {
+                ++i;
+            }
         }
         // Finally, make sure the msg.value = SUM(call[0...i].value)
         require(msg.value == valAccumulator, "Multicall3: value mismatch");
     }
 
-    /// @notice Returns the block hash for the given block number
-    /// @param blockNumber The block number
+    /**
+     * @notice Returns the block hash for the given block number
+     * @param blockNumber The block number
+     */
     function getBlockHash(uint256 blockNumber) public view returns (bytes32 blockHash) {
         blockHash = blockhash(blockNumber);
     }
 
-    /// @notice Returns the block number
+    /**
+     * @notice Returns the block number
+     */
     function getBlockNumber() public view returns (uint256 blockNumber) {
         blockNumber = block.number;
     }
 
-    /// @notice Returns the block coinbase
+    /**
+     * @notice Returns the block coinbase
+     */
     function getCurrentBlockCoinbase() public view returns (address coinbase) {
         coinbase = block.coinbase;
     }
 
-    /// @notice Returns the block difficulty
+    /**
+     * @notice Returns the block difficulty
+     */
     function getCurrentBlockDifficulty() public view returns (uint256 difficulty) {
         difficulty = block.difficulty;
     }
 
-    /// @notice Returns the block gas limit
+    /**
+     * @notice Returns the block gas limit
+     */
     function getCurrentBlockGasLimit() public view returns (uint256 gaslimit) {
         gaslimit = block.gaslimit;
     }
 
-    /// @notice Returns the block timestamp
+    /**
+     * @notice Returns the block timestamp
+     */
     function getCurrentBlockTimestamp() public view returns (uint256 timestamp) {
         timestamp = block.timestamp;
     }
 
-    /// @notice Returns the (ETH) balance of a given address
+    /**
+     * @notice Returns the (ETH) balance of a given address
+     */
     function getEthBalance(address addr) public view returns (uint256 balance) {
         balance = addr.balance;
     }
 
-    /// @notice Returns the block hash of the last block
+    /**
+     * @notice Returns the block hash of the last block
+     */
     function getLastBlockHash() public view returns (bytes32 blockHash) {
         unchecked {
             blockHash = blockhash(block.number - 1);
         }
     }
 
-    /// @notice Gets the base fee of the given block
-    /// @notice Can revert if the BASEFEE opcode is not implemented by the given chain
+    /**
+     * @notice Gets the base fee of the given block
+     * @notice Can revert if the BASEFEE opcode is not implemented by the given chain
+     */
     function getBasefee() public view returns (uint256 basefee) {
         basefee = block.basefee;
     }
 
-    /// @notice Returns the chain id
+    /**
+     * @notice Returns the chain id
+     */
     function getChainId() public view returns (uint256 chainid) {
         chainid = block.chainid;
     }
