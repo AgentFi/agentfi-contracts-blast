@@ -89,6 +89,7 @@ describe("GasCollector", function () {
       expect(await gasCollector.owner()).eq(owner.address);
       expect(await gasCollector.pendingOwner()).eq(AddressZero);
       expect(await gasCollector.blast()).eq(BLAST_ADDRESS);
+      expect(await gasCollector.blastPoints()).eq(BLAST_POINTS_ADDRESS);
       let res = await gasCollector.getContractList();
       expect(res.contractList_).deep.eq([])
       expect(res.gasReceiver_).deep.eq(AddressZero)
@@ -169,6 +170,7 @@ describe("GasCollector", function () {
       expect(await gasCollector.owner()).eq(owner.address);
       expect(await gasCollector.pendingOwner()).eq(AddressZero);
       expect(await gasCollector.blast()).eq(mockblast.address);
+      expect(await gasCollector.blastPoints()).eq(BLAST_POINTS_ADDRESS);
       let res = await gasCollector.getContractList();
       expect(res.contractList_).deep.eq([])
       expect(res.gasReceiver_).deep.eq(AddressZero)

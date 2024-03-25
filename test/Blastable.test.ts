@@ -89,6 +89,7 @@ describe("Blastable", function () {
       expect(await gasBurner.owner()).eq(owner.address);
       expect(await gasBurner.pendingOwner()).eq(AddressZero);
       expect(await gasBurner.blast()).eq(BLAST_ADDRESS);
+      expect(await gasBurner.blastPoints()).eq(BLAST_POINTS_ADDRESS);
     });
   });
 

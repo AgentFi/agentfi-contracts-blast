@@ -26,7 +26,7 @@ const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000
 const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
 const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x26aDd0cB3eA65ADBb063739A5C5735055029B6BD";
+const MULTICALL_FORWARDER_ADDRESS     = ""; // v1.0.1
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
@@ -56,6 +56,11 @@ describe("AgentCreation", function () {
 
   let gasCollector: GasCollector;
   let agentNft: Agents;
+
+  let multicallForwarder: MulticallForwarder;
+  let agentRegistry: AgentRegistry;
+  let genesisAccountFactory: BlastooorAccountFactory;
+
   let strategyAgentAccountImplementation: BlastooorStrategyAgentAccount; // the base implementation for strategy accounts
   let accountV3Implementation: AccountV3; // the base implementation for token bound accounts
   let tbaccount1: ERC6551; // an account bound to a token
@@ -101,7 +106,7 @@ describe("AgentCreation", function () {
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
   let abi = getCombinedAbi([
-    "artifacts/contracts/accounts/BlastooorAgentAccount.sol/BlastooorAgentAccount.json",
+    "artifacts/contracts/accounts/BlastooorGenesisAgentAccount.sol/BlastooorGenesisAgentAccount.json",
     "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
     "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
     "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
@@ -137,7 +142,7 @@ describe("AgentCreation", function () {
     await expectDeployed(ERC6551_REGISTRY_ADDRESS); // expect to be run on a fork of a testnet with registry deployed
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
     combinedAbi = getCombinedAbi([
-      "artifacts/contracts/accounts/BlastooorAgentAccount.sol/BlastooorAgentAccount.json",
+      "artifacts/contracts/accounts/BlastooorGenesisAgentAccount.sol/BlastooorGenesisAgentAccount.json",
       "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
       "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
       "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
@@ -178,13 +183,18 @@ describe("AgentCreation", function () {
       expect(await agentNft.balanceOf(user1.address)).eq(0);
       expect(await agentNft.getERC6551Registry()).eq(ERC6551_REGISTRY_ADDRESS);
     });
+    it("can deploy MulticallForwarder", async function () {
+      multicallForwarder = await deployContract(deployer, "MulticallForwarder", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MulticallForwarder;
+      await expectDeployed(multicallForwarder.address);
+      l1DataFeeAnalyzer.register("deploy MulticallForwarder", multicallForwarder.deployTransaction);
+    });
     it("can deploy account implementations", async function () {
       // AccountV3
-      accountV3Implementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero]) as AccountV3;
+      accountV3Implementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as AccountV3;
       await expectDeployed(accountV3Implementation.address);
       l1DataFeeAnalyzer.register("deploy AccountV3 impl", accountV3Implementation.deployTransaction);
       // BlastooorStrategyAgentAccount
-      strategyAgentAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorStrategyAgentAccount;
+      strategyAgentAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorStrategyAgentAccount;
       await expectDeployed(strategyAgentAccountImplementation.address);
       l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgentAccount impl", strategyAgentAccountImplementation.deployTransaction);
     });
