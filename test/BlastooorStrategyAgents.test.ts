@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, BlastooorGenesisAgents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount, AgentRegistry, BlastooorAccountFactory } from "./../typechain-types";
+import { IERC6551Registry, BlastooorGenesisAgents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount, AgentRegistry, BlastooorAccountFactory, BalanceFetcher } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -33,7 +33,11 @@ const MULTICALL_FORWARDER_ADDRESS     = ""; // v1.0.1
 const WETH_ADDRESS                    = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS                    = "0x4300000000000000000000000000000000000003";
 
-const THRUSTER_ROUTER_ADDRESS         = "0x44889b52b71E60De6ed7dE82E2939fcc52fB2B4E"
+const THRUSTER_ROUTER_ADDRESS_030     = "0x98994a9A7a2570367554589189dC9772241650f6"; // 0.3% fee
+const THRUSTER_ROUTER_ADDRESS_100     = "0x44889b52b71E60De6ed7dE82E2939fcc52fB2B4E"; // 1% fee
+const THRUSTER_LP_TOKEN_ADDRESS       = "0x12c69BFA3fb3CbA75a1DEFA6e976B87E233fc7df";
+
+const HYPERLOCK_STAKING_ADDRESS       = "0xC3EcaDB7a5faB07c72af6BcFbD588b7818c4a40e";
 
 //const UNIVERSAL_ROUTER_ADDRESS        = "";
 const RING_SWAP_V2_ROUTER_ADDRESS     = "0x7001F706ACB6440d17cBFaD63Fa50a22D51696fF";
@@ -45,6 +49,10 @@ const RING_FWLP_TOKEN_ADDRESS         = "0xA3F8128166E54d49A65ec2ba12b45965E4FA8
 //const RING_ADDRESS                    = "";
 const RING_ADDRESS                    = "0x4300000000000000000000000000000000000003";
 const RING_STAKING_REWARDS_INDEX      = 3;
+
+const BLASTERSWAP_ROUTER_ADDRESS      = "0xc972FaE6b524E8A6e0af21875675bF58a3133e60";
+const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713adD";
+
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
@@ -76,9 +84,11 @@ describe("BlastooorStrategyAgents", function () {
   let multicallForwarder: MulticallForwarder;
   let agentRegistry: AgentRegistry;
   let genesisAccountFactory: BlastooorAccountFactory;
+  let balanceFetcher: BalanceFetcher;
 
   let tbaccountG1A: BlastooorGenesisAgentAccount; // an account bound to a token
   let tbaccountG1B: BlastooorGenesisAgentAccount; // an account bound to a token
+  let tbaccountG1C: BlastooorGenesisAgentAccount; // an account bound to a token
   let tbaccountG2A: BlastooorGenesisAgentAccount; // an account bound to a token
   let tbaccountG2B: BlastooorGenesisAgentAccount; // an account bound to a token
   let tbaccountS1: BlastooorStrategyAgentAccount; // an account bound to a token
@@ -96,13 +106,26 @@ describe("BlastooorStrategyAgents", function () {
   let erc20c: MockERC20;
   let weth: MockERC20;
   let usdb: MockERC20;
-  let ring: MockERC20;
-  let ringLpToken: MockERC20;
 
   let mockERC1271: MockERC1271;
 
-  let thrusterRouter: IThrusterRouter;
+  let thrusterRouter_030: IThrusterRouter;
+  let thrusterRouter_100: IThrusterRouter;
+  let thrusterLpToken: MockERC20;
+
+  let hyperlockStaking: IHyperlockStaking;
+
+  let ring: MockERC20;
+  let ringLpToken: MockERC20;
   let ringStakingRewards: IFixedStakingRewards;
+
+  let blasterRouter: IBlasterswapV2Router02;
+  let blasterLpToken: MockERC20;
+
+  let collectionListGenesis = []
+  let collectionListStrategy = []
+  let collectionListAll = []
+  let tokenList = []
 
   let chainID: number;
   let networkSettings: any;
@@ -123,18 +146,30 @@ describe("BlastooorStrategyAgents", function () {
     erc20c = await deployContract(deployer, "MockERC20", [`Token C`, `TKNC`, 18]) as MockERC20;
 
     await expectDeployed(ERC6551_REGISTRY_ADDRESS); // expect to be run on a fork of a testnet with registry deployed
-    await expectDeployed(THRUSTER_ROUTER_ADDRESS);
+    await expectDeployed(THRUSTER_ROUTER_ADDRESS_030);
+    await expectDeployed(THRUSTER_ROUTER_ADDRESS_100);
     await expectDeployed(WETH_ADDRESS);
     await expectDeployed(USDB_ADDRESS);
 
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
 
-    ringStakingRewards = await ethers.getContractAt("IFixedStakingRewards", RING_STAKING_REWARDS_ADDRESS) as IFixedStakingRewards;
-    thrusterRouter = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS) as IThrusterRouter;
     weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS) as MockERC20;
     usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS) as MockERC20;
+
+    thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
+    thrusterRouter_100 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_100) as IThrusterRouter;
+    thrusterLpToken = await ethers.getContractAt("MockERC20", THRUSTER_LP_TOKEN_ADDRESS) as MockERC20;
+
+    hyperlockStaking = await ethers.getContractAt("IHyperlockStaking", HYPERLOCK_STAKING_ADDRESS) as IHyperlockStaking;
+
     //ring = await ethers.getContractAt("MockERC20", RING_ADDRESS) as MockERC20;
     ringLpToken = await ethers.getContractAt("MockERC20", RING_LP_TOKEN_ADDRESS) as MockERC20;
+    ringStakingRewards = await ethers.getContractAt("IFixedStakingRewards", RING_STAKING_REWARDS_ADDRESS) as IFixedStakingRewards;
+
+    blasterRouter = await ethers.getContractAt("IBlasterswapV2Router02", BLASTERSWAP_ROUTER_ADDRESS) as IBlasterswapV2Router02;
+    blasterLpToken = await ethers.getContractAt("MockERC20", BLASTERSWAP_LP_TOKEN_ADDRESS) as MockERC20;
+
+    tokenList = [AddressZero, WETH_ADDRESS, USDB_ADDRESS, erc20a.address]
   });
 
   after(async function () {
@@ -156,6 +191,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await genesisAgentNft.totalSupply()).eq(0);
       expect(await genesisAgentNft.balanceOf(user1.address)).eq(0);
       expect(await genesisAgentNft.getERC6551Registry()).eq(ERC6551_REGISTRY_ADDRESS);
+      collectionListGenesis = [genesisAgentNft.address]
     });
     it("can deploy MulticallForwarder", async function () {
       multicallForwarder = await deployContract(deployer, "MulticallForwarder", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MulticallForwarder;
@@ -192,6 +228,8 @@ describe("BlastooorStrategyAgents", function () {
       l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgents", strategyAgentNft.deployTransaction);
       expect(await strategyAgentNft.totalSupply()).eq(0);
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0);
+      collectionListStrategy = [strategyAgentNft.address]
+      collectionListAll = [genesisAgentNft.address, strategyAgentNft.address]
     });
     it("can deploy BlastooorStrategyAgentAccount implementation", async function () {
       strategyAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
@@ -215,6 +253,11 @@ describe("BlastooorStrategyAgents", function () {
       await expectDeployed(strategyModuleA.address);
       l1DataFeeAnalyzer.register("deploy DexBalancerModuleA", strategyModuleA.deployTransaction);
     })
+    it("can deploy BalanceFetcher", async function () {
+      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentRegistry.address]) as BalanceFetcher;
+      await expectDeployed(balanceFetcher.address);
+      l1DataFeeAnalyzer.register("deploy BalanceFetcher", balanceFetcher.deployTransaction);
+    });
     it("can deploy MockERC1271", async function () {
       mockERC1271 = await deployContract(deployer, "MockERC1271", []) as MockERC1271;
       await expectDeployed(mockERC1271.address);
@@ -325,6 +368,16 @@ describe("BlastooorStrategyAgents", function () {
       tbaccountG2A = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createGenesisAgent[2]", tx);
     });
+    it("can fetch balances 0", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(AddressZero, collectionListAll, tokenList)
+      //console.log(`Balances 0: (${res.length})`)
+      //console.log(res)
+    })
+    it("can fetch balances 1", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(user1.address, collectionListGenesis, tokenList)
+      //console.log(`Balances 1: (${res.length})`)
+      //console.log(res)
+    })
   });
 
   describe("AgentRegistry setup", function () {
@@ -510,7 +563,7 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
-      tbaccountG1B = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
+      tbaccountG1C = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
       expect(await genesisAccountFactory.getCreateCount(agentID)).eq(creationIndex)
 
       agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
@@ -595,7 +648,7 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
-      tbaccountG1B = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
+      tbaccountG1C = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
       expect(await genesisAccountFactory.getCreateCount(agentID)).eq(creationIndex)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(res1)).eq(initialBalance)
@@ -652,7 +705,7 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
-      tbaccountG1B = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
+      tbaccountG1C = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
       expect(await genesisAccountFactory.getCreateCount(agentID)).eq(creationIndex)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(res1)).eq(0)
@@ -708,7 +761,7 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
-      tbaccountG1B = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
+      tbaccountG1C = await ethers.getContractAt("BlastooorGenesisAgentAccount", res1) as BlastooorGenesisAgentAccount;
       expect(await genesisAccountFactory.getCreateCount(agentID)).eq(creationIndex)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(res1)).eq(initialBalance)
@@ -749,6 +802,11 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx2).to.emit(genesisAccountFactory, "AgentCreationSettingsActivated").withArgs(settingsID, true)
       let res2 = await genesisAccountFactory.getAgentCreationSettings(settingsID)
       expect(res2.isActive).eq(true)
+    })
+    it("can fetch balances 2", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(user1.address, collectionListAll, tokenList)
+      //console.log(`Balances 2: (${res.length})`)
+      //console.log(res)
     })
     it("", async function () {});
     it("", async function () {});
@@ -822,7 +880,7 @@ describe("BlastooorStrategyAgents", function () {
     });
     it("cannot create more than max mint per user", async function () {
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [1])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OverMaxCreationsPerUser")
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OverMaxCreationsPerUser")
     });
     it("non owner cannot set max mint per user", async function () {
       await expect(strategyFactory.connect(user1).setMaxCreationsPerGenesisAgent(999)).to.be.revertedWithCustomError(strategyFactory, "NotContractOwner")
@@ -835,9 +893,9 @@ describe("BlastooorStrategyAgents", function () {
     })
     it("cannot create with invalid settingsID", async function () {
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [0])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OutOfRange")
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OutOfRange")
       calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [999])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OutOfRange")
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "OutOfRange")
     });
     it("cannot create via poison tba", async function () {
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [1])
@@ -845,7 +903,7 @@ describe("BlastooorStrategyAgents", function () {
     });
     it("cannot create agent if factory is not registry operator", async function () {
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [1])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
     it("registry setup", async function () {
       let params1 = [
@@ -867,13 +925,13 @@ describe("BlastooorStrategyAgents", function () {
     });
     it("can create strategy agent pt 1", async function () {
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 1
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [configID])
 
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(0)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(0)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
       expect(await isDeployed(res3)).eq(false)
@@ -885,13 +943,13 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(0)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(false)
 
-      let tx = await tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0);
+      let tx = await tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0);
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -903,7 +961,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
 
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(1)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(1)
       tbaccountS1 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
       console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
@@ -926,7 +984,7 @@ describe("BlastooorStrategyAgents", function () {
       await expect(tx).to.emit(strategyFactory, "AgentCreationSettingsActivated").withArgs(settingsID, params.isActive)
 
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [settingsID])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "CreationSettingsPaused")
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "CreationSettingsPaused")
     });
     it("cannot getAgentCreationSettings out of range", async function () {
       await expect(strategyFactory.getAgentCreationSettings(0)).to.be.revertedWithCustomError(strategyFactory, "OutOfRange")
@@ -950,7 +1008,7 @@ describe("BlastooorStrategyAgents", function () {
     it("cannot create agent with inactive settings", async function () {
       let settingsID = 1
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [settingsID])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "CreationSettingsPaused")
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, 0, calldata1, 0)).to.be.revertedWithCustomError(strategyFactory, "CreationSettingsPaused")
     });
     it("owner can setActiveStatus pt 1", async function () {
       let settingsID = 1
@@ -962,7 +1020,7 @@ describe("BlastooorStrategyAgents", function () {
     it("can create strategy agent pt 2", async function () {
       // and transfer in eth
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 1
       let depositAmountETH = WeiPerEther.mul(2)
@@ -973,7 +1031,7 @@ describe("BlastooorStrategyAgents", function () {
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [configID, deposits])
 
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(1)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(1)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
       expect(await isDeployed(res3)).eq(false)
@@ -985,13 +1043,13 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(0)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(false)
 
-      let tx = await tbaccountG1B.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH});
+      let tx = await tbaccountG1C.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH});
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1002,7 +1060,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(2)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(2)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
       expect(await provider.getBalance(res3)).eq(depositAmountETH)
@@ -1024,7 +1082,7 @@ describe("BlastooorStrategyAgents", function () {
         amount: depositAmountTokenA
       }]
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [configID, deposits])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
     });
     it("cannot deposit erc20 with insufficient allowance", async function () {
       await erc20a.connect(user1).mint(user1.address, WeiPerEther.mul(1000))
@@ -1039,7 +1097,7 @@ describe("BlastooorStrategyAgents", function () {
         amount: depositAmountTokenA
       }]
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [configID, deposits])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
     });
     it("cannot deposit erc20 without transferFrom", async function () {
       let configID = 1
@@ -1052,14 +1110,14 @@ describe("BlastooorStrategyAgents", function () {
         token: erc20a.address,
         amount: depositAmountTokenA
       }]
-      await erc20a.connect(user1).approve(tbaccountG1B.address, depositAmountTokenA)
+      await erc20a.connect(user1).approve(tbaccountG1C.address, depositAmountTokenA)
       let calldata1 = strategyFactory.interface.encodeFunctionData("createAgent(uint256,(address,uint256)[])", [configID, deposits])
-      await expect(tbaccountG1B.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
+      await expect(tbaccountG1C.connect(user1).execute(strategyFactory.address, depositAmountETH, calldata1, 0, {value: depositAmountETH})).to.be.reverted;
     });
     it("can create strategy agent pt 3", async function () {
       // and transfer in eth and erc20
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 1
       let depositAmountETH = WeiPerEther.mul(2)
@@ -1071,8 +1129,8 @@ describe("BlastooorStrategyAgents", function () {
         token: erc20a.address,
         amount: depositAmountTokenA
       }]
-      await erc20a.connect(user1).approve(tbaccountG1B.address, depositAmountTokenA)
-      let balETH1 = await provider.getBalance(tbaccountG1B.address)
+      await erc20a.connect(user1).approve(tbaccountG1C.address, depositAmountTokenA)
+      let balETH1 = await provider.getBalance(tbaccountG1C.address)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
       expect(await isDeployed(res3)).eq(false)
@@ -1098,13 +1156,13 @@ describe("BlastooorStrategyAgents", function () {
           operation: 0,
         }
       ]
-      let tx = await tbaccountG1B.connect(user1).executeBatch(batch, {value: depositAmountETH});
+      let tx = await tbaccountG1C.connect(user1).executeBatch(batch, {value: depositAmountETH});
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1115,14 +1173,14 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(3)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(3)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
-      expect(await provider.getBalance(tbaccountG1B.address)).eq(balETH1)
+      expect(await provider.getBalance(tbaccountG1C.address)).eq(balETH1)
       expect(await provider.getBalance(res3)).eq(depositAmountETH)
       expect(await erc20a.balanceOf(genesisAccountFactory.address)).eq(0)
       expect(await erc20a.balanceOf(strategyFactory.address)).eq(0)
-      expect(await erc20a.balanceOf(tbaccountG1B.address)).eq(0)
+      expect(await erc20a.balanceOf(tbaccountG1C.address)).eq(0)
       expect(await erc20a.balanceOf(res3)).eq(depositAmountTokenA)
 
       tbaccountS3 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
@@ -1134,7 +1192,7 @@ describe("BlastooorStrategyAgents", function () {
       // and transfer in eth and erc20
       // and make calls
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 1
       let depositAmountETH = WeiPerEther.mul(2)
@@ -1147,8 +1205,8 @@ describe("BlastooorStrategyAgents", function () {
         token: erc20a.address,
         amount: depositAmountTokenA
       }]
-      await erc20a.connect(user1).approve(tbaccountG1B.address, depositAmountTokenA)
-      let balETH1 = await provider.getBalance(tbaccountG1B.address)
+      await erc20a.connect(user1).approve(tbaccountG1C.address, depositAmountTokenA)
+      let balETH1 = await provider.getBalance(tbaccountG1C.address)
       let balETH2 = await provider.getBalance(user2.address)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
@@ -1175,13 +1233,13 @@ describe("BlastooorStrategyAgents", function () {
           operation: 0,
         }
       ]
-      let tx = await tbaccountG1B.connect(user1).executeBatch(batch, {value: depositAmountETH});
+      let tx = await tbaccountG1C.connect(user1).executeBatch(batch, {value: depositAmountETH});
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1192,15 +1250,15 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(4)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(4)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
-      expect(await provider.getBalance(tbaccountG1B.address)).eq(balETH1)
+      expect(await provider.getBalance(tbaccountG1C.address)).eq(balETH1)
       expect(await provider.getBalance(res3)).eq(depositAmountETH.sub(transferAmountETH))
       expect(await provider.getBalance(user2.address)).eq(balETH2.add(transferAmountETH))
       expect(await erc20a.balanceOf(genesisAccountFactory.address)).eq(0)
       expect(await erc20a.balanceOf(strategyFactory.address)).eq(0)
-      expect(await erc20a.balanceOf(tbaccountG1B.address)).eq(0)
+      expect(await erc20a.balanceOf(tbaccountG1C.address)).eq(0)
       expect(await erc20a.balanceOf(res3)).eq(depositAmountTokenA)
 
       tbaccountS4 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
@@ -1212,10 +1270,10 @@ describe("BlastooorStrategyAgents", function () {
       // and make calls
       // no transfer
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 1
-      let balETH1 = await provider.getBalance(tbaccountG1B.address)
+      let balETH1 = await provider.getBalance(tbaccountG1C.address)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
       expect(await isDeployed(res3)).eq(false)
@@ -1235,13 +1293,13 @@ describe("BlastooorStrategyAgents", function () {
           operation: 0,
         }
       ]
-      let tx = await tbaccountG1B.connect(user1).executeBatch(batch);
+      let tx = await tbaccountG1C.connect(user1).executeBatch(batch);
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1252,14 +1310,14 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(5)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(5)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
-      expect(await provider.getBalance(tbaccountG1B.address)).eq(balETH1)
+      expect(await provider.getBalance(tbaccountG1C.address)).eq(balETH1)
       expect(await provider.getBalance(res3)).eq(0)
       expect(await erc20a.balanceOf(genesisAccountFactory.address)).eq(0)
       expect(await erc20a.balanceOf(strategyFactory.address)).eq(0)
-      expect(await erc20a.balanceOf(tbaccountG1B.address)).eq(0)
+      expect(await erc20a.balanceOf(tbaccountG1C.address)).eq(0)
       expect(await erc20a.balanceOf(res3)).eq(0)
 
       tbaccountS5 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
@@ -1306,7 +1364,7 @@ describe("BlastooorStrategyAgents", function () {
       // and transfer in eth and erc20
       // and make calls
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 3
       let depositAmountETH = WeiPerEther.mul(2)
@@ -1319,8 +1377,8 @@ describe("BlastooorStrategyAgents", function () {
         token: erc20a.address,
         amount: depositAmountTokenA
       }]
-      await erc20a.connect(user1).approve(tbaccountG1B.address, depositAmountTokenA)
-      let balETH1 = await provider.getBalance(tbaccountG1B.address)
+      await erc20a.connect(user1).approve(tbaccountG1C.address, depositAmountTokenA)
+      let balETH1 = await provider.getBalance(tbaccountG1C.address)
       let balETH2 = await provider.getBalance(user2.address)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
@@ -1347,13 +1405,13 @@ describe("BlastooorStrategyAgents", function () {
           operation: 0,
         }
       ]
-      let tx = await tbaccountG1B.connect(user1).executeBatch(batch, {value: depositAmountETH});
+      let tx = await tbaccountG1C.connect(user1).executeBatch(batch, {value: depositAmountETH});
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1364,15 +1422,15 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(6)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(6)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
-      expect(await provider.getBalance(tbaccountG1B.address)).eq(balETH1)
+      expect(await provider.getBalance(tbaccountG1C.address)).eq(balETH1)
       expect(await provider.getBalance(res3)).eq(depositAmountETH.sub(transferAmountETH))
       expect(await provider.getBalance(user2.address)).eq(balETH2.add(transferAmountETH))
       expect(await erc20a.balanceOf(genesisAccountFactory.address)).eq(0)
       expect(await erc20a.balanceOf(strategyFactory.address)).eq(0)
-      expect(await erc20a.balanceOf(tbaccountG1B.address)).eq(0)
+      expect(await erc20a.balanceOf(tbaccountG1C.address)).eq(0)
       expect(await erc20a.balanceOf(res3)).eq(depositAmountTokenA)
 
       tbaccountS6 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
@@ -1386,7 +1444,7 @@ describe("BlastooorStrategyAgents", function () {
       let path = [WETH_ADDRESS, USDB_ADDRESS]
       expect(await weth.balanceOf(user1.address)).eq(0)
       expect(await usdb.balanceOf(user1.address)).eq(0)
-      let tx = await thrusterRouter.connect(user1).swapExactETHForTokens(amountOutMin, path, user1.address, MaxUint256, {value:amountIn})
+      let tx = await thrusterRouter_030.connect(user1).swapExactETHForTokens(amountOutMin, path, user1.address, MaxUint256, {value:amountIn})
       expect(await weth.balanceOf(user1.address)).eq(0)
       expect(await usdb.balanceOf(user1.address)).gt(0)
     });
@@ -1394,7 +1452,7 @@ describe("BlastooorStrategyAgents", function () {
       // and transfer in eth and usdb
       // and make calls
       let ts = await strategyAgentNft.totalSupply();
-      let bal = await strategyAgentNft.balanceOf(tbaccountG1B.address);
+      let bal = await strategyAgentNft.balanceOf(tbaccountG1C.address);
       let strategyAgentID = ts.add(1);
       let configID = 3
       let depositAmountETH = WeiPerEther.mul(2)
@@ -1407,8 +1465,8 @@ describe("BlastooorStrategyAgents", function () {
         token: usdb.address,
         amount: depositAmountUSDB
       }]
-      await usdb.connect(user1).approve(tbaccountG1B.address, depositAmountUSDB)
-      let balETH1 = await provider.getBalance(tbaccountG1B.address)
+      await usdb.connect(user1).approve(tbaccountG1C.address, depositAmountUSDB)
+      let balETH1 = await provider.getBalance(tbaccountG1C.address)
       let balETH2 = await provider.getBalance(user2.address)
 
       let res3 = await erc6551Registry.connect(user1).account(strategyAccountImplementation.address, toBytes32(0), chainID, strategyAgentNft.address, strategyAgentID)
@@ -1435,13 +1493,13 @@ describe("BlastooorStrategyAgents", function () {
           operation: 0,
         }
       ]
-      let tx = await tbaccountG1B.connect(user1).executeBatch(batch, {value: depositAmountETH});
+      let tx = await tbaccountG1C.connect(user1).executeBatch(batch, {value: depositAmountETH});
       await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(AddressZero, strategyFactory.address, strategyAgentID);
-      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1B.address, strategyAgentID);
+      await expect(tx).to.emit(strategyAgentNft, "Transfer").withArgs(strategyFactory.address, tbaccountG1C.address, strategyAgentID);
       expect(await strategyAgentNft.totalSupply()).eq(ts.add(1));
-      expect(await strategyAgentNft.balanceOf(tbaccountG1B.address)).eq(bal.add(1));
+      expect(await strategyAgentNft.balanceOf(tbaccountG1C.address)).eq(bal.add(1));
       expect(await strategyAgentNft.exists(strategyAgentID)).eq(true);
-      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1B.address);
+      expect(await strategyAgentNft.ownerOf(strategyAgentID)).eq(tbaccountG1C.address);
 
       agentInfo = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(agentInfo.length).eq(1)
@@ -1452,15 +1510,15 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(strategyAgentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res3)).eq(true)
       expect(await strategyFactory.getCreateCount(user1.address)).eq(0)
-      expect(await strategyFactory.getCreateCount(tbaccountG1B.address)).eq(7)
+      expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(7)
       expect(await provider.getBalance(genesisAccountFactory.address)).eq(0)
       expect(await provider.getBalance(strategyFactory.address)).eq(0)
-      expect(await provider.getBalance(tbaccountG1B.address)).eq(balETH1)
+      expect(await provider.getBalance(tbaccountG1C.address)).eq(balETH1)
       expect(await provider.getBalance(res3)).eq(depositAmountETH.sub(transferAmountETH))
       expect(await provider.getBalance(user2.address)).eq(balETH2.add(transferAmountETH))
       expect(await usdb.balanceOf(genesisAccountFactory.address)).eq(0)
       expect(await usdb.balanceOf(strategyFactory.address)).eq(0)
-      expect(await usdb.balanceOf(tbaccountG1B.address)).eq(0)
+      expect(await usdb.balanceOf(tbaccountG1C.address)).eq(0)
       expect(await usdb.balanceOf(res3)).eq(depositAmountUSDB)
 
       tbaccountS7 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
@@ -1468,12 +1526,17 @@ describe("BlastooorStrategyAgents", function () {
       console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[7]", tx);
     });
+    it("can fetch balances 3", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(user1.address, collectionListAll, tokenList)
+      //console.log(`Balances 3: (${res.length})`)
+      //console.log(res)
+    })
     it("", async function () {});
   })
 
   describe("strategy agent roles", function () {
     it("owner is correct", async function () {
-      expect(await tbaccountS1.owner()).eq(tbaccountG1B.address)
+      expect(await tbaccountS1.owner()).eq(tbaccountG1C.address)
     })
     it("role begins unset", async function () {
       expect(await tbaccountS1.hasRole(STRATEGY_MANAGER_ROLE, strategyManager.address)).eq(false)
@@ -1500,7 +1563,7 @@ describe("BlastooorStrategyAgents", function () {
         },
       ]
       let calldata = tbaccountS1.interface.encodeFunctionData("setRoles", [params])
-      let tx = await tbaccountG1B.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
+      let tx = await tbaccountG1C.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       for(const param of params) {
         const { role, account, grantAccess } = param
         expect(await tbaccountS1.hasRole(role, account)).eq(grantAccess)
@@ -1531,6 +1594,11 @@ describe("BlastooorStrategyAgents", function () {
         expect(await tbaccountS1.hasRole(role, account)).eq(grantAccess)
         await expect(tx).to.emit(tbaccountS1, "RoleAccessChanged").withArgs(role, account, grantAccess)
       }
+    })
+    it("can fetch balances 4", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(user1.address, collectionListAll, tokenList)
+      //console.log(`Balances 4: (${res.length})`)
+      //console.log(res)
     })
     it("", async function () {})
   })
@@ -1566,11 +1634,18 @@ describe("BlastooorStrategyAgents", function () {
       { selector: "0x006f7d00", isProtected: false }, // usdb()
       { selector: "0x3fc8cef3", isProtected: false }, // weth()
 
+      { selector: "0x661b947e", isProtected: false }, // blasterswapLpToken()
+      { selector: "0x27e5b97e", isProtected: false }, // blasterswapRouter()
+      { selector: "0xb3463e0f", isProtected: false }, // hyperlockStaking()
+      { selector: "0x31419867", isProtected: false }, // thrusterLpToken()
+      { selector: "0x21f3a36f", isProtected: false }, // thrusterRouter030()
+      { selector: "0x0a266a68", isProtected: false }, // thrusterRouter100()
+
       //{ selector: "0x61bc1a49", isProtected: true }, // depositBalance()
-      //{ selector: "0x7bb485dc", isProtected: true }, // moduleA_depositBalance()
+      { selector: "0x7bb485dc", isProtected: true }, // moduleA_depositBalance()
       //{ selector: "0x30503f88", isProtected: true }, // moduleA_rebalanceAndDepositBalance()
-      { selector: "0x7d01e70a", isProtected: true }, // moduleA_depositBalanceWithoutRebalance()
-      { selector: "0x84153b75", isProtected: true }, // moduleA_depositBalanceWithRebalance()
+      //{ selector: "0x7d01e70a", isProtected: true }, // moduleA_depositBalanceWithoutRebalance()
+      //{ selector: "0x84153b75", isProtected: true }, // moduleA_depositBalanceWithRebalance()
       { selector: "0xd36bfc2e", isProtected: true }, // moduleA_withdrawBalance()
       //{ selector: "0x12ecb60b", isProtected: true }, // moduleA_withdrawBalanceTo()
       { selector: "0xc4fb5289", isProtected: true }, // moduleA_withdrawBalanceTo(address)
@@ -1605,7 +1680,7 @@ describe("BlastooorStrategyAgents", function () {
         expect(res.isProtected).eq(false)
       }
       let calldata = tbaccountS1.interface.encodeFunctionData("setOverrides", [overrides])
-      let tx = await tbaccountG1B.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
+      let tx = await tbaccountG1C.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       for(const param of functionParams) {
         let { selector, isProtected } = param
         let res = await tbaccountS1.overrides(selector)
@@ -1615,28 +1690,23 @@ describe("BlastooorStrategyAgents", function () {
       }
     });
     it("non owner cannot use protected overrides", async function () {
-      await expect(accountProxy.connect(user1).moduleA_depositBalanceWithoutRebalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
-      await expect(accountProxy.connect(user2).moduleA_depositBalanceWithoutRebalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
-      await expect(accountProxy.connect(user1).moduleA_depositBalanceWithRebalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
-      await expect(accountProxy.connect(user2).moduleA_depositBalanceWithRebalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
+      await expect(accountProxy.connect(user1).moduleA_depositBalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
+      await expect(accountProxy.connect(user2).moduleA_depositBalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
       await expect(accountProxy.connect(user1).moduleA_withdrawBalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
       await expect(accountProxy.connect(user2).moduleA_withdrawBalance()).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
       await expect(accountProxy.connect(user1).moduleA_withdrawBalanceTo(user1.address)).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
       await expect(accountProxy.connect(user2).moduleA_withdrawBalanceTo(user1.address)).to.be.revertedWithCustomError(tbaccountS1, "NotAuthorized")
     })
     it("owner can use protected overrides", async function () {
-      var calldata = accountProxy.interface.encodeFunctionData("moduleA_depositBalanceWithoutRebalance")
-      var tx = await tbaccountG1B.connect(user1).execute(accountProxy.address, 0, calldata, 0)
-      var calldata = accountProxy.interface.encodeFunctionData("moduleA_depositBalanceWithRebalance")
-      var tx = await tbaccountG1B.connect(user1).execute(accountProxy.address, 0, calldata, 0)
+      var calldata = accountProxy.interface.encodeFunctionData("moduleA_depositBalance")
+      var tx = await tbaccountG1C.connect(user1).execute(accountProxy.address, 0, calldata, 0)
       var calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalance")
-      var tx = await tbaccountG1B.connect(user1).execute(accountProxy.address, 0, calldata, 0)
+      var tx = await tbaccountG1C.connect(user1).execute(accountProxy.address, 0, calldata, 0)
       var calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalanceTo", [user1.address])
-      var tx = await tbaccountG1B.connect(user1).execute(accountProxy.address, 0, calldata, 0)
+      var tx = await tbaccountG1C.connect(user1).execute(accountProxy.address, 0, calldata, 0)
     })
     it("strategy manager can use protected overrides", async function () {
-      var tx = await accountProxy.connect(strategyManager).moduleA_depositBalanceWithoutRebalance();
-      var tx = await accountProxy.connect(strategyManager).moduleA_depositBalanceWithRebalance();
+      var tx = await accountProxy.connect(strategyManager).moduleA_depositBalance();
       var tx = await accountProxy.connect(strategyManager).moduleA_withdrawBalance();
       var tx = await accountProxy.connect(strategyManager).moduleA_withdrawBalanceTo(user1.address);
     })
@@ -1658,9 +1728,12 @@ describe("BlastooorStrategyAgents", function () {
       expect(balances0.weth).eq(0)
       expect(balances0.usdb).gt(0)
       //expect(balances0.ring).eq(0)
+      expect(balances0.thrusterLpToken).eq(0)
+      expect(balances0.hyperlockStaking).eq(0)
       expect(balances0.ringLpToken).eq(0)
       expect(balances0.ringStakingBalance).eq(0)
       expect(balances0.ringStakingEarned).eq(0)
+      expect(balances0.blasterLpToken).eq(0)
 
       for(const param of functionParams) {
         let { selector, isProtected } = param
@@ -1669,11 +1742,11 @@ describe("BlastooorStrategyAgents", function () {
         expect(res.isProtected).eq(false)
       }
       let calldata0 = tbaccountS7.interface.encodeFunctionData("setOverrides", [overrides])
-      let calldata1 = accountProxy.interface.encodeFunctionData("moduleA_depositBalanceWithoutRebalance")
+      let calldata1 = accountProxy.interface.encodeFunctionData("moduleA_depositBalance")
       let calldatas = [calldata0, calldata1]
       let calldata2 = tbaccountS7.interface.encodeFunctionData("multicall", [calldatas])
 
-      let tx = await tbaccountG1B.connect(user1).execute(tbaccountS7.address, 0, calldata2, 0)
+      let tx = await tbaccountG1C.connect(user1).execute(tbaccountS7.address, 0, calldata2, 0)
 
       for(const param of functionParams) {
         let { selector, isProtected } = param
@@ -1688,9 +1761,12 @@ describe("BlastooorStrategyAgents", function () {
       //expect(balances1.weth).eq(0)
       //expect(balances1.usdb).eq(0)
       //expect(balances1.ring).eq(0)
+      expect(balances1.thrusterLpToken).eq(0)
+      expect(balances1.hyperlockStaking).gt(0)
       expect(balances1.ringLpToken).eq(0)
       expect(balances1.ringStakingBalance).gt(0)
       expect(balances1.ringStakingEarned).eq(0)
+      expect(balances1.blasterLpToken).gt(0)
     });
     it("accrues interest", async function () {
       await user3.sendTransaction({to:user3.address})
@@ -1699,22 +1775,43 @@ describe("BlastooorStrategyAgents", function () {
       //expect(balances2.weth).eq(0)
       //expect(balances2.usdb).eq(0)
       //expect(balances2.ring).eq(0)
+      expect(balances2.thrusterLpToken).eq(0)
+      expect(balances2.hyperlockStaking).gt(0)
       expect(balances2.ringLpToken).eq(0)
       expect(balances2.ringStakingBalance).gt(0)
       expect(balances2.ringStakingEarned).gt(0)
+      expect(balances2.blasterLpToken).gt(0)
     })
     it("can withdraw", async function () {
       let calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalance", [])
-      let tx = await tbaccountG1B.connect(user1).execute(tbaccountS7.address, 0, calldata, 0)
+      let tx = await tbaccountG1C.connect(user1).execute(tbaccountS7.address, 0, calldata, 0)
 
       let balances3 = await getBalances(tbaccountS7.address)
       expect(balances3.eth).eq(0)
       expect(balances3.weth).gt(0)
       expect(balances3.usdb).gt(0)
       //expect(balances3.ring).eq(0)
+      expect(balances3.thrusterLpToken).eq(0)
+      expect(balances3.hyperlockStaking).eq(0)
       expect(balances3.ringLpToken).eq(0)
       expect(balances3.ringStakingBalance).eq(0)
       expect(balances3.ringStakingEarned).gt(0) // because redemption of points not available yet
+      expect(balances3.blasterLpToken).eq(0)
+    })
+    it("can fetch balances 5", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(user1.address, collectionListAll, tokenList)
+      //console.log(`Balances 5: (${res.length})`)
+      //console.log(res)
+    })
+    it("can fetch balances 6", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(tbaccountG1B.address, collectionListAll, tokenList)
+      //console.log(`Balances 6: (${res.length})`)
+      //console.log(res)
+    })
+    it("can fetch balances 7", async function () {
+      let res = await balanceFetcher.callStatic.fetchAgents(tbaccountG1C.address, collectionListAll, tokenList)
+      //console.log(`Balances 7: (${res.length})`)
+      //console.log(res)
     })
   })
 
@@ -1737,18 +1834,24 @@ describe("BlastooorStrategyAgents", function () {
       weth: await weth.balanceOf(account),
       usdb: await usdb.balanceOf(account),
       //ring: await ring.balanceOf(account),
+      thrusterLpToken: await thrusterLpToken.balanceOf(account),
+      hyperlockStaking: await hyperlockStaking.staked(account, THRUSTER_LP_TOKEN_ADDRESS),
       ringLpToken: await ringLpToken.balanceOf(account),
       ringStakingBalance: await ringStakingRewards.balanceOf(RING_STAKING_REWARDS_INDEX, account),
       ringStakingEarned: await ringStakingRewards.earned(RING_STAKING_REWARDS_INDEX, account),
+      blasterLpToken: await blasterLpToken.balanceOf(account),
     }
     console.log({
       eth: formatUnits(res.eth),
       weth: formatUnits(res.weth),
       usdb: formatUnits(res.usdb),
       //ring: formatUnits(res.ring),
+      thrusterLpToken: formatUnits(res.thrusterLpToken),
+      hyperlockStaking: formatUnits(res.hyperlockStaking),
       ringLpToken: formatUnits(res.ringLpToken),
       ringStakingBalance: formatUnits(res.ringStakingBalance),
       ringStakingEarned: formatUnits(res.ringStakingEarned),
+      blasterLpToken: formatUnits(res.blasterLpToken),
     })
     return res
   }

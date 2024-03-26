@@ -53,6 +53,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x067299A9C3F7E8d4A9d9dD06E2C1Fe3240144389"; // v1.0.1
+
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
 // tokens
@@ -83,6 +85,8 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
 
+let dexBalancerModuleA: DexBalancerModuleA;
+
 let usdb: MockERC20;
 
 async function main() {
@@ -110,6 +114,7 @@ async function main() {
   await expectDeployed(STRATEGY_FACTORY_ADDRESS)
   await expectDeployed(STRATEGY_ACCOUNT_IMPL_ADDRESS)
   await expectDeployed(DISPATCHER_ADDRESS)
+  await expectDeployed(DEX_BALANCER_MODULE_A_ADDRESS)
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -126,6 +131,7 @@ async function main() {
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
   multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
+  dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
@@ -151,6 +157,7 @@ async function main() {
   //await setStrategyNftMetadata();
   //await postStrategyAgentCreationSettings_1();
   //await postStrategyAgentCreationSettings_2();
+  await postStrategyAgentCreationSettings_3();
   //await addOperatorsToDispatcher();
 }
 
@@ -569,6 +576,44 @@ async function postStrategyAgentCreationSettings_2() {
     initializationCalls: [
       agentInitializationCode0,
       agentInitializationCode1,
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+// 3: create new strategy agent
+// turns into dex balancer strategy
+async function postStrategyAgentCreationSettings_3() {
+  let expectedSettingsID = 3
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let functionParams = [
+    { selector: "0x7bb485dc", isProtected: true }, // moduleA_depositBalance()
+    { selector: "0xd36bfc2e", isProtected: true }, // moduleA_withdrawBalance()
+    { selector: "0xc4fb5289", isProtected: true }, // moduleA_withdrawBalanceTo(address)
+  ]
+  let overrides = [
+    {
+      implementation: dexBalancerModuleA.address,
+      functionParams: functionParams
+    }
+  ]
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      strategyAccountImpl.interface.encodeFunctionData("blastConfigure"),
+      strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides]),
+      dexBalancerModuleA.interface.encodeFunctionData("moduleA_depositBalance")
     ],
     isActive: true,
   }

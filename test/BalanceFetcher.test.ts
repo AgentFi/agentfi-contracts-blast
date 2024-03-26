@@ -9,7 +9,7 @@ import chai from "chai";
 const { expect, assert } = chai;
 import fs from "fs";
 
-import { BalanceFetcher, MockERC20, MockGasBurner, IBlast, MockBlast, GasCollector } from "./../typechain-types";
+import { BalanceFetcher, MockERC20, MockGasBurner, IBlast, MockBlast, GasCollector, AgentRegistry } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -54,6 +54,7 @@ describe("BalanceFetcher", function () {
   let gasBurner2: MockGasBurner; // inherits blastable
   let iblast: any;
   let mockblast: MockBlast;
+  let agentRegistry: AgentRegistry;
 
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
@@ -83,8 +84,14 @@ describe("BalanceFetcher", function () {
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
+    it("can deploy AgentRegistry", async function () {
+      agentRegistry = await deployContract(deployer, "AgentRegistry", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as AgentRegistry;
+      await expectDeployed(agentRegistry.address);
+      expect(await agentRegistry.owner()).eq(owner.address);
+      l1DataFeeAnalyzer.register("deploy AgentRegistry", agentRegistry.deployTransaction);
+    });
     it("can deploy BalanceFetcher", async function () {
-      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as BalanceFetcher;
+      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentRegistry.address]) as BalanceFetcher;
       await expectDeployed(balanceFetcher.address);
       l1DataFeeAnalyzer.register("deploy BalanceFetcher", balanceFetcher.deployTransaction);
     });

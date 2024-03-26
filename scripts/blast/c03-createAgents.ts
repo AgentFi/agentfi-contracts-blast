@@ -61,6 +61,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x067299A9C3F7E8d4A9d9dD06E2C1Fe3240144389"; // v1.0.1
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -92,6 +94,8 @@ let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
+
+let dexBalancerModuleA: DexBalancerModuleA;
 
 let weth: MockERC20;
 let usdb: MockERC20;
@@ -133,6 +137,8 @@ async function main() {
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
 
+  dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+
   weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
@@ -144,13 +150,14 @@ async function main() {
   //await listStrategyAgents();
   //await listGenesisAgents(boombotseth.address);
   //await listStrategyAgents(boombotseth.address);
+  await listAgentsOf(agentfideployer.address);
 
-  //await createAgents();
+  await createAgents();
 
   //await listStrategyAgents();
 
   await listAgentsOf(agentfideployer.address);
-  await listAgentsOf(boombotseth.address);
+  //await listAgentsOf(boombotseth.address);
 
 }
 
@@ -253,7 +260,8 @@ async function createAgents() {
   //await createStrategyAgent17();
   //await createStrategyAgent19();
 
-  await createStrategyAgent1();
+  //await createStrategyAgent1();
+  await createStrategyAgent2();
 }
 
 async function createStrategy(
@@ -429,6 +437,43 @@ async function createStrategyAgent1() {
       amount: depositAmountUSDB,
     }
     */
+  ]
+
+  //let depositAmountETH = Zero
+  //let tokenDeposits = []
+
+  await createStrategy(
+    agentfideployer,
+    genesisAgent5ID,
+    genesisConfigID,
+    //strategyFactoryCalldata,
+    strategyConfigID,
+    depositAmountETH,
+    tokenDeposits
+  )
+}
+
+// creates strategy agent 2
+async function createStrategyAgent2() {
+  console.log(`createStrategyAgent2`)
+
+  // assemble the create strategy calldata
+  let strategyConfigID = 3 // dex balancer module A
+  //let strategyFactoryCalldata = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [strategyConfigID])
+  let genesisConfigID = 1
+
+
+  let depositAmountETH = WeiPerEther.div(1000)
+  let depositAmountUSDB = WeiPerEther.mul(1)
+  let tokenDeposits = [
+    {
+      token: AddressZero,
+      amount: depositAmountETH,
+    },
+    {
+      token: usdb.address,
+      amount: depositAmountUSDB,
+    }
   ]
 
   //let depositAmountETH = Zero

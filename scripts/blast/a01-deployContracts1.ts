@@ -49,6 +49,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x067299A9C3F7E8d4A9d9dD06E2C1Fe3240144389"; // v1.0.1
+
 let iblast: IBlast;
 
 let multicallForwarder: MulticallForwarder;
@@ -69,7 +71,7 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
 
-//let strategyModuleA: DexBalancerModuleA;
+let dexBalancerModuleA: DexBalancerModuleA;
 
 let contractsToVerify = []
 
@@ -103,6 +105,8 @@ async function main() {
 
   await deployDispatcher();
   await deployBalanceFetcher();
+
+  await deployDexBalancerModuleA();
 
   await verifyContracts();
   logAddresses()
@@ -276,6 +280,18 @@ async function deployDispatcher() {
     if(!!DISPATCHER_ADDRESS && dispatcher.address != DISPATCHER_ADDRESS) throw new Error(`Deployed Dispatcher to ${dispatcher.address}, expected ${DISPATCHER_ADDRESS}`)
   }
 }
+async function deployDexBalancerModuleA() {
+  if(await isDeployed(DEX_BALANCER_MODULE_A_ADDRESS)) {
+    dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  } else {
+    console.log("Deploying DexBalancerModuleA");
+    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    dexBalancerModuleA = await deployContractUsingContractFactory(agentfideployer, "DexBalancerModuleA", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as DexBalancerModuleA;
+    console.log(`Deployed DexBalancerModuleA to ${dexBalancerModuleA.address}`);
+    contractsToVerify.push({ address: dexBalancerModuleA.address, args })
+    if(!!DEX_BALANCER_MODULE_A_ADDRESS && dexBalancerModuleA.address != DEX_BALANCER_MODULE_A_ADDRESS) throw new Error(`Deployed DexBalancerModuleA to ${dexBalancerModuleA.address}, expected ${DEX_BALANCER_MODULE_A_ADDRESS}`)
+  }
+}
 
 async function verifyContracts() {
   if(chainID == 31337) return
@@ -306,6 +322,7 @@ function logAddresses() {
   logContractAddress("BlastooorStrategyAgentAccount", strategyAccountImpl.address);
   logContractAddress("AgentRegistry", agentRegistry.address);
   logContractAddress("Dispatcher", dispatcher.address);
+  logContractAddress("DexBalancerModuleA", dexBalancerModuleA.address);
 }
 
 main()
