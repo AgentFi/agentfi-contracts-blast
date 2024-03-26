@@ -14,7 +14,7 @@ interface IBalanceFetcher {
         address implementation;
         address owner;
         address collection;
-        uint256 tokenId;
+        uint256 agentID;
         uint256[] balances;
     }
 
