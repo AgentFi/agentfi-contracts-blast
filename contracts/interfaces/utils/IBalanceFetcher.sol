@@ -14,7 +14,7 @@ interface IBalanceFetcher {
         address implementation;
         address owner;
         address collection;
-        uint256 tokenId;
+        uint256 agentID;
         uint256[] balances;
     }
 
@@ -45,4 +45,15 @@ interface IBalanceFetcher {
      * @return quotes The list of quotes.
      */
     function fetchBlastableGasQuotes(address[] calldata accounts) external payable returns (GasQuote[] memory quotes);
+
+    /**
+     * @notice Fetch key information for a uniswap v2 style pool
+     * @param poolAddress The address of the pool
+     * @return total Total supply of the pool
+     * @return address0 Token 0 address
+     * @return address1 Token 1 address
+     * @return reserve0 Token 0 reserve
+     * @return reserve1 Token 1 reserve
+     */
+    function fetchPoolInfoV2(address poolAddress) external view returns (uint256 total, address address0, address address1, uint112 reserve0, uint112 reserve1);
 }

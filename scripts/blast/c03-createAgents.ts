@@ -46,7 +46,7 @@ const MULTICALL_FORWARDER_ADDRESS     = "0xAD55F8b65d5738C6f63b54E651A09cC5d873e
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-const BALANCE_FETCHER_ADDRESS         = "0x5f3Ab2963DD2c61c6d69a3E42f51135cfdC189B0"; // v1.0.1
+const BALANCE_FETCHER_ADDRESS         = "0x3f8Dc480BEAeF711ecE5110926Ea2780a1db85C5"; // v1.0.1
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
@@ -136,7 +136,8 @@ async function main() {
   weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
-  genesisAgent5 = await ethers.getContractAt("BlastooorGenesisAgentAccount", genesisAgent5Address, boombotseth) as BlastooorGenesisAgentAccount;
+  //genesisAgent5 = await ethers.getContractAt("BlastooorGenesisAgentAccount", genesisAgent5Address, boombotseth) as BlastooorGenesisAgentAccount;
+  genesisAgent5 = await ethers.getContractAt("BlastooorGenesisAgentAccount", AddressZero, boombotseth) as BlastooorGenesisAgentAccount;
 
 
   //await listGenesisAgents();
@@ -144,12 +145,12 @@ async function main() {
   //await listGenesisAgents(boombotseth.address);
   //await listStrategyAgents(boombotseth.address);
 
-  await createAgents();
+  //await createAgents();
 
   //await listStrategyAgents();
 
-  //await listAgentsOf(agentfideployer.address);
-  //await listAgentsOf(boombotseth.address);
+  await listAgentsOf(agentfideployer.address);
+  await listAgentsOf(boombotseth.address);
 
 }
 
@@ -225,9 +226,22 @@ async function listAgentsOf(account:string) {
     USDB_ADDRESS,
   ]
   let res = await balanceFetcher.callStatic.fetchAgents(account, collections, tokens)
-  console.log(res)
-  console.log(`genesis:   ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
-  console.log(`strategy:  ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
+  console.log(`fetchAgentsOf(${account}) returned ${res.length} results`)
+  for(let i = 0; i < res.length; i++) {
+    console.log(`res ${i}`)
+    //console.log(res[i])
+    console.log({
+      agentAddress: res[i].agentAddress,
+      implementation: res[i].implementation,
+      owner: res[i].owner,
+      collection: res[i].collection,
+      agentID: res[i].agentID.toNumber(),
+      balances: res[i].balances.map(x=>x.toString()),
+    })
+  }
+  //console.log(res)
+  console.log(`genesis  agentIDs : ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
+  console.log(`strategy agentIDs : ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
 }
 
 async function createAgents() {

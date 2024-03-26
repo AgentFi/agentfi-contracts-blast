@@ -34,7 +34,7 @@ const MULTICALL_FORWARDER_ADDRESS     = "0xAD55F8b65d5738C6f63b54E651A09cC5d873e
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-const BALANCE_FETCHER_ADDRESS         = "0x5f3Ab2963DD2c61c6d69a3E42f51135cfdC189B0"; // v1.0.1
+const BALANCE_FETCHER_ADDRESS         = "0x3f8Dc480BEAeF711ecE5110926Ea2780a1db85C5"; // v1.0.1
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
@@ -88,7 +88,6 @@ async function main() {
 
   await deployContractFactory();
   await deployGasCollector();
-  await deployBalanceFetcher();
   await deployMulticallForwarder();
 
   await deployGenesisCollection();
@@ -103,6 +102,7 @@ async function main() {
   await deployBlastooorStrategyAgentAccount();
 
   await deployDispatcher();
+  await deployBalanceFetcher();
 
   await verifyContracts();
   logAddresses()
@@ -139,7 +139,7 @@ async function deployBalanceFetcher() {
     balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;
   } else {
     console.log("Deploying BalanceFetcher");
-    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    let args = [agentfideployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentRegistry.address];
     balanceFetcher = await deployContractUsingContractFactory(agentfideployer, "BalanceFetcher", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BalanceFetcher;
     console.log(`Deployed BalanceFetcher to ${balanceFetcher.address}`);
     contractsToVerify.push({ address: balanceFetcher.address, args })

@@ -46,7 +46,7 @@ const MULTICALL_FORWARDER_ADDRESS     = "0x91074d0AB2e5E4b61c4ff03A40E6491103bEB
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-const BALANCE_FETCHER_ADDRESS         = "0xecBa5144eeFEebceC60e0Bfb0D19e6F86048690A"; // v1.0.1
+const BALANCE_FETCHER_ADDRESS         = "0x68b1a5d10FeCD6246299913a553CBb99Ac88913E"; // v1.0.1
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
@@ -113,7 +113,7 @@ let weth: MockERC20;
 let usdb: MockERC20;
 
 let genesisAgent4640ID = 4640;
-let genesisAgent4640Address = "";
+let genesisAgent4640Address = "0xB79E35D7CCb26537345C3f73E5bce5a5CE50b0dd";
 let genesisAgent4640: BlastooorAgentAccount;
 
 async function main() {
@@ -164,8 +164,8 @@ async function main() {
 
   //await listStrategyAgents();
 
-  //await listAgentsOf(agentfideployer.address);
-  //await listAgentsOf(boombotseth.address);
+  await listAgentsOf(agentfideployer.address);
+  await listAgentsOf(boombotseth.address);
 
 }
 
@@ -241,9 +241,22 @@ async function listAgentsOf(account:string) {
     USDB_ADDRESS,
   ]
   let res = await balanceFetcher.callStatic.fetchAgents(account, collections, tokens)
-  console.log(res)
-  console.log(`genesis:   ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
-  console.log(`strategy:  ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.tokenId.toString()).join(', ')}`)
+  console.log(`fetchAgentsOf(${account}) returned ${res.length} results`)
+  for(let i = 0; i < res.length; i++) {
+    console.log(`res ${i}`)
+    //console.log(res[i])
+    console.log({
+      agentAddress: res[i].agentAddress,
+      implementation: res[i].implementation,
+      owner: res[i].owner,
+      collection: res[i].collection,
+      agentID: res[i].agentID.toNumber(),
+      balances: res[i].balances.map(x=>x.toString()),
+    })
+  }
+  //console.log(res)
+  console.log(`genesis  agentIDs : ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
+  console.log(`strategy agentIDs : ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
 }
 
 async function createAgents() {

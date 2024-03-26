@@ -38,7 +38,7 @@ const MULTICALL_FORWARDER_ADDRESS     = "0x91074d0AB2e5E4b61c4ff03A40E6491103bEB
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-const BALANCE_FETCHER_ADDRESS         = "0xecBa5144eeFEebceC60e0Bfb0D19e6F86048690A"; // v1.0.1
+const BALANCE_FETCHER_ADDRESS         = "0x68b1a5d10FeCD6246299913a553CBb99Ac88913E"; // v1.0.1
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
@@ -167,7 +167,7 @@ async function main() {
 
 
   //await agentRegistrySetOperators();
-  await setGenesisMaxAccountCreationsPerAgent();
+  //await setGenesisMaxAccountCreationsPerAgent();
   //await postGenesisAccountCreationSettings_1();
   //await whitelistStrategyFactories();
   //await setMaxCreationsPerGenesisAgent();
