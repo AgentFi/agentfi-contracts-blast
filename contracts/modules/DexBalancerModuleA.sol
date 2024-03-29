@@ -102,15 +102,15 @@ contract DexBalancerModuleA is Blastable {
     MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleA_depositBalance() external {
+    function moduleA_depositBalance() external payable {
         _depositBalance();
     }
 
-    function moduleA_withdrawBalance() external {
+    function moduleA_withdrawBalance() external payable {
         _withdrawBalance();
     }
 
-    function moduleA_withdrawBalanceTo(address receiver) external {
+    function moduleA_withdrawBalanceTo(address receiver) external payable {
         _withdrawBalance();
         uint256 balance = address(this).balance;
         if(balance > 0) Calls.sendValue(receiver, balance);

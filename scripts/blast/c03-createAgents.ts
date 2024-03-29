@@ -61,7 +61,7 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
-const DEX_BALANCER_MODULE_A_ADDRESS   = "0x067299A9C3F7E8d4A9d9dD06E2C1Fe3240144389"; // v1.0.1
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -501,7 +501,7 @@ async function watchTxForEvents(tx:any) {
   }
   //console.log('logs:')
   //console.log(receipt.logs)
-  console.log(`${receipt.logs} events`)
+  console.log(`${receipt.logs.length} events`)
   for(let i = 0; i < receipt.logs.length; i++) {
     let log = receipt.logs[i]
     //console.log(`event ${i}`)
