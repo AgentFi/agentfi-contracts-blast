@@ -35,6 +35,8 @@ let chainID: number;
 const fs = require("fs")
 const ABI_AGENTS_NFT = JSON.parse(fs.readFileSync("abi/contracts/tokens/Agents.sol/Agents.json").toString()).filter(x=>!!x&&x.type=="function")
 const ABI_AGENT_REGISTRY = JSON.parse(fs.readFileSync("abi/contracts/utils/AgentRegistry.sol/AgentRegistry.json").toString()).filter(x=>!!x&&x.type=="function")
+const ABI_STRATEGY_ACCOUNT = JSON.parse(fs.readFileSync("abi/contracts/accounts/BlastooorStrategyAgentAccount.sol/BlastooorStrategyAgentAccount.json").toString()).filter(x=>!!x&&x.type=="function")
+const ABI_MODULE_B = JSON.parse(fs.readFileSync("abi/contracts/modules/MultiplierMaxxooorModuleB.sol/MultiplierMaxxooorModuleB.json").toString()).filter(x=>!!x&&x.type=="function")
 let mcProvider = new MulticallProvider(provider, 81457);
 
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
@@ -62,7 +64,9 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
+const DEX_BALANCER_MODULE_A_ADDRESS_OLD   = "0x067299A9C3F7E8d4A9d9dD06E2C1Fe3240144389"; // v1.0.1
 const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167";
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -113,10 +117,14 @@ let strategyCollection: BlastooorStrategyAgents;
 let strategyCollectionMC: any;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
+let strategyAccountImplMC: any;
 
 let dispatcher: Dispatcher;
 
 let dexBalancerModuleA: DexBalancerModuleA;
+let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
+let dexBalancerModuleAMC: any;
+let multiplierMaxxooorModuleBMC: any;
 
 let weth: MockERC20;
 let usdb: MockERC20;
@@ -157,8 +165,11 @@ async function main() {
   strategyCollectionMC = new MulticallContract(STRATEGY_COLLECTION_ADDRESS, ABI_AGENTS_NFT)
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
+  strategyAccountImplMC = new MulticallContract(STRATEGY_ACCOUNT_IMPL_ADDRESS, ABI_STRATEGY_ACCOUNT);
 
   dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
+  multiplierMaxxooorModuleBMC = new MulticallContract(MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, ABI_MODULE_B);
 
   weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
@@ -174,7 +185,11 @@ async function main() {
   //await listAgentsOf(agentfideployer.address);
 
 
-  await listAgentTreeStructure();
+  //await listAgentTreeStructure();
+
+  await findAgentType("0x1EA80570E8b2b341408180bc7B3678FdB047cab5")
+  await findAgentType("0x718d0C58A289431ca5c2805b5A31DFDdd5A54F7a")
+  await findAgentType("0xbBe2DfC636D4D68465B368597fDA6fbD21dB7da7")
 
   //await fetchBalancesFromApi('0x89320a45B474E5367024Bb6c8e0A04Cf9DfF4051')
   //await fetchBalancesFromApi('0xA214a4fc09C42202C404E2976c50373fE5F5B789')
@@ -401,6 +416,52 @@ async function listAgentsOf(account:string) {
   //console.log(res)
   console.log(`genesis  agentIDs : ${res.filter(x=>x.collection==GENESIS_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
   console.log(`strategy agentIDs : ${res.filter(x=>x.collection==STRATEGY_COLLECTION_ADDRESS).map(x=>x.agentID.toString()).join(', ')}`)
+}
+
+async function findAgentType(addr:string) {
+  var calls = [
+    // strategyType()
+    {
+      target: addr,
+      callData: multiplierMaxxooorModuleB.interface.encodeFunctionData("strategyType"),
+    },
+    // overrides strategyType()
+    {
+      target: addr,
+      callData: strategyAccountImpl.interface.encodeFunctionData("overrides", ["0x82ccd330"]),
+    },
+    // overrides moduleA_depositBalance()
+    {
+      target: addr,
+      callData: strategyAccountImpl.interface.encodeFunctionData("overrides", ["0x7bb485dc"]),
+    },
+  ]
+  let results = await multicallForwarder.callStatic.aggregate(calls, {...networkSettings.overrides, gasLimit: 15_000_000})
+  let returnData = results[1]
+  // TODO: decode result from strategyType()
+  for(let i = 1; i < returnData.length; i++) {
+    var res = returnData[i]
+    if(res.length != 130) continue
+    var impl = bytesToAddr(res)
+    if(impl == DEX_BALANCER_MODULE_A_ADDRESS.toLowerCase()) {
+      console.log(`Account ${addr} is a strategy of type Dex Balancer`)
+      return
+    }
+    else if(impl == DEX_BALANCER_MODULE_A_ADDRESS_OLD.toLowerCase()) {
+      console.log(`Account ${addr} is a strategy of type Dex Balancer`)
+      return
+    }
+    else if(impl == MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS.toLowerCase()) {
+      console.log(`Account ${addr} is a strategy of type Multiplier Maxxooor`)
+      return
+    }
+  }
+  console.log(`Account ${addr} is an unknown strategy type`)
+}
+
+// only works in this case
+function bytesToAddr(s:string) {
+  return '0x' + s.substr(26, 40)
 }
 
 main()

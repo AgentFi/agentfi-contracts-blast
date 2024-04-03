@@ -49,6 +49,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d6
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0xB52f71b3a8bB630F0F08Ca4f85EeF0d29212cEC0";
+
 let iblast: IBlast;
 
 let multicallForwarder: MulticallForwarder;
@@ -69,7 +71,8 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
 
-//let strategyModuleA: DexBalancerModuleA;
+//let dexBalancerModuleA: DexBalancerModuleA;
+let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let contractsToVerify = []
 
@@ -104,6 +107,8 @@ async function main() {
 
   await deployDispatcher();
   await deployBalanceFetcher();
+
+  await deployMultiplierMaxxooorModuleB();
 
   await verifyContracts();
   logAddresses()
@@ -275,6 +280,19 @@ async function deployDispatcher() {
     console.log(`Deployed Dispatcher to ${dispatcher.address}`);
     contractsToVerify.push({ address: dispatcher.address, args })
     if(!!DISPATCHER_ADDRESS && dispatcher.address != DISPATCHER_ADDRESS) throw new Error(`Deployed Dispatcher to ${dispatcher.address}, expected ${DISPATCHER_ADDRESS}`)
+  }
+}
+
+async function deployMultiplierMaxxooorModuleB() {
+  if(await isDeployed(MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS)) {
+    multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
+  } else {
+    console.log("Deploying MultiplierMaxxooorModuleB");
+    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    multiplierMaxxooorModuleB = await deployContractUsingContractFactory(agentfideployer, "MultiplierMaxxooorModuleB", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as MultiplierMaxxooorModuleB;
+    console.log(`Deployed MultiplierMaxxooorModuleB to ${multiplierMaxxooorModuleB.address}`);
+    contractsToVerify.push({ address: multiplierMaxxooorModuleB.address, args })
+    if(!!MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS && multiplierMaxxooorModuleB.address != MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS) throw new Error(`Deployed MultiplierMaxxooorModuleB to ${multiplierMaxxooorModuleB.address}, expected ${MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS}`)
   }
 }
 

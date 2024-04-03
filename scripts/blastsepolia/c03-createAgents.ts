@@ -61,6 +61,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d6
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0xB52f71b3a8bB630F0F08Ca4f85EeF0d29212cEC0";
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -109,6 +111,8 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
 
+let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
+
 let weth: MockERC20;
 let usdb: MockERC20;
 
@@ -149,23 +153,25 @@ async function main() {
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
 
+  multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
+
   weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   genesisAgent4640 = await ethers.getContractAt("BlastooorGenesisAgentAccount", genesisAgent4640Address, boombotseth) as BlastooorGenesisAgentAccount;
 
 
-  await listGenesisAgents();
-  await listStrategyAgents();
+  //await listGenesisAgents();
+  //await listStrategyAgents();
   //await listGenesisAgents(boombotseth.address);
   //await listStrategyAgents(boombotseth.address);
 
-  //await createAgents();
+  await createAgents();
 
   //await listStrategyAgents();
 
-  await listAgentsOf(agentfideployer.address);
-  await listAgentsOf(boombotseth.address);
+  //await listAgentsOf(agentfideployer.address);
+  //await listAgentsOf(boombotseth.address);
 
 }
 
@@ -268,7 +274,8 @@ async function createAgents() {
   //await createStrategyAgent17();
   //await createStrategyAgent19();
 
-  await createStrategyAgent1();
+  //await createStrategyAgent1();
+  await createStrategyAgent2();
 }
 
 /*
@@ -470,20 +477,54 @@ async function createStrategyAgent1() {
   )
 }
 
+// creates strategy agent 2
+async function createStrategyAgent2() {
+  console.log(`createStrategyAgent2`)
+
+  // assemble the create strategy calldata
+  let strategyConfigID = 4
+  //let strategyFactoryCalldata = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [strategyConfigID])
+  let genesisConfigID = 1
+
+
+  let depositAmountETH = WeiPerEther.div(1000)
+  let tokenDeposits = [
+    {
+      token: AddressZero,
+      amount: depositAmountETH,
+    },
+  ]
+
+  //let depositAmountETH = Zero
+  //let tokenDeposits = []
+
+  await createStrategy(
+    boombotseth,
+    genesisAgent4640ID,
+    genesisConfigID,
+    //strategyFactoryCalldata,
+    strategyConfigID,
+    depositAmountETH,
+    tokenDeposits
+  )
+}
+
 
 async function watchTxForEvents(tx:any) {
   console.log("tx:", tx);
   let receipt = await tx.wait(networkSettings.confirmations);
+  //let receipt = await tx.wait(0);
   if(!receipt || !receipt.logs || receipt.logs.length == 0) {
     console.log(receipt)
     throw new Error("events not found");
   }
-  console.log('logs:')
-  console.log(receipt.logs)
+  //console.log('logs:')
+  //console.log(receipt.logs)
+  console.log(`${receipt.logs.length} events`)
   for(let i = 0; i < receipt.logs.length; i++) {
     let log = receipt.logs[i]
-    console.log(`log ${i}`)
-    console.log(log)
+    //console.log(`event ${i}`)
+    //console.log(log)
   }
   // create genesis nft
   var createEvents = (receipt.logs as any).filter((event:any) => {
@@ -497,12 +538,10 @@ async function watchTxForEvents(tx:any) {
     let createEvent = createEvents[0]
     let agentID = BN.from(createEvent.topics[3]).toNumber()
     console.log(`Created 1 genesis agent NFT. agentID ${agentID}`)
-    return agentID
   }
   if(createEvents.length > 1) {
     let agentIDs = createEvents.map((createEvent:any) => BN.from(createEvent.topics[3]).toNumber())
     console.log(`Created ${agentIDs.length} genesis agent NFTs. Agent IDs ${agentIDs.join(', ')}`)
-    return agentIDs
   }
   // create genesis tba
   var registerEvents = (receipt.logs as any).filter((event:any) => {
@@ -516,12 +555,10 @@ async function watchTxForEvents(tx:any) {
     let registerEvent = registerEvents[0]
     let agentID = BN.from(registerEvent.topics[3]).toNumber()
     console.log(`Created 1 strategy agent TBA for strategy agentID ${agentID}`)
-    return agentID
   }
   if(registerEvents.length > 1) {
     let agentIDs = createEvents.map((createEvent:any) => BN.from(createEvent.topics[3]).toNumber())
     console.log(`Created ${agentIDs.length} strategy agent TBAs for strategy agentIDs ${agentIDs.join(', ')}`)
-    return agentIDs
   }
   // create strategy nft
   var createEvents = (receipt.logs as any).filter((event:any) => {
@@ -535,12 +572,10 @@ async function watchTxForEvents(tx:any) {
     let createEvent = createEvents[0]
     let agentID = BN.from(createEvent.topics[3]).toNumber()
     console.log(`Created 1 strategy agent NFT. agentID ${agentID}`)
-    return agentID
   }
   if(createEvents.length > 1) {
     let agentIDs = createEvents.map((createEvent:any) => BN.from(createEvent.topics[3]).toNumber())
     console.log(`Created ${agentIDs.length} strategy agent NFTs. Agent IDs ${agentIDs.join(', ')}`)
-    return agentIDs
   }
   // create strategy tba
   var registerEvents = (receipt.logs as any).filter((event:any) => {
@@ -554,12 +589,10 @@ async function watchTxForEvents(tx:any) {
     let registerEvent = registerEvents[0]
     let agentID = BN.from(registerEvent.topics[3]).toNumber()
     console.log(`Created 1 strategy agent TBA for strategy agentID ${agentID}`)
-    return agentID
   }
   if(registerEvents.length > 1) {
     let agentIDs = createEvents.map((createEvent:any) => BN.from(createEvent.topics[3]).toNumber())
     console.log(`Created ${agentIDs.length} strategy agent TBAs for strategy agentIDs ${agentIDs.join(', ')}`)
-    return agentIDs
   }
 }
 

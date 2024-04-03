@@ -53,6 +53,8 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d6
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0xB52f71b3a8bB630F0F08Ca4f85EeF0d29212cEC0";
+
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
 // tokens
@@ -96,6 +98,8 @@ let agentRegistry: AgentRegistry;
 let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
+
+let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let dispatcher: Dispatcher;
 
@@ -142,6 +146,7 @@ async function main() {
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
   multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
+  multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
@@ -174,6 +179,8 @@ async function main() {
   //await setStrategyNftMetadata();
   //await postStrategyAgentCreationSettings_1();
   //await postStrategyAgentCreationSettings_2();
+  //await postStrategyAgentCreationSettings_3();
+  await postStrategyAgentCreationSettings_4();
   //await addOperatorsToDispatcher();
 }
 
@@ -777,6 +784,53 @@ async function postStrategyAgentCreationSettings_2() {
     initializationCalls: [
       agentInitializationCode0,
       agentInitializationCode1,
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+// 4: create new strategy agent
+// has a strategy manager
+async function postStrategyAgentCreationSettings_4() {
+  let expectedSettingsID = 4
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let roles = [
+    {
+      role: STRATEGY_MANAGER_ROLE,
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    }
+  ]
+  let functionParams = [
+    { selector: "0x82ccd330", isProtected: false }, // strategyType()
+  ]
+  let overrides = [
+    {
+      implementation: MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS,
+      functionParams: functionParams
+    }
+  ]
+  let agentInitializationCode0 = strategyAccountImpl.interface.encodeFunctionData("blastConfigure")
+  let agentInitializationCode1 = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles]);
+  let agentInitializationCode2 = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides]);
+
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      agentInitializationCode0,
+      agentInitializationCode1,
+      agentInitializationCode2,
     ],
     isActive: true,
   }

@@ -54,6 +54,7 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
 const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167";
 
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
@@ -86,6 +87,7 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 let dispatcher: Dispatcher;
 
 let dexBalancerModuleA: DexBalancerModuleA;
+let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let usdb: MockERC20;
 
@@ -132,6 +134,7 @@ async function main() {
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
   multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
   dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
   //await configureContractFactoryGasGovernor();
@@ -158,7 +161,8 @@ async function main() {
   //await postStrategyAgentCreationSettings_1();
   //await postStrategyAgentCreationSettings_2();
   //await postStrategyAgentCreationSettings_3();
-  await postStrategyAgentCreationSettings_4();
+  //await postStrategyAgentCreationSettings_4();
+  await postStrategyAgentCreationSettings_5();
   //await addOperatorsToDispatcher();
 }
 
@@ -655,6 +659,49 @@ async function postStrategyAgentCreationSettings_4() {
       strategyAccountImpl.interface.encodeFunctionData("blastConfigure"),
       strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides]),
       dexBalancerModuleA.interface.encodeFunctionData("moduleA_depositBalance")
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+// 5: create new strategy agent
+// turns into multiplier maxxooor strategy
+async function postStrategyAgentCreationSettings_5() {
+  let expectedSettingsID = 5
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let roles = [
+    {
+      role: STRATEGY_MANAGER_ROLE,
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    }
+  ]
+  let functionParams = [
+    { selector: "0x82ccd330", isProtected: false }, // strategyType()
+  ]
+  let overrides = [
+    {
+      implementation: MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS,
+      functionParams: functionParams
+    }
+  ]
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      strategyAccountImpl.interface.encodeFunctionData("blastConfigure"),
+      strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles]),
+      strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides]),
     ],
     isActive: true,
   }
