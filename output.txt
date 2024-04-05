@@ -1,0 +1,1201 @@
+132 genesis agents have strategies. List:
+-----------------------------------------------------------------
+Genesis Agent ID 4
+  Owner          0x89320a45B474E5367024Bb6c8e0A04Cf9DfF4051
+  TBA            0xEA06BFFc11Bd49f8Ad302f9a706cB3c9bFFf3098
+  # strategies : 1
+    Strategy Agent ID 5
+      TBA        0xD304513Dc2913dC1085ab1DBb0B6498aFF741d31
+-----------------------------------------------------------------
+Genesis Agent ID 5
+  Owner          0xA214a4fc09C42202C404E2976c50373fE5F5B789
+  TBA            0xf93D295e760f05549451ae68A392F774428040B4
+  # strategies : 3
+    Strategy Agent ID 1
+      TBA        0x718d0C58A289431ca5c2805b5A31DFDdd5A54F7a
+    Strategy Agent ID 2
+      TBA        0xbBe2DfC636D4D68465B368597fDA6fbD21dB7da7
+    Strategy Agent ID 129
+      TBA        0x1EA80570E8b2b341408180bc7B3678FdB047cab5
+-----------------------------------------------------------------
+Genesis Agent ID 22
+  Owner          0x9AaefeF1C92b615E7C5dA93D5c7166767daC27ab
+  TBA            0xfF5C1F3CF0e699De595F755ed5a75a684606a051
+  # strategies : 1
+    Strategy Agent ID 72
+      TBA        0x3903fD9cf2fD47a60756e1e112d2AE8f512b3011
+-----------------------------------------------------------------
+Genesis Agent ID 27
+  Owner          0xbd435051c0427e952EC19dE93CcC1b8CfB3FD515
+  TBA            0x981E8aE8ec16eDDCDd32EA107B0050B6b6dA9b25
+  # strategies : 2
+    Strategy Agent ID 68
+      TBA        0x5D74a3D2085D270cB59536ea190473c9352A59E1
+    Strategy Agent ID 166
+      TBA        0x6ECC89553D410629150dB2576419c39048C7Bc05
+-----------------------------------------------------------------
+Genesis Agent ID 60
+  Owner          0x86596691C02a95bfE8a66E50fe808523A560250e
+  TBA            0x1C88244f8941E2e0f5e65c39C12926Ae0F8EFEC2
+  # strategies : 1
+    Strategy Agent ID 24
+      TBA        0x5cA2F9AA9180feA99a5101cfd8089975dA6Ce75f
+-----------------------------------------------------------------
+Genesis Agent ID 99
+  Owner          0xf97421335A3928D03Ab77Ed680B507843D9Bf334
+  TBA            0xf0B31acA3691c1Cbd8D21fb01C4573a8beCc3313
+  # strategies : 2
+    Strategy Agent ID 51
+      TBA        0x58Ad95E6927EA4df178185F8418F553B5cD86AF1
+    Strategy Agent ID 183
+      TBA        0xf230de48fb534f515EDe11852BAc543fA47c3146
+-----------------------------------------------------------------
+Genesis Agent ID 121
+  Owner          0x5F67722Bb1dAb5d86485B7BD0118977C01417725
+  TBA            0xbf325bFe8Ef78bf004BF8433034F99aBa30cD47B
+  # strategies : 2
+    Strategy Agent ID 35
+      TBA        0xBd728B126f7e71395E8cfbd6ab56cEC9516B9acE
+    Strategy Agent ID 201
+      TBA        0x4a93a65673fa9d24b0221d36C658c059A1690bAe
+-----------------------------------------------------------------
+Genesis Agent ID 202
+  Owner          0xc7307Fd7fc10Bd5DA7Abb99172b64B040d89FdEa
+  TBA            0x663D61Db93E636D2C50E58F9bc445C077b6D42A1
+  # strategies : 4
+    Strategy Agent ID 7
+      TBA        0x2Edf870159f23150Ab74bc9A65AF0434B1e8fAE6
+    Strategy Agent ID 16
+      TBA        0x03DD359175ED0E4D142Ff85e6dda01607f6AAaf1
+    Strategy Agent ID 18
+      TBA        0xa53B664Bb4FEd7c497A5093F13951cA11464b07d
+    Strategy Agent ID 178
+      TBA        0xb0eCE6ea0f4dCe4ba03367A3e9C2697D457E09A9
+-----------------------------------------------------------------
+Genesis Agent ID 212
+  Owner          0xf6B517719d5E15EFe0F515006a2A31C900B02e1F
+  TBA            0x820e0adfD8Dd0873705db15917fCbf5b123692B5
+  # strategies : 1
+    Strategy Agent ID 118
+      TBA        0xdEd8B578F1fEae817f236E34Bf440e91369B8881
+-----------------------------------------------------------------
+Genesis Agent ID 232
+  Owner          0x76C31cE3D93731c15DA8316A13F11682B09f4c7A
+  TBA            0xFBa687d633Fda67a50A4d143266469F2113AbBdD
+  # strategies : 1
+    Strategy Agent ID 125
+      TBA        0xE551695a7a0DEa44b064350BdD1cd1D0111Ec42d
+-----------------------------------------------------------------
+Genesis Agent ID 235
+  Owner          0x0fa1288c9EdDFbCFb93F484E19Bd2C7564f72368
+  TBA            0x466Fe45ee4598D5a65F7bA49206c11fEbbc6E681
+  # strategies : 1
+    Strategy Agent ID 127
+      TBA        0x0205dd9208f7CA00c0cfaF4EdEd1e58b7C2b470a
+-----------------------------------------------------------------
+Genesis Agent ID 254
+  Owner          0xC8803d21A704BFeBdBC394bD16501a4b36aD3A2D
+  TBA            0x52FB7aDa8178013a5d8f37a05c79e3A5264ec59A
+  # strategies : 1
+    Strategy Agent ID 133
+      TBA        0xD35F10451AB6B556EeA255D64784398BC9dD9886
+-----------------------------------------------------------------
+Genesis Agent ID 274
+  Owner          0x9aD2AfB77FD40705c3f55f5f2d8B5Ea8afb4BBDE
+  TBA            0x1bB86893865EF16562Ca84eBe7A5C56765DbdF7F
+  # strategies : 1
+    Strategy Agent ID 17
+      TBA        0xAED7B89040Cb9c769660D68833A790668141aEa7
+-----------------------------------------------------------------
+Genesis Agent ID 283
+  Owner          0x9aD2AfB77FD40705c3f55f5f2d8B5Ea8afb4BBDE
+  TBA            0x76d17D646eb049459B230632f442a6e04334793F
+  # strategies : 1
+    Strategy Agent ID 25
+      TBA        0x82291776241F405f52F547Bee0f2B92aF7544A78
+-----------------------------------------------------------------
+Genesis Agent ID 296
+  Owner          0xE74FE6f42d5e12302AaBA434Bf7351f17F845988
+  TBA            0xEb158E7Ceb0537a38e3CC71b0aC484f13E6F184A
+  # strategies : 2
+    Strategy Agent ID 134
+      TBA        0x1AF01D73BD7982ECb068cc7a1fe944D724C086d0
+    Strategy Agent ID 188
+      TBA        0xB3D6C0bC2B529c2D5C399758E5aF8F9E80F63A03
+-----------------------------------------------------------------
+Genesis Agent ID 353
+  Owner          0x58dBFe31CE1e639Ec9D0Da60d82CABcE637b2bA4
+  TBA            0x353258dbe7C8D040ea8C6A3Bd0e127dC6555f235
+  # strategies : 1
+    Strategy Agent ID 41
+      TBA        0x97626d41DB66f7dBfAcdD388644C56C7B80D0639
+-----------------------------------------------------------------
+Genesis Agent ID 413
+  Owner          0x51447E3b24a571dE29AeeC5258541A8B7Df6ae88
+  TBA            0x3f6b6C5C98e3D89fE0318865543c295BE5ba56e4
+  # strategies : 2
+    Strategy Agent ID 80
+      TBA        0x01507536C5441ac73970978b24a467cd65C88F94
+    Strategy Agent ID 119
+      TBA        0x5E4B70fF788ca12C4802BCca628b5A79A75eF715
+-----------------------------------------------------------------
+Genesis Agent ID 420
+  Owner          0x3C112e6f387A4D8E336C73ef74c9BE51B01644a1
+  TBA            0x6DeF8BA974a66d02eD985D459e825386E5ECF1f6
+  # strategies : 1
+    Strategy Agent ID 81
+      TBA        0xFE338F83c2B8384Cc47cA4926abbFF70899B0952
+-----------------------------------------------------------------
+Genesis Agent ID 478
+  Owner          0x4985F0811cF7cF14DC013f8AC2b979D294e2Ea59
+  TBA            0x2eec19128e8A8C08d03515f18ceED3B938aB8bc3
+  # strategies : 1
+    Strategy Agent ID 202
+      TBA        0x172858582c0f6A1486a457e9E433f093E239C361
+-----------------------------------------------------------------
+Genesis Agent ID 485
+  Owner          0xBB34666407e47f87a44E4540ee765909506CB105
+  TBA            0x899fAF10E798C4211D464D8D71d58eb2031d07D4
+  # strategies : 1
+    Strategy Agent ID 75
+      TBA        0xB70b5030eF1b2B45631116F9e6BA53d7743832EC
+-----------------------------------------------------------------
+Genesis Agent ID 488
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x456e6c44AA3EFCC55b63669C07A4E6cf414723C7
+  # strategies : 2
+    Strategy Agent ID 135
+      TBA        0x513bc50415845FAc4EADEBd451743785500a991c
+    Strategy Agent ID 146
+      TBA        0xf1d6A5319F75894E804d2CDE3605ef8763A7A0b5
+-----------------------------------------------------------------
+Genesis Agent ID 500
+  Owner          0xfABF827d4340F21aB6f7469698d51dEafec35607
+  TBA            0xe6Bcd4114fC313cb41D4660ECd7a0137c62D4a65
+  # strategies : 2
+    Strategy Agent ID 124
+      TBA        0x03f5ea809Ad458c590F6a4143A64FB1d6be29357
+    Strategy Agent ID 191
+      TBA        0xAD179285A4fB29621346eB221323f539ee2909F4
+-----------------------------------------------------------------
+Genesis Agent ID 586
+  Owner          0xcf81daa6EB1Fc0A0B9361BdC9Ec5cb505cD0070e
+  TBA            0x7Bc6fF18C087B86489d0b9983ff22B14443c42Be
+  # strategies : 2
+    Strategy Agent ID 171
+      TBA        0xfB109435AE6D2d7A147b3a8B87AAd69a2a02d3F4
+    Strategy Agent ID 175
+      TBA        0x74FCF425B5d164f504Ec75f107a3Fa72A82ea895
+-----------------------------------------------------------------
+Genesis Agent ID 602
+  Owner          0xd7F422b4262002343ceb95348F2Cbf1F9f65c3e1
+  TBA            0x2a85C5CC471A35F576672b4a9676B766bFFD9f90
+  # strategies : 1
+    Strategy Agent ID 57
+      TBA        0x632472a445fe0Fc319f2357e4e296c1f5d4AAb55
+-----------------------------------------------------------------
+Genesis Agent ID 620
+  Owner          0x7da01a06A2582193C2867E22FE62f7f649F7B9e2
+  TBA            0xA172f8C4FC3936fEBD847102cAA70d81BAE297D6
+  # strategies : 2
+    Strategy Agent ID 4
+      TBA        0x11797Db9DBcDC6eeCC68dD561C5A04A830817A1B
+    Strategy Agent ID 149
+      TBA        0x81E252AF431F2179B3Da704d6bd8d38e3be45ED9
+-----------------------------------------------------------------
+Genesis Agent ID 623
+  Owner          0xee1e33029C2104993E4536Be502990284e77080d
+  TBA            0x0f32569E3f6bf5Db249F0cA28B5700fC54688b14
+  # strategies : 1
+    Strategy Agent ID 44
+      TBA        0x59DcA96EDa6bBCcc8f29157f0628bc2ea6398e62
+-----------------------------------------------------------------
+Genesis Agent ID 693
+  Owner          0xcf81daa6EB1Fc0A0B9361BdC9Ec5cb505cD0070e
+  TBA            0xA648E2fEa9a517b3206a1D480Dc61c8092B8d0A0
+  # strategies : 2
+    Strategy Agent ID 167
+      TBA        0x02f451D8a1c8682dAD1D4817332be62325326d7d
+    Strategy Agent ID 168
+      TBA        0x62108b6A51F496aA301F514636534B6ca916f7a2
+-----------------------------------------------------------------
+Genesis Agent ID 709
+  Owner          0xdc07f9D68B5B60e70956150381F72E0eF8D7F19e
+  TBA            0xf22260241fe484B6e4b4E2C5674438b3cB41318d
+  # strategies : 1
+    Strategy Agent ID 115
+      TBA        0x0AF815278370C69A2feF7a6F62d9A9DA1a58d779
+-----------------------------------------------------------------
+Genesis Agent ID 752
+  Owner          0xE6B614e1CD825AF735D4a9238131c3E21d25cfd8
+  TBA            0xaE91649A1995072500BC614B36E74209b81d25b2
+  # strategies : 3
+    Strategy Agent ID 93
+      TBA        0xD1aC9f3f7f16b174a31aA441a0B0727B89aB799D
+    Strategy Agent ID 95
+      TBA        0x02FF622bEBC6996C3abb6c0664930Da7233B90C3
+    Strategy Agent ID 96
+      TBA        0x4557E9152eA2CFe06c14aBe2C1b8779F8b47dF74
+-----------------------------------------------------------------
+Genesis Agent ID 822
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x94034D79C552678abd71611a1fAc9D70068a295e
+  # strategies : 1
+    Strategy Agent ID 136
+      TBA        0x9C7b18BF1b5f3f6A18c7eC06E0139a80d041b732
+-----------------------------------------------------------------
+Genesis Agent ID 823
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x6d3E9D77E733dbc460dEB7F544B006Fc63850938
+  # strategies : 1
+    Strategy Agent ID 145
+      TBA        0x97c62502d4F8E3DEC638a5811C61b7702F57dC53
+-----------------------------------------------------------------
+Genesis Agent ID 824
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x2Cfb4e4C39D0caAFe5AECeE96a0878B3405645a1
+  # strategies : 1
+    Strategy Agent ID 144
+      TBA        0x8D312D002abF2B3a2265fc3b403b130d4Fd2EA20
+-----------------------------------------------------------------
+Genesis Agent ID 825
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0xf9e4b7c65980074b01c63214690dF906d28B617F
+  # strategies : 1
+    Strategy Agent ID 143
+      TBA        0x3133daa230E2801F21760F6BbA1ea516434964FD
+-----------------------------------------------------------------
+Genesis Agent ID 826
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x9ff4E86A6861103A0306133C9947F4400b6E34C7
+  # strategies : 1
+    Strategy Agent ID 141
+      TBA        0x4224ad563D3dD39412ca1D1a0aa80db9a6330A0a
+-----------------------------------------------------------------
+Genesis Agent ID 834
+  Owner          0x9480fc2A527BB0F0e5E6A3CF2922BcD123B71302
+  TBA            0x01E93250812DEd0Edf5C4aA85D167975ab6504Fa
+  # strategies : 1
+    Strategy Agent ID 113
+      TBA        0x422C370Ad8DabC1325486440907e974B3fe619aa
+-----------------------------------------------------------------
+Genesis Agent ID 1029
+  Owner          0x7d3539DD4E430C27e61ad97ECb6389723896903f
+  TBA            0x8C9629aaf498F1833844d2Ec52AC34F522d6C006
+  # strategies : 3
+    Strategy Agent ID 99
+      TBA        0xF6d6d8Fb0A54c5BCDf32060107713Be30E7d7839
+    Strategy Agent ID 100
+      TBA        0xFB269bFA823098913044fBFbAb7FbEe5A21D4771
+    Strategy Agent ID 123
+      TBA        0x006fc35484c8EB02EA6132Be0DcD551988bb70cc
+-----------------------------------------------------------------
+Genesis Agent ID 1033
+  Owner          0xA6459FD189568b8fCeE399ef1811F39c878c32BF
+  TBA            0x8862090a44d1f7c924430890925Dace34BdA170B
+  # strategies : 2
+    Strategy Agent ID 89
+      TBA        0x70856BaeB59827a39C5CbcfF4a829eAbf8460B87
+    Strategy Agent ID 212
+      TBA        0x386c5654abDCC35930B84f4b9A3f6182a5d91267
+-----------------------------------------------------------------
+Genesis Agent ID 1059
+  Owner          0xc7307Fd7fc10Bd5DA7Abb99172b64B040d89FdEa
+  TBA            0xccBafF760f822388Bc33f767b034eF9640A06d4D
+  # strategies : 1
+    Strategy Agent ID 10
+      TBA        0xCff44A19327Ce79FE0E9e624a2852C0D052dBBc7
+-----------------------------------------------------------------
+Genesis Agent ID 1199
+  Owner          0x6a1AB09e473db9213AA21341046c273a22D7C74E
+  TBA            0x9BE307D6e4691055D4F0C68489A4EC09940114Bd
+  # strategies : 2
+    Strategy Agent ID 77
+      TBA        0xf986335e75355d1366c1D65eFAE5a2C353adC56F
+    Strategy Agent ID 196
+      TBA        0x781B1Efb0008fEFEbc8aBb9B5D0F876E0AA638fe
+-----------------------------------------------------------------
+Genesis Agent ID 1202
+  Owner          0x6a1AB09e473db9213AA21341046c273a22D7C74E
+  TBA            0xe81C3C704cde9BF6d30852cA5181968949c87724
+  # strategies : 1
+    Strategy Agent ID 194
+      TBA        0xa39E7088F562430C1aa6Eab91Edb37d1d744f094
+-----------------------------------------------------------------
+Genesis Agent ID 1456
+  Owner          0xa370c5c0dFa2A5a1a439726961aFd8Db0db986E4
+  TBA            0xd1E98AD11009b47F859bd8F45F874E884AB55C2E
+  # strategies : 1
+    Strategy Agent ID 206
+      TBA        0x3CF3166a354580C0507E877a8a4f5c1285c27e7D
+-----------------------------------------------------------------
+Genesis Agent ID 1487
+  Owner          0x367B7aFF381D5ACC185b536f405D1b4dcba834Fb
+  TBA            0x1D6Ea7D346598a8FDd568c5eAfF9d8f65A2f6Af4
+  # strategies : 2
+    Strategy Agent ID 109
+      TBA        0x8208703cb708D458c4f6F37348c943C89f2D8b36
+    Strategy Agent ID 200
+      TBA        0x1b255cA93E7FDD8AB0018C04c4aC57f083974763
+-----------------------------------------------------------------
+Genesis Agent ID 1497
+  Owner          0x900B7ca5A360db798dfB48C3BA5E7Dd678B6748D
+  TBA            0x4B98E3B912741388c0942b6ccAE670CF8EB79edd
+  # strategies : 1
+    Strategy Agent ID 62
+      TBA        0xdE5361C2b2675fD2f9aE6112A3F8ff81365c870b
+-----------------------------------------------------------------
+Genesis Agent ID 1498
+  Owner          0x740312f54D84D6aEFF146c488217f517bE4F3871
+  TBA            0x337F2D2439479292e41Cff48Fe7B2BB80C048f40
+  # strategies : 2
+    Strategy Agent ID 122
+      TBA        0xcc6E4f7159258Ab18F9Af887Ae16bA92b3E722dd
+    Strategy Agent ID 216
+      TBA        0x4644C3008a2C0e6E899a780b9163d836748FEC14
+-----------------------------------------------------------------
+Genesis Agent ID 1511
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x93d709a333382056B79aD35EF277F24Bb5bfaAf2
+  # strategies : 1
+    Strategy Agent ID 138
+      TBA        0x7e292213ECc5D8feA00B223eaE92C831b57b48A6
+-----------------------------------------------------------------
+Genesis Agent ID 1512
+  Owner          0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+  TBA            0x663f91F6dd7d773e0E863792ADf81DC237096d5C
+  # strategies : 1
+    Strategy Agent ID 139
+      TBA        0xEe87a6d851e7E852E5141A3b042aB86399F7dEc0
+-----------------------------------------------------------------
+Genesis Agent ID 1580
+  Owner          0x53FEBA757be2Be0F440CB6b5017314e89eb13bC2
+  TBA            0x1ee43B6fd57B96B7682AEE90317DFC051261055c
+  # strategies : 2
+    Strategy Agent ID 106
+      TBA        0xdC844578a52307Dc139B64005c32784397dc0808
+    Strategy Agent ID 186
+      TBA        0x3dD6359590ea6375Eb316be8Bce0C75f9657E83a
+-----------------------------------------------------------------
+Genesis Agent ID 1612
+  Owner          0xfb4EecEf04F1d45EaD80A7a471D60b38B14eaa9a
+  TBA            0xAd0b96f9ac69b433BD8Ad930D6D61f28b610dC4e
+  # strategies : 1
+    Strategy Agent ID 74
+      TBA        0xF684dBc2B83515848A1b45DbAE1Dc1569bdCb7A5
+-----------------------------------------------------------------
+Genesis Agent ID 1636
+  Owner          0xAcbD9767508B5fE847ba2660e5734510f3CB180a
+  TBA            0x2686D5B13d719f459FCFfb7833B2eDE721003a27
+  # strategies : 2
+    Strategy Agent ID 30
+      TBA        0xec4f40505eaCB46f9b5fb897Ff33896B9Ffa260e
+    Strategy Agent ID 112
+      TBA        0xDAD65a828Db1bB2E3050CB95055Eb73874F95Db9
+-----------------------------------------------------------------
+Genesis Agent ID 1648
+  Owner          0x2ba756C4AF6B408Fec4933bfFDD3542D39093263
+  TBA            0x8b46F541e4EB50c5Be9E56Bd8c773f3efEBf1D50
+  # strategies : 2
+    Strategy Agent ID 94
+      TBA        0xa70268316694151C17cdcD58139aD96e8367F3D7
+    Strategy Agent ID 218
+      TBA        0x91FD4c7A2408cA39d2C41164de035716beC049cD
+-----------------------------------------------------------------
+Genesis Agent ID 1675
+  Owner          0x9aD2AfB77FD40705c3f55f5f2d8B5Ea8afb4BBDE
+  TBA            0x55827ff2de748c8bb904f60CE88435662Bb55766
+  # strategies : 10
+    Strategy Agent ID 13
+      TBA        0x5418df91AE1800Ae1a4967A09261888AAE91e8f0
+    Strategy Agent ID 15
+      TBA        0x1f16ed04F2D6f71Aa751f63D842D0aE486aE97eB
+    Strategy Agent ID 33
+      TBA        0xCef50453426019A4421856BFE8781AFCBe8A21B5
+    Strategy Agent ID 34
+      TBA        0x243E013B9356d263Af1B3e276c82092ab39aCc20
+    Strategy Agent ID 43
+      TBA        0xDF7BC13896e27829FD0cF711515B23EF7754d788
+    Strategy Agent ID 151
+      TBA        0xe5afDDa55e844c83a80Cf2C9D60e5C98E7D9A53C
+    Strategy Agent ID 156
+      TBA        0xdBaA30e8f361764d50939939117e16a4bABE2006
+    Strategy Agent ID 159
+      TBA        0x597CC32952B3161FC58EE26489D464d65356A0a1
+    Strategy Agent ID 162
+      TBA        0x6C60a2B891e81044FEf924354947b35aE23aA230
+    Strategy Agent ID 164
+      TBA        0x30273b5B1876bA67C5a24b2947F127a8726DddAd
+-----------------------------------------------------------------
+Genesis Agent ID 1699
+  Owner          0x051D615289c527d09eFE581cCCA4018011638733
+  TBA            0x7Edc6e3209Cc9e225B246cEFbDEDcAb331EFdc10
+  # strategies : 1
+    Strategy Agent ID 84
+      TBA        0xf73128db096874d11CC19CB2126368Db81610b82
+-----------------------------------------------------------------
+Genesis Agent ID 1809
+  Owner          0xE0e8C1D735698060477e79a8e4C20276Fc2Ec7A7
+  TBA            0x0cDb553d8e8f6C51207448Cf822881ec8DaAc0f9
+  # strategies : 2
+    Strategy Agent ID 173
+      TBA        0x2C21412A0Cbc1bF5D3D10690f49c6852917C4D25
+    Strategy Agent ID 174
+      TBA        0x3223416E1e79f8cc2330Ef0e6638d2376E2da985
+-----------------------------------------------------------------
+Genesis Agent ID 1948
+  Owner          0x8bf6f3eb98Dc663E85395fe9CD5533a2776c3F4f
+  TBA            0x4d6e9457660731eCcfAA91897899C0d5d35E8998
+  # strategies : 2
+    Strategy Agent ID 52
+      TBA        0x42D6D7dCba0653A4D4A67780bA25f335d21c5873
+    Strategy Agent ID 207
+      TBA        0xF2C63a593a3Df6ACe7E42CcB5d15C2130822CF03
+-----------------------------------------------------------------
+Genesis Agent ID 1972
+  Owner          0x22C5c3E8B3c83A69D57d8919A9aE06668a5C005C
+  TBA            0x332d6542e2B712f3685cC09cF1a964eFd5f078BC
+  # strategies : 4
+    Strategy Agent ID 92
+      TBA        0x71Aa56662dD82fda734cB3e46B66eDCe6c064a04
+    Strategy Agent ID 97
+      TBA        0x05C717A3605811964893C9EAD5a0ec9448Ed3B9D
+    Strategy Agent ID 98
+      TBA        0xD8Af0B9cC4B1f1C3F3Af0E14E338AAA01eA24391
+    Strategy Agent ID 193
+      TBA        0x828b0bdAcEda099f6B2B69B36Cb30D69aE4DA365
+-----------------------------------------------------------------
+Genesis Agent ID 1991
+  Owner          0x89043FB8C59509602c370f83C9aB6008F88f6Aa4
+  TBA            0xF02Ca8b21FDaf0Cd1561bAb5bf52C12Fc48a0758
+  # strategies : 1
+    Strategy Agent ID 90
+      TBA        0xCce3Ff1caa120DafE08B6C802E53E4C916Bb6485
+-----------------------------------------------------------------
+Genesis Agent ID 1996
+  Owner          0xE25022991E2a92708cec09A2500Ce28029F49e9B
+  TBA            0xe0bbAF196f5502472E2d19CDB35425F883430725
+  # strategies : 1
+    Strategy Agent ID 73
+      TBA        0x435d205978990d0AeB93f4F32c4BC424C5F0B5ed
+-----------------------------------------------------------------
+Genesis Agent ID 2039
+  Owner          0xC1250AC66fAafa41Bb2d6121B8B05C86DFAB3b1D
+  TBA            0xDE25831953539623749863e00E6ad0CCb25470B8
+  # strategies : 1
+    Strategy Agent ID 64
+      TBA        0x889E934550f504dd907153F705D764DBaB4739c9
+-----------------------------------------------------------------
+Genesis Agent ID 2140
+  Owner          0x89043FB8C59509602c370f83C9aB6008F88f6Aa4
+  TBA            0x032B77e63B28890780fbB353be80Af713451D40a
+  # strategies : 2
+    Strategy Agent ID 91
+      TBA        0xD07B4fEd943Cd627f89e9BdfE087ff6116125217
+    Strategy Agent ID 197
+      TBA        0x5eA39771E4c337df7f8BC2aFb376f5c59ecEc51C
+-----------------------------------------------------------------
+Genesis Agent ID 2151
+  Owner          0x6d4eF11A1904e3F26F27138694f6be8BF2A0C47D
+  TBA            0x1BE8D05C12EE3C82cCD3Ec741Bd61F9E422aa1f6
+  # strategies : 2
+    Strategy Agent ID 177
+      TBA        0x1f9E62c03feccB8d1ad2086CB43EA4D495611B4b
+    Strategy Agent ID 179
+      TBA        0x42A4cfbC276bb9A826041dffCeF78488a19500cE
+-----------------------------------------------------------------
+Genesis Agent ID 2208
+  Owner          0x97C81779189e211E8b378e4f60d541fB4a482503
+  TBA            0xF0F57d31A98c5E73BDDd8c3a5eaedde675FC2eB5
+  # strategies : 2
+    Strategy Agent ID 102
+      TBA        0x58Bc7d2b89C4590aE8B55da6CB94cB6ba4C67554
+    Strategy Agent ID 180
+      TBA        0xAD37FFFC0b7c8c7E5DF20f74552619Be793DB8bC
+-----------------------------------------------------------------
+Genesis Agent ID 2211
+  Owner          0xDd489316459c40300D2CB86e188446381d84894a
+  TBA            0xD3ecdae2eb3bD5797Ec7079818395A84C94E17F8
+  # strategies : 1
+    Strategy Agent ID 31
+      TBA        0x38e97bE2a8268Ab9b0427793CdE69972AB38EDbB
+-----------------------------------------------------------------
+Genesis Agent ID 2359
+  Owner          0x58dBFe31CE1e639Ec9D0Da60d82CABcE637b2bA4
+  TBA            0xF610A141895b6713cDa07e595B9dC6eD29711282
+  # strategies : 1
+    Strategy Agent ID 42
+      TBA        0xae2F52565b2b6d8B97faaf7b72f4A697b7473A8D
+-----------------------------------------------------------------
+Genesis Agent ID 2375
+  Owner          0x30df286e94B101605F9C96c71d96d7EB2A118Ca7
+  TBA            0xCad15Eaa6287bD3De9C0fAC3DbDb5165cAAA68dD
+  # strategies : 1
+    Strategy Agent ID 114
+      TBA        0xcb0A79779FC461B9A27f0d0Ed57B9893feBEbBd7
+-----------------------------------------------------------------
+Genesis Agent ID 2445
+  Owner          0xAcbD9767508B5fE847ba2660e5734510f3CB180a
+  TBA            0x12a02878AcB2b7081F84bBed26237f46261de3e4
+  # strategies : 1
+    Strategy Agent ID 101
+      TBA        0xD06fc763445c137c7ba87230bBcbe736f68573d4
+-----------------------------------------------------------------
+Genesis Agent ID 2484
+  Owner          0x7BD940a4c667aD9F8D8725A56E59DCB3e45ac1ff
+  TBA            0xBB493B36781bb6F331034f3d27333f1e4e6745c5
+  # strategies : 1
+    Strategy Agent ID 76
+      TBA        0x258C3b3c9142CB71dC779364331eF4e7e1713361
+-----------------------------------------------------------------
+Genesis Agent ID 2599
+  Owner          0x7f514EA5abb2099E075eFf21231427ca0279E979
+  TBA            0x22aF614D6b99e3E17c08c5eD6F67F7C6B36EeAff
+  # strategies : 2
+    Strategy Agent ID 40
+      TBA        0x463f797cF117739636d3035faCF1423C11819744
+    Strategy Agent ID 211
+      TBA        0x4bf1b8DA60d0385125e9B0566e1A89e1AED50687
+-----------------------------------------------------------------
+Genesis Agent ID 2659
+  Owner          0x1F8341c97Cc93917bbAe6B799B4298530e56A8f3
+  TBA            0xd34FF94F20CcfF3342C1Bd89493cC83331190adb
+  # strategies : 1
+    Strategy Agent ID 142
+      TBA        0x30cA54e7C939495feC662755Aaa73Bd49688a28F
+-----------------------------------------------------------------
+Genesis Agent ID 2675
+  Owner          0x9BB53570a65D2AcF2D9D1A5fA7D26A38eCd3C3da
+  TBA            0x8c51A29277C30751e6008bD0E960aDe3D613dBf5
+  # strategies : 1
+    Strategy Agent ID 48
+      TBA        0x501348F4717E6c5e24276128c7Bb16cAF101FAAd
+-----------------------------------------------------------------
+Genesis Agent ID 2676
+  Owner          0x9BB53570a65D2AcF2D9D1A5fA7D26A38eCd3C3da
+  TBA            0x385Ca1a5487a5B0cA0617F9Aed316F82e0726322
+  # strategies : 2
+    Strategy Agent ID 47
+      TBA        0x5aD986900A13AaB33145D929De1556ab981C2EE0
+    Strategy Agent ID 50
+      TBA        0xfCDB65d9AdBD94c63E5cCF7b44085f125de709E0
+-----------------------------------------------------------------
+Genesis Agent ID 2705
+  Owner          0x7e0f6E09B1c6bA9fb031b9B8F96405A182D7c567
+  TBA            0x921Cb403f67aA7C512675B807e6e0dcF7E72f54B
+  # strategies : 2
+    Strategy Agent ID 87
+      TBA        0xCd4091e6a3ECcB784c2194705C72Efe7694D4A8c
+    Strategy Agent ID 181
+      TBA        0x1FDf86851be52b7Dcb8ab51dA11D1241D54E0433
+-----------------------------------------------------------------
+Genesis Agent ID 2844
+  Owner          0x367B7aFF381D5ACC185b536f405D1b4dcba834Fb
+  TBA            0x44bb2d98d4feD0187d7Ae400bE5a609A2FCeDaf9
+  # strategies : 4
+    Strategy Agent ID 29
+      TBA        0xF46400aAfe099dDcFf58B14a28a5E3F5Ba1BC0eD
+    Strategy Agent ID 32
+      TBA        0x8fD5723027e22122d13Ee86ADEdFd6F8581f265D
+    Strategy Agent ID 192
+      TBA        0xc29C69BdBdcf5cE6E0C8ac95943f595E1b0fCb3e
+    Strategy Agent ID 195
+      TBA        0xD7CB8d31d0237F47dFf3E5266623379223e6ebF9
+-----------------------------------------------------------------
+Genesis Agent ID 2846
+  Owner          0x6D5896e7be49E81e83feD91b9CC085489496d220
+  TBA            0xe8c51D4C64507f7605D1E1Fa75d8Fd5504932AD9
+  # strategies : 4
+    Strategy Agent ID 6
+      TBA        0xE00dA797F703B969bD9773c287367C03764E59c1
+    Strategy Agent ID 128
+      TBA        0x9fbF82a73042DFA30f523cc2D16Bf0072dF38861
+    Strategy Agent ID 161
+      TBA        0xC9E702Ea2b7C7D3f92061f3e92c2973f12702f63
+    Strategy Agent ID 182
+      TBA        0x05Be99D25cE24DdE85e801ef07c87c3617feDB8c
+-----------------------------------------------------------------
+Genesis Agent ID 2848
+  Owner          0x8bf6f3eb98Dc663E85395fe9CD5533a2776c3F4f
+  TBA            0x763Fc5a93C921bB9b325974452482F25Dc183965
+  # strategies : 2
+    Strategy Agent ID 53
+      TBA        0xd59Ef8eb47de78c66B019698CA22065a6F9073fC
+    Strategy Agent ID 208
+      TBA        0xAeBBC69f1251Cf9d376a1c976b3a5efd5Ac33F92
+-----------------------------------------------------------------
+Genesis Agent ID 2970
+  Owner          0x96Faf8bbC9b273B99134aD9a948D90313243bc89
+  TBA            0x5aCA08E30A5353526d42Ad4f33eD06487eC3BD3a
+  # strategies : 1
+    Strategy Agent ID 49
+      TBA        0x0128a7B2128ae11DfE4880DF1BFB97498c813c44
+-----------------------------------------------------------------
+Genesis Agent ID 2974
+  Owner          0x1F8341c97Cc93917bbAe6B799B4298530e56A8f3
+  TBA            0x3d208070d11f0329826B9e4f95AA8e8484d375f5
+  # strategies : 1
+    Strategy Agent ID 140
+      TBA        0x784De4F03557665BF4dc8aaC1411b24CED0f60FF
+-----------------------------------------------------------------
+Genesis Agent ID 3005
+  Owner          0x638F8e3a5301BE6E6F8Fb0d251F620411c0C243d
+  TBA            0x56967d45d29b91a0BAc7a9713e46823635B358ce
+  # strategies : 2
+    Strategy Agent ID 165
+      TBA        0xC78eF1FaA6f903398A058BE95a1784ca4421628E
+    Strategy Agent ID 170
+      TBA        0x188ebbc44E090CD6592484992582c156078532A1
+-----------------------------------------------------------------
+Genesis Agent ID 3006
+  Owner          0x638F8e3a5301BE6E6F8Fb0d251F620411c0C243d
+  TBA            0x61333b60362AD07862915Bde345547E5E492559F
+  # strategies : 2
+    Strategy Agent ID 132
+      TBA        0xBB5e2d9fA6339AbFB1E59e167f87Fd9E05258Fa5
+    Strategy Agent ID 172
+      TBA        0xCF8861372f0982e49338461E0939fe960C0D9D58
+-----------------------------------------------------------------
+Genesis Agent ID 3014
+  Owner          0xee1e33029C2104993E4536Be502990284e77080d
+  TBA            0xECa29af70F268a582b22f365DaE859D6f7414694
+  # strategies : 1
+    Strategy Agent ID 120
+      TBA        0xa4Ac571Ec094D014ebCff1775d2934976D6bC92f
+-----------------------------------------------------------------
+Genesis Agent ID 3020
+  Owner          0x2ba756C4AF6B408Fec4933bfFDD3542D39093263
+  TBA            0x5a36e6777E84C9928A2F105D133ACe7855Fb40a7
+  # strategies : 1
+    Strategy Agent ID 217
+      TBA        0x7D6CC8A24C20033C6Cb393F593fFC923BA40FFfE
+-----------------------------------------------------------------
+Genesis Agent ID 3041
+  Owner          0x03e4aE853fa5BC1A75BE2128638A4d737d97D34a
+  TBA            0x4F5C53e545707D971Eb6d361fa1FBABeeBF02350
+  # strategies : 1
+    Strategy Agent ID 110
+      TBA        0xa1C4FcCe1010044c9080431E5E60d85Fda201429
+-----------------------------------------------------------------
+Genesis Agent ID 3042
+  Owner          0xE8517418753eAe2c158ae413255f7DfedF18B2E4
+  TBA            0x60408FC7382a3D5b7E668faBBefF6AC963897c5c
+  # strategies : 1
+    Strategy Agent ID 63
+      TBA        0x46f9Bd4d23Bc1D7067387D61Bb9b75a87E5c92F8
+-----------------------------------------------------------------
+Genesis Agent ID 3069
+  Owner          0xC903F4F1236cB937A9a61CCcc188207Ba0698821
+  TBA            0x2959547243d202B02CD66940aFac0e21d66891A3
+  # strategies : 2
+    Strategy Agent ID 88
+      TBA        0x53C119DFE0d5a4daA6e3Fb5300d7EC50057a9c45
+    Strategy Agent ID 184
+      TBA        0xd08F399fAA386CEE503Fd0411AEE7b6C7DEB0fAC
+-----------------------------------------------------------------
+Genesis Agent ID 3089
+  Owner          0xee1e33029C2104993E4536Be502990284e77080d
+  TBA            0x1616917f4710fCF44113c2523922dC1CD7A07C3d
+  # strategies : 1
+    Strategy Agent ID 86
+      TBA        0x54EA9DEb99bE5A9CAc63611f628527E2bdC4F2c2
+-----------------------------------------------------------------
+Genesis Agent ID 3180
+  Owner          0xD7806aB2746Bb7674d78346B4F5d704336DC10E9
+  TBA            0xEb181E1E7BF6e2493DCf395f264CC724FBde3f57
+  # strategies : 1
+    Strategy Agent ID 83
+      TBA        0x86b9FEb5148407DdCdB4EE6CEe24d9091fC3092e
+-----------------------------------------------------------------
+Genesis Agent ID 3510
+  Owner          0x5c9F9353b2896201856397089824d48C8e0e7F4b
+  TBA            0xB529754979A49c8678031e0BdaBC2f5bA55e4042
+  # strategies : 2
+    Strategy Agent ID 103
+      TBA        0x1F56604d556510D9ed785DA4f59BFaB724587E3F
+    Strategy Agent ID 203
+      TBA        0x0e3f8191EE15d30ae7970Ef753925F47Bb02d566
+-----------------------------------------------------------------
+Genesis Agent ID 3512
+  Owner          0xd7F422b4262002343ceb95348F2Cbf1F9f65c3e1
+  TBA            0x810A1274747B5008279D60af22a8c16Ef9B5Be32
+  # strategies : 1
+    Strategy Agent ID 56
+      TBA        0x5Ce246e5fdc5a5043f296612005E2c0a6a001bAB
+-----------------------------------------------------------------
+Genesis Agent ID 3740
+  Owner          0x36fFE58B9039ce27D79b2a169bfe8a0f3C6EF2cb
+  TBA            0x2A3E6a72a7375B68D467ebB4D49EC4Fd356A7A06
+  # strategies : 1
+    Strategy Agent ID 204
+      TBA        0xbE1B73F6dD92D5d65199F985fcE3bf2D8EF3f380
+-----------------------------------------------------------------
+Genesis Agent ID 3773
+  Owner          0xFb2d76a4d12003B71Bd2F06889Ee9CC4671C214E
+  TBA            0x6566bE8155Edc4314209fe135a1bf42ba35eB026
+  # strategies : 1
+    Strategy Agent ID 82
+      TBA        0x5f97762e1061a0e363CFA903Fb293bf9033982e0
+-----------------------------------------------------------------
+Genesis Agent ID 3774
+  Owner          0x58dBFe31CE1e639Ec9D0Da60d82CABcE637b2bA4
+  TBA            0x19ff850AE626f45843be009Ce215E72bE64Df29D
+  # strategies : 1
+    Strategy Agent ID 37
+      TBA        0x63fcA7B9a02Ab2C2980C01Da0e781a0C6F152a00
+-----------------------------------------------------------------
+Genesis Agent ID 3785
+  Owner          0xa4cE78baeB8D8c7d9390e10B9eAB4E336bE3aE71
+  TBA            0x96f8aE372480C21BB28064Fe01f7F23415eA6dd1
+  # strategies : 2
+    Strategy Agent ID 157
+      TBA        0xF41247394ea90118eeFa820A4cfDB0A367e93acB
+    Strategy Agent ID 169
+      TBA        0x9B4Cef406B52283C0812195d46aBDb59BA21B409
+-----------------------------------------------------------------
+Genesis Agent ID 3846
+  Owner          0x4CB01b6672bc750821af952ec5A2447fC90195b1
+  TBA            0x73b24b6776256354Eb839D1Cb0F6D48C1572392b
+  # strategies : 2
+    Strategy Agent ID 65
+      TBA        0xAeB02b6B48Aa3c149156413F429De447842D2311
+    Strategy Agent ID 176
+      TBA        0xb8B6451FBB12ba6E2f332a25299d7Bc6d3C3Ed16
+-----------------------------------------------------------------
+Genesis Agent ID 3933
+  Owner          0x2068fD0900f334b7E2bc4Bff78A2c17783C6124C
+  TBA            0xbc66Fa72944948bc865A38439302A455E92BA1d0
+  # strategies : 1
+    Strategy Agent ID 58
+      TBA        0xa84Df34B556Ad09ACC7a377c70Fc8a47746Bb498
+-----------------------------------------------------------------
+Genesis Agent ID 4021
+  Owner          0xCBb490659Da41742830124B5D6FcF29BE5c89c10
+  TBA            0xc77d33529c5055DB710Be2566C50E296eC7176Ab
+  # strategies : 1
+    Strategy Agent ID 210
+      TBA        0xbd623e32f3D76b531dD2bD44f61854A4280BF78f
+-----------------------------------------------------------------
+Genesis Agent ID 4108
+  Owner          0x0fa1288c9EdDFbCFb93F484E19Bd2C7564f72368
+  TBA            0xC6f64D2792EC97295954BD92a9A4fFEEfe0023FC
+  # strategies : 1
+    Strategy Agent ID 126
+      TBA        0xb933885BC5f09BE13a81FBe22cA1552E65277f86
+-----------------------------------------------------------------
+Genesis Agent ID 4203
+  Owner          0x50bfdfA0e550A3CFc1855CC112c5D96D66DA12a1
+  TBA            0xbA93B2fA0783252EFf6BC722Ca4431d0a027bd61
+  # strategies : 1
+    Strategy Agent ID 45
+      TBA        0x7e931738f9Af27F9877A9FD2026Ef6cd4dcDBa42
+-----------------------------------------------------------------
+Genesis Agent ID 4204
+  Owner          0xc7307Fd7fc10Bd5DA7Abb99172b64B040d89FdEa
+  TBA            0x54A78CD5BF0b9Ad260a48d6A349DA33bFD4d3Ecb
+  # strategies : 2
+    Strategy Agent ID 14
+      TBA        0xc9d555599629253972F0C02a83A0d399Bdd9613b
+    Strategy Agent ID 23
+      TBA        0xa0511D3B7c8B21A0E7B534Bdd4db67E41C793228
+-----------------------------------------------------------------
+Genesis Agent ID 4244
+  Owner          0xc94A01d16e3eCA748e8E45F8fdaa3BFF0b9e04c6
+  TBA            0x1f0fECEB90193dDE41B8a404293CE7A7bcE56983
+  # strategies : 1
+    Strategy Agent ID 111
+      TBA        0xAE1A269B94f6Dc585cA1822759b4b42E89cC5D07
+-----------------------------------------------------------------
+Genesis Agent ID 4388
+  Owner          0xa5E6B798Ed48c6E7B5b13eaDBd6314c639e27253
+  TBA            0x3d6e4aAF0E2789c0DA46903996024DD89Bd0a898
+  # strategies : 1
+    Strategy Agent ID 60
+      TBA        0xCbC813667815068e7aC13cE74b6f91C897F962A6
+-----------------------------------------------------------------
+Genesis Agent ID 4462
+  Owner          0x0dfed211ef1BB3c85b6cBb3C4FfEeC05f31DD4be
+  TBA            0x0763Aa28Ff57f50504AaE1887B8CD4d753Daf768
+  # strategies : 2
+    Strategy Agent ID 26
+      TBA        0x43b908D42830128e801184b9cc7cB76282e09C38
+    Strategy Agent ID 209
+      TBA        0xa528533F1b85dd28cDDaf8c67699A6689748E65C
+-----------------------------------------------------------------
+Genesis Agent ID 4675
+  Owner          0x168c074aF602443308eCdd27CfF4af1BEA1b35f8
+  TBA            0xF52763C6b55c632A415114c86BD4c667113c1aD6
+  # strategies : 1
+    Strategy Agent ID 85
+      TBA        0x7c37714bff862a08161ba626Fa9606aFCA7eB3e9
+-----------------------------------------------------------------
+Genesis Agent ID 4713
+  Owner          0x367B7aFF381D5ACC185b536f405D1b4dcba834Fb
+  TBA            0xF619aD0d4771D0bDA2394f63ce38030d919E8f93
+  # strategies : 2
+    Strategy Agent ID 107
+      TBA        0x479254aED617a376086b02A0F1800b66EeC89B51
+    Strategy Agent ID 198
+      TBA        0x0A69A9F9620cB71959E79bD4d82196413533E66a
+-----------------------------------------------------------------
+Genesis Agent ID 4735
+  Owner          0xa370c5c0dFa2A5a1a439726961aFd8Db0db986E4
+  TBA            0x23B19e6520FfB44D8331E57605dfaF82E4c9ABB4
+  # strategies : 1
+    Strategy Agent ID 205
+      TBA        0x4A2A26D75472EA77111D5EBAe754CedE6E976fae
+-----------------------------------------------------------------
+Genesis Agent ID 4757
+  Owner          0x0DAF17108bf8a816178361ED5DF94a5E38c5143a
+  TBA            0xa8bba28Efb73177918869eC3A71e6A01801FC2BA
+  # strategies : 3
+    Strategy Agent ID 39
+      TBA        0x87F96094cE9aF5A91038Da377891F22916bdfF91
+    Strategy Agent ID 105
+      TBA        0x3BEC8B9812E644C1D477C02134F132577c225b7D
+    Strategy Agent ID 190
+      TBA        0x74C2445F377c0E0c5a6dD500179e211EE1A0B75C
+-----------------------------------------------------------------
+Genesis Agent ID 4758
+  Owner          0x0DAF17108bf8a816178361ED5DF94a5E38c5143a
+  TBA            0xac6cf569d27F22d37fE754A60F8C479dB5B93614
+  # strategies : 3
+    Strategy Agent ID 59
+      TBA        0x3757921dCC7faFe8E40540440C74EA9B820e8765
+    Strategy Agent ID 104
+      TBA        0x259529db0Ba037975deA76e2D3CbBfAE8EceB7C9
+    Strategy Agent ID 189
+      TBA        0x2c74C24541417e82Bc519DAE5cbb741145fBd6b4
+-----------------------------------------------------------------
+Genesis Agent ID 4831
+  Owner          0x515c895B58A812BA1b27A7CC571B51c48d1d9045
+  TBA            0x6d5372BeBbE79739513092227FC9Ebb3eca4E7e5
+  # strategies : 1
+    Strategy Agent ID 69
+      TBA        0x85E72490489cAe2156541253476B85aA155Ba5Ce
+-----------------------------------------------------------------
+Genesis Agent ID 4860
+  Owner          0x2415257d4586EEC82ffd6b1B3f3c57Bb34167D7C
+  TBA            0x8Dfe9104874bdd27c25B15045974b7DA9e9EC84b
+  # strategies : 1
+    Strategy Agent ID 67
+      TBA        0x98c2069122b467F134A1fC1C81A8763B5040f891
+-----------------------------------------------------------------
+Genesis Agent ID 4861
+  Owner          0x1F8341c97Cc93917bbAe6B799B4298530e56A8f3
+  TBA            0x29814eFf398a72F93f80f3C2af0B6796E93f12C3
+  # strategies : 1
+    Strategy Agent ID 137
+      TBA        0x6DD9BFdfcBCc6b0158D50dE2519FBd375efA546F
+-----------------------------------------------------------------
+Genesis Agent ID 4940
+  Owner          0xA2148E0da9AF09AF0c57d8dC219c84225a97F0FF
+  TBA            0xeF136710E0722bce1C18C512B69268378A2f51FF
+  # strategies : 2
+    Strategy Agent ID 116
+      TBA        0xa715040510a4476723be43c0a3C4fc698ACBFDa1
+    Strategy Agent ID 131
+      TBA        0x2a9250271018d554FbEB98e89656d04FE1bb11b8
+-----------------------------------------------------------------
+Genesis Agent ID 5231
+  Owner          0xa8516eD3A25322D6aBB467427dAB742db8fb1967
+  TBA            0xA0AeB7200e98175ab6Ca38F46c2f9BE42cBD82B0
+  # strategies : 1
+    Strategy Agent ID 117
+      TBA        0xAB114eF371749741577c45c161B68a34199064fA
+-----------------------------------------------------------------
+Genesis Agent ID 5280
+  Owner          0x7C2B85eC3c1012AC3139D437C5CC7AE0f64F1769
+  TBA            0x440C1b93eC9860540e4cd8CFC3e3dba0d5a79aaB
+  # strategies : 1
+    Strategy Agent ID 36
+      TBA        0x6e9633599B14A59d6882C1209451a986d3Ad20DC
+-----------------------------------------------------------------
+Genesis Agent ID 5291
+  Owner          0xFbb7D8031e5Cb82d3c8998118E758b29809EA984
+  TBA            0x0260C45Fe73D0415Aa1AE44931638B1d4e45A34b
+  # strategies : 2
+    Strategy Agent ID 78
+      TBA        0xef7173CEb290b894284b2E6bF7B3596a4d982419
+    Strategy Agent ID 185
+      TBA        0x2F78f23088cb3160Dc10dC4675E128Fcb43eeB8b
+-----------------------------------------------------------------
+Genesis Agent ID 5487
+  Owner          0x367B7aFF381D5ACC185b536f405D1b4dcba834Fb
+  TBA            0x8f5b25AbD5Af686e2B9C35D1febc94B7D8727F4D
+  # strategies : 2
+    Strategy Agent ID 108
+      TBA        0xe80e0a193DBB9e2dC8c6881a7d00C3e7f7c30dcB
+    Strategy Agent ID 199
+      TBA        0x80D82b857A21F1abdd1DE70Ae9903DE0cC1b5ca5
+-----------------------------------------------------------------
+Genesis Agent ID 5524
+  Owner          0x714EDc094D019c934F279057569779720CeB7816
+  TBA            0x5639DBA6F23B10EdE6A97c700f908C5d0dfBd975
+  # strategies : 1
+    Strategy Agent ID 55
+      TBA        0x91715708e828591aee0906F1e8d5bF901Ad110CA
+-----------------------------------------------------------------
+Genesis Agent ID 5665
+  Owner          0x86e1aB5Ec6822D3178450Dc1cF45D954697Dbe50
+  TBA            0x89eC5a34Da302f1904c2504fcd0d462C4dB3f4B8
+  # strategies : 1
+    Strategy Agent ID 54
+      TBA        0x6F8B163a67224b309DcF6b0D26924B5106308A91
+-----------------------------------------------------------------
+Genesis Agent ID 5847
+  Owner          0x549CCFAFAf2b331E28f55691bd013dDf938CBe3F
+  TBA            0x88089a1fc8Fb39e6bf455497392680c21BC68358
+  # strategies : 1
+    Strategy Agent ID 38
+      TBA        0xdfA720C8ba3E5697BCAA030631d6691234BD5EB5
+-----------------------------------------------------------------
+Genesis Agent ID 5871
+  Owner          0x51115b8a9f57Ec4922994F1A2c1b339ca5342C14
+  TBA            0x8d151aEE384916259A8B37D7Ba99212c68bAc05A
+  # strategies : 1
+    Strategy Agent ID 79
+      TBA        0x8c23354EE00C0b2A61D237A98775f4fF119ae2BD
+-----------------------------------------------------------------
+Genesis Agent ID 5969
+  Owner          0x94003e4eFb42a72E18Cc599D1A225b38b3FeA486
+  TBA            0x47F37Ad4414C2cd77Fc74A3e48351Bb47DF8f798
+  # strategies : 1
+    Strategy Agent ID 28
+      TBA        0xF306A1f7f797E646D0Dab418dE2602847341564D
+-----------------------------------------------------------------
+Genesis Agent ID 6100
+  Owner          0x92Fe59700FD92E1CA3E9689a0DD86c8A45D8254F
+  TBA            0xb7c3af147ddc7b216180b3DF23D0E08656835625
+  # strategies : 1
+    Strategy Agent ID 71
+      TBA        0xad2E4e8979411Fe864C3f50D7c65C3B6CB415Bd5
+-----------------------------------------------------------------
+Genesis Agent ID 6101
+  Owner          0x92Fe59700FD92E1CA3E9689a0DD86c8A45D8254F
+  TBA            0x72B7Bba6AB3d93D14f8680073643f0Da7f7c9eF5
+  # strategies : 1
+    Strategy Agent ID 70
+      TBA        0x80B97AaC5d7E9108CEd1504DFDc603087450B5b0
+-----------------------------------------------------------------
+Genesis Agent ID 6143
+  Owner          0xc7307Fd7fc10Bd5DA7Abb99172b64B040d89FdEa
+  TBA            0xFbF0189350BdBD1fca17B264450691d51e968cB3
+  # strategies : 1
+    Strategy Agent ID 9
+      TBA        0x76D4acA4F80E7BA2eb8F7EF2f5d56142F3ec3287
+-----------------------------------------------------------------
+Genesis Agent ID 6237
+  Owner          0xE0e8C1D735698060477e79a8e4C20276Fc2Ec7A7
+  TBA            0x3250C8326308A385acEf5Ff6547588da1548de4F
+  # strategies : 1
+    Strategy Agent ID 121
+      TBA        0xA9226182cd6843c556A12c3d095A4Ed492b4abAD
+-----------------------------------------------------------------
+Genesis Agent ID 6252
+  Owner          0x39260b9Be6b55b18505C6DD098D7Fe0bb8622101
+  TBA            0xE53CC3c3cB4E7093108BAF386b5Bb1b7Fc83d99a
+  # strategies : 1
+    Strategy Agent ID 61
+      TBA        0xf28cECcCE303D476634B98dc9316d3e9408ACCC8
+-----------------------------------------------------------------
+Genesis Agent ID 6276
+  Owner          0x543957223066A010187DEaa9Be76746BE3aBe8e0
+  TBA            0xf64102363715980B101226863161aEa2be37fb06
+  # strategies : 3
+    Strategy Agent ID 213
+      TBA        0x56926cfa08b82E8C5FA93833ae8B50442E1cd29f
+    Strategy Agent ID 214
+      TBA        0x224A45e9d097F5aF28628e215ACCfEb6da5e6179
+    Strategy Agent ID 215
+      TBA        0x87040D5030e34ff9f7eA85e1BEF2a3b1eed5Da8a
+-----------------------------------------------------------------
+Genesis Agent ID 6335
+  Owner          0xee1e33029C2104993E4536Be502990284e77080d
+  TBA            0xb435D39C8E0678f4A6cbbDe634dc429Ae33e047B
+  # strategies : 2
+    Strategy Agent ID 46
+      TBA        0x404c7608599EAb67c24433a5F278e23b4Bae942D
+    Strategy Agent ID 187
+      TBA        0x8520Fe9ed3562aC1292862601b280aa3Ce55b457
+-----------------------------------------------------------------
+Genesis Agent ID 6384
+  Owner          0x3D20435331A1f0731aF9C5a606c0D77F28021b3D
+  TBA            0xF9F1622cC934d7774568deED144D1865D962F752
+  # strategies : 1
+    Strategy Agent ID 27
+      TBA        0xEa234b767c650Cecf4Ba8F811ba52f730a87e683
+-----------------------------------------------------------------
+Genesis Agent ID 6445
+  Owner          0x7e5780b117c95Bf03A237e1C10590D3d0E81581a
+  TBA            0x922CdC2026C85745e5F56Cf092521C9fB78491cF
+  # strategies : 4
+    Strategy Agent ID 153
+      TBA        0xa4670CC266F5c0E81782B44AAD48D68BCe56a294
+    Strategy Agent ID 154
+      TBA        0xD6cB2E523B5D2B6Df915D412F163e47099A4814F
+    Strategy Agent ID 158
+      TBA        0x79f86AC542e9A2a50765d38f8A7A86aaC8822CCd
+    Strategy Agent ID 163
+      TBA        0x3EC32608b1F1B3719b684299c71Ff5094461E6cA
+-----------------------------------------------------------------
+Genesis Agent ID 6469
+  Owner          0xc199359FfF264671bCdD0BC985358d3C12c5fE5f
+  TBA            0xE48d530551aCc3643B83Aa57EFEce5a1f2d1eEFF
+  # strategies : 1
+    Strategy Agent ID 66
+      TBA        0x70C2EDd5f1ECEbC0FFeAe6eCC1d86CB60E00a8AA
+-----------------------------------------------------------------
+Genesis Agent ID 6480
+  Owner          0x7Ee8A1b40eEE23F0588d645486B23A30F853E949
+  TBA            0x9eA2Abd7Fc41d71b7Ce8816773d81385dC0bf0d9
+  # strategies : 1
+    Strategy Agent ID 22
+      TBA        0x8D245dF2F0399d1dF4e2E48527650dA27091C5bB
+-----------------------------------------------------------------
+Genesis Agent ID 6521
+  Owner          0xA2d937F18e9E7fC8d295EcAeBb10Acbd5e77e9eC
+  TBA            0xc1068f0CC7f104B31DF37d36767Af108923Fe979
+  # strategies : 10
+    Strategy Agent ID 3
+      TBA        0xD66899103E1c748D557a4292B9410a142378Bb7F
+    Strategy Agent ID 8
+      TBA        0x69e286c6b15121d3fDb0CEF479046Acdc7FB605c
+    Strategy Agent ID 11
+      TBA        0xB44aaD705753C31D18204e28aff563EC8d765c63
+    Strategy Agent ID 12
+      TBA        0x17ca32d7760614DF6E7DFf93189454221643Cb90
+    Strategy Agent ID 130
+      TBA        0x70970CE2059C969f7aCcb807F647E7ADBF4261d4
+    Strategy Agent ID 147
+      TBA        0x855c48b6556056914f38A8084f2Bc6558B6a6040
+    Strategy Agent ID 148
+      TBA        0x6BAA895D0ae48A417b1FB27C850e7f88084021B8
+    Strategy Agent ID 150
+      TBA        0x8cA8c7B4E47DD814Cdc9FC96379F083c85Bdf836
+    Strategy Agent ID 152
+      TBA        0xDf9857C44d7454e4Ae9b92E3280e4aA78baAaA6f
+    Strategy Agent ID 160
+      TBA        0xF822Cd39fccAF04a67C09f86c47fED59bBcc3995
+-----------------------------------------------------------------
+Genesis Agent ID 6533
+  Owner          0x5e6Cb798875473b8bDf26d982599DA68579D136f
+  TBA            0xA645e46B0C318D63B099748bdDcec1923a0DADfD
+  # strategies : 3
+    Strategy Agent ID 19
+      TBA        0x42326e47161cF100B27eFb23DB19cD03A2B208b9
+    Strategy Agent ID 20
+      TBA        0x9EAB3699b6E64b083768FbeD0893a96b8f8F9e35
+    Strategy Agent ID 21
+      TBA        0xF9a49628C0a694061dEdE3448f2d028B5951E556
+-----------------------------------------------------------------
+Genesis Agent ID 6551
+  Owner          0x1379Ae65D2D3BeF54c8aFEeE3d03cf87b7A886dA
+  TBA            0x41E7be0F6C3f851442E09514D975F932bfB67aE2
+  # strategies : 1
+    Strategy Agent ID 155
+      TBA        0x89eD4926Ab107742557b92f473c67541d7F89AeB
+-----------------------------------------------------------------
+
+96 unique owners of genesis agents detected
+0x89320a45B474E5367024Bb6c8e0A04Cf9DfF4051
+0xA214a4fc09C42202C404E2976c50373fE5F5B789
+0x9AaefeF1C92b615E7C5dA93D5c7166767daC27ab
+0xbd435051c0427e952EC19dE93CcC1b8CfB3FD515
+0x86596691C02a95bfE8a66E50fe808523A560250e
+0xf97421335A3928D03Ab77Ed680B507843D9Bf334
+0x5F67722Bb1dAb5d86485B7BD0118977C01417725
+0xc7307Fd7fc10Bd5DA7Abb99172b64B040d89FdEa
+0xf6B517719d5E15EFe0F515006a2A31C900B02e1F
+0x76C31cE3D93731c15DA8316A13F11682B09f4c7A
+0x0fa1288c9EdDFbCFb93F484E19Bd2C7564f72368
+0xC8803d21A704BFeBdBC394bD16501a4b36aD3A2D
+0x9aD2AfB77FD40705c3f55f5f2d8B5Ea8afb4BBDE
+0xE74FE6f42d5e12302AaBA434Bf7351f17F845988
+0x58dBFe31CE1e639Ec9D0Da60d82CABcE637b2bA4
+0x51447E3b24a571dE29AeeC5258541A8B7Df6ae88
+0x3C112e6f387A4D8E336C73ef74c9BE51B01644a1
+0x4985F0811cF7cF14DC013f8AC2b979D294e2Ea59
+0xBB34666407e47f87a44E4540ee765909506CB105
+0x3d62a562EF3804efa6Fc346c1509d0B98B3b2b06
+0xfABF827d4340F21aB6f7469698d51dEafec35607
+0xcf81daa6EB1Fc0A0B9361BdC9Ec5cb505cD0070e
+0xd7F422b4262002343ceb95348F2Cbf1F9f65c3e1
+0x7da01a06A2582193C2867E22FE62f7f649F7B9e2
+0xee1e33029C2104993E4536Be502990284e77080d
+0xdc07f9D68B5B60e70956150381F72E0eF8D7F19e
+0xE6B614e1CD825AF735D4a9238131c3E21d25cfd8
+0x9480fc2A527BB0F0e5E6A3CF2922BcD123B71302
+0x7d3539DD4E430C27e61ad97ECb6389723896903f
+0xA6459FD189568b8fCeE399ef1811F39c878c32BF
+0x6a1AB09e473db9213AA21341046c273a22D7C74E
+0xa370c5c0dFa2A5a1a439726961aFd8Db0db986E4
+0x367B7aFF381D5ACC185b536f405D1b4dcba834Fb
+0x900B7ca5A360db798dfB48C3BA5E7Dd678B6748D
+0x740312f54D84D6aEFF146c488217f517bE4F3871
+0x53FEBA757be2Be0F440CB6b5017314e89eb13bC2
+0xfb4EecEf04F1d45EaD80A7a471D60b38B14eaa9a
+0xAcbD9767508B5fE847ba2660e5734510f3CB180a
+0x2ba756C4AF6B408Fec4933bfFDD3542D39093263
+0x051D615289c527d09eFE581cCCA4018011638733
+0xE0e8C1D735698060477e79a8e4C20276Fc2Ec7A7
+0x8bf6f3eb98Dc663E85395fe9CD5533a2776c3F4f
+0x22C5c3E8B3c83A69D57d8919A9aE06668a5C005C
+0x89043FB8C59509602c370f83C9aB6008F88f6Aa4
+0xE25022991E2a92708cec09A2500Ce28029F49e9B
+0xC1250AC66fAafa41Bb2d6121B8B05C86DFAB3b1D
+0x6d4eF11A1904e3F26F27138694f6be8BF2A0C47D
+0x97C81779189e211E8b378e4f60d541fB4a482503
+0xDd489316459c40300D2CB86e188446381d84894a
+0x30df286e94B101605F9C96c71d96d7EB2A118Ca7
+0x7BD940a4c667aD9F8D8725A56E59DCB3e45ac1ff
+0x7f514EA5abb2099E075eFf21231427ca0279E979
+0x1F8341c97Cc93917bbAe6B799B4298530e56A8f3
+0x9BB53570a65D2AcF2D9D1A5fA7D26A38eCd3C3da
+0x7e0f6E09B1c6bA9fb031b9B8F96405A182D7c567
+0x6D5896e7be49E81e83feD91b9CC085489496d220
+0x96Faf8bbC9b273B99134aD9a948D90313243bc89
+0x638F8e3a5301BE6E6F8Fb0d251F620411c0C243d
+0x03e4aE853fa5BC1A75BE2128638A4d737d97D34a
+0xE8517418753eAe2c158ae413255f7DfedF18B2E4
+0xC903F4F1236cB937A9a61CCcc188207Ba0698821
+0xD7806aB2746Bb7674d78346B4F5d704336DC10E9
+0x5c9F9353b2896201856397089824d48C8e0e7F4b
+0x36fFE58B9039ce27D79b2a169bfe8a0f3C6EF2cb
+0xFb2d76a4d12003B71Bd2F06889Ee9CC4671C214E
+0xa4cE78baeB8D8c7d9390e10B9eAB4E336bE3aE71
+0x4CB01b6672bc750821af952ec5A2447fC90195b1
+0x2068fD0900f334b7E2bc4Bff78A2c17783C6124C
+0xCBb490659Da41742830124B5D6FcF29BE5c89c10
+0x50bfdfA0e550A3CFc1855CC112c5D96D66DA12a1
+0xc94A01d16e3eCA748e8E45F8fdaa3BFF0b9e04c6
+0xa5E6B798Ed48c6E7B5b13eaDBd6314c639e27253
+0x0dfed211ef1BB3c85b6cBb3C4FfEeC05f31DD4be
+0x168c074aF602443308eCdd27CfF4af1BEA1b35f8
+0x0DAF17108bf8a816178361ED5DF94a5E38c5143a
+0x515c895B58A812BA1b27A7CC571B51c48d1d9045
+0x2415257d4586EEC82ffd6b1B3f3c57Bb34167D7C
+0xA2148E0da9AF09AF0c57d8dC219c84225a97F0FF
+0xa8516eD3A25322D6aBB467427dAB742db8fb1967
+0x7C2B85eC3c1012AC3139D437C5CC7AE0f64F1769
+0xFbb7D8031e5Cb82d3c8998118E758b29809EA984
+0x714EDc094D019c934F279057569779720CeB7816
+0x86e1aB5Ec6822D3178450Dc1cF45D954697Dbe50
+0x549CCFAFAf2b331E28f55691bd013dDf938CBe3F
+0x51115b8a9f57Ec4922994F1A2c1b339ca5342C14
+0x94003e4eFb42a72E18Cc599D1A225b38b3FeA486
+0x92Fe59700FD92E1CA3E9689a0DD86c8A45D8254F
+0x39260b9Be6b55b18505C6DD098D7Fe0bb8622101
+0x543957223066A010187DEaa9Be76746BE3aBe8e0
+0x3D20435331A1f0731aF9C5a606c0D77F28021b3D
+0x7e5780b117c95Bf03A237e1C10590D3d0E81581a
+0xc199359FfF264671bCdD0BC985358d3C12c5fE5f
+0x7Ee8A1b40eEE23F0588d645486B23A30F853E949
+0xA2d937F18e9E7fC8d295EcAeBb10Acbd5e77e9eC
+0x5e6Cb798875473b8bDf26d982599DA68579D136f
+0x1379Ae65D2D3BeF54c8aFEeE3d03cf87b7A886dA
+
+
+Fetching balances for all owners
+
+Estimated tvl: $54065.66239605934
