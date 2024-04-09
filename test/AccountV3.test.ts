@@ -20,10 +20,12 @@ import L1DataFeeAnalyzer from "../scripts/utils/L1DataFeeAnalyzer";
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
-const ENTRY_POINT_ADDRESS      = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const badcode = "0x000000000000000000000000000000000baDC0DE"
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const MULTICALL_FORWARDER_ADDRESS     = ""; // v1.0.1
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
@@ -39,6 +41,11 @@ describe("AccountV3", function () {
 
   let gasCollector: GasCollector;
   let erc6551Registry: IERC6551Registry;
+
+  let multicallForwarder: MulticallForwarder;
+  let agentRegistry: AgentRegistry;
+  let genesisAccountFactory: BlastooorAccountFactory;
+
   let erc721TBA: MockERC721; // the erc721 that may have token bound accounts
   let erc721Asset: MockERC721; // an erc721 that token bound accounts may hold
   let erc6551AccountImplementation: AccountV3; // the base implementation for token bound accounts
@@ -94,7 +101,7 @@ describe("AccountV3", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
@@ -104,8 +111,13 @@ describe("AccountV3", function () {
       erc721TBA = await deployContract(deployer, "MockERC721", ["HolderERC721", "HODL"]) as MockERC721;
       await expectDeployed(erc721TBA.address);
     });
+    it("can deploy MulticallForwarder", async function () {
+      multicallForwarder = await deployContract(deployer, "MulticallForwarder", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MulticallForwarder;
+      await expectDeployed(multicallForwarder.address);
+      l1DataFeeAnalyzer.register("deploy MulticallForwarder", multicallForwarder.deployTransaction);
+    });
     it("can deploy account implementation", async function () {
-      erc6551AccountImplementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS,badcode,ERC6551_REGISTRY_ADDRESS,AddressZero]) as AccountV3;
+      erc6551AccountImplementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as AccountV3;
       await expectDeployed(erc6551AccountImplementation.address);
     });
     it("implementation begins with null state", async function () {
@@ -123,9 +135,6 @@ describe("AccountV3", function () {
       //expect(await erc6551AccountImplementation.supportsInterface("0xffffffff")).eq(false);
       //expect(await erc6551AccountImplementation.supportsInterface("0x00000000")).eq(false);
     });
-    //it("deployed ")
-    //it("deployed correctly", async function () {});
-    //it("", async function () {});
   });
 
   describe("account creation and registration", function () {

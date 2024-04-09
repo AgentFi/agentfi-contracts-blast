@@ -21,13 +21,17 @@ contract MockGasBurner is Multicall, Blastable, Ownable2Step {
      * @notice Constructs the MockGasBurner contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_
-    ) Blastable(blast_, governor_) {
+        address gasCollector_,
+        address blastPoints_,
+        address pointsOperator_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
         x = 1;
     }
@@ -87,5 +91,35 @@ contract MockGasBurner is Multicall, Blastable, Ownable2Step {
 
     function x4WithRevert() external pure {
         revert Errors.RevertForAmount(5);
+    }
+
+    /***************************************
+    GAS REWARD QUOTE CLAIM FUNCTIONS
+    ***************************************/
+
+    // does not try to claim, just return a value
+
+    /**
+     * @notice Quotes the amount of gas expected when claiming all gas.
+     * This _should_ be a view function, except that it relies on the state change then reverting it.
+     * This _should_ be called with an offchain staticcall.
+     * This _should not_ be called onchain.
+     * Can be called by anyone.
+     * @return quoteAmount The amount of gas that can be claimed.
+     */
+    function quoteClaimAllGas() external payable returns (uint256 quoteAmount) {
+        quoteAmount = 5;
+    }
+
+    /**
+     * @notice Quotes the amount of gas expected when claiming max gas.
+     * This _should_ be a view function, except that it relies on the state change then reverting it.
+     * This _should_ be called with an offchain staticcall.
+     * This _should not_ be called onchain.
+     * Can be called by anyone.
+     * @return quoteAmount The amount of gas that can be claimed.
+     */
+    function quoteClaimMaxGas() external payable returns (uint256 quoteAmount) {
+        quoteAmount = 7;
     }
 }

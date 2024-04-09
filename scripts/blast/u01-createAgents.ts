@@ -48,6 +48,8 @@ const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // genesis
 const ACCOUNT_IMPL_BASE_ADDRESS       = "0x8836060137a20E41d599565F644D9EB0807A5353"; // genesis
 
+const MULTISIG_ADDRESS                = "0xc3d5fb76F5ce147508AE0129Af0327226B1A01EA"
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -101,15 +103,17 @@ async function main() {
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   accountImplBase = await ethers.getContractAt("BlastAgentAccount", ACCOUNT_IMPL_BASE_ADDRESS, agentfideployer) as BlastAgentAccount;
 
-  //await listAgents();
-  //await createAgents();
   await listAgents();
+  //await createAgents();
+  //await listAgents();
+  //await transferAgents();
 }
 
-async function listAgents() {
+async function listAgents(detailed=true) {
   let ts = (await genesisCollection.totalSupply()).toNumber();
   console.log(`Number agents created: ${ts}`);
   if(ts == 0) return;
+  if(!detailed) return;
   console.log("Info:")
   let calls = [] as any[]
   for(let agentID = 1; agentID <= ts; agentID++) {
@@ -149,9 +153,10 @@ async function createAgents() {
   //await createAgent(agentfideployer, 9);
   //await createCustomAgent1(agentfideployer, 9);
 
-  await mintGenesisBlastooorPublic(agentfideployer, 1);
+  //await mintGenesisBlastooorPublic(agentfideployer, 1);
   //await mintGenesisBlastooorAllowlist(blasttestnetuser1, 1);
   //await mintGenesisBlastooorAllowlistAndPublic(blasttestnetuser2)
+  //await mintGenesisBlastooorTreasury()
 }
 
 async function createAgent(creator=boombotseth, createSettingsID=1) {
@@ -186,6 +191,35 @@ async function mintGenesisBlastooorAllowlistAndPublic(creator=boombotseth) {
   let ethAmount = WeiPerEther.div(100).mul(10)
   let tx = await genesisFactory.connect(creator).blastooorMintWithAllowlistAndPublic(2, 8, signature, {...networkSettings.overrides, gasLimit: 5_000_000, value:ethAmount})
   await watchTxForCreatedAgentID(tx)
+}
+
+async function mintGenesisBlastooorTreasury() {
+  console.log(`Creating agents for treasury`)
+  let txdata = genesisFactory.interface.encodeFunctionData("blastooorMintForTreasury", [10])
+  let txdatas:any[] = []
+  for(let i = 0; i < 0; i++) txdatas.push(txdata)
+  let tx = await genesisFactory.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 15_000_000, value:0})
+  await watchTxForCreatedAgentID(tx)
+}
+
+async function transferAgents() {
+  console.log(`Transferring Agents`)
+  let txdatas:any[] = []
+  let startAgentID = 6402
+  let stopAgentID = 6551
+  for(let agentID = startAgentID; agentID <= stopAgentID; agentID++) {
+    txdatas.push(genesisCollection.interface.encodeFunctionData("transferFrom", [agentfideployer.address, MULTISIG_ADDRESS, agentID]))
+  }
+  console.log('txdatas')
+  console.log(txdatas)
+  console.log(txdatas.length)
+  //let tx = await genesisCollection.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 15_000_000, value:0})
+  let tx = await genesisCollection.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 15_000_000, value:0})
+  //await watchTxForCreatedAgentID(tx)
+  console.log('tx')
+  console.log(tx)
+  await tx.wait(networkSettings.confirmations)
+  console.log(`Transferred Agents`)
 }
 
 async function watchTxForCreatedAgentID(tx:any) {

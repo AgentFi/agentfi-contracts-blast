@@ -3,9 +3,12 @@ pragma solidity 0.8.24;
 
 import { Multicall } from "./Multicall.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { IBalanceFetcher } from "./../interfaces/utils/IBalanceFetcher.sol";
+import { IRingV2Pair } from "./../interfaces/external/RingProtocol/IRingV2Pair.sol";
 import { Blastable } from "./Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
+import { IBlastooorGenesisAgents } from "./../interfaces/tokens/IBlastooorGenesisAgents.sol";
 
 
 /**
@@ -14,19 +17,26 @@ import { Ownable2Step } from "./../utils/Ownable2Step.sol";
  * @notice The BalanceFetcher is a purely utility contract that helps offchain components efficiently fetch an account's balance of tokens.
  */
 contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
+    address public immutable agentRegistry;
 
     /**
      * @notice Constructs the BalanceFetcher contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_
-    ) Blastable(blast_, governor_) {
+        address gasCollector_,
+        address blastPoints_,
+        address pointsOperator_,
+        address registry_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         _transferOwnership(owner_);
+        agentRegistry = registry_;
     }
 
     /**
@@ -35,7 +45,7 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
      * @param account The account to query.
      * @param tokens The list of tokens to query.
      */
-    function fetchBalances(address account, address[] calldata tokens) external payable override returns (uint256[] memory balances) {
+    function fetchBalances(address account, address[] calldata tokens) public payable override returns (uint256[] memory balances) {
         balances = new uint256[](tokens.length);
         for(uint256 i = 0; i < tokens.length; ++i) {
             address token = tokens[i];
@@ -43,6 +53,49 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
             else if(token == address(1)) balances[i] = _tryQuoteClaimAllGas(account);
             else if(token == address(2)) balances[i] = _tryQuoteClaimMaxGas(account);
             else balances[i] = IERC20(token).balanceOf(account);
+        }
+    }
+
+    /**
+     * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account
+     * @param account The account to query.
+     * @param collections The list of nfts tokens to query.
+     * @param tokens The list of erc20 tokens to query.
+     */
+    function fetchAgents(address account, address[] calldata collections, address[] calldata tokens) public payable returns (Agent[] memory agents) {
+        if(account == address(0)) return agents;
+        // Start a queue of agents to search for child agents
+        Agent[] memory queue = new Agent[](10000);
+
+        // Add the queried account as the first item in the queue
+        queue[0].agentAddress = account;
+        queue[0].balances = fetchBalances(account, tokens);
+        {
+        IAgentRegistry registry = IAgentRegistry(agentRegistry);
+        (queue[0].collection, queue[0].agentID) = registry.getNftOfTba(account);
+        }
+
+        // For each item in the queue, add children agents to the end.
+        // Keep searching until we check all agents
+        uint256 start = 0;
+        uint256 count = 1; // Number of agents found
+        while(start < count) {
+            address parent = queue[start++].agentAddress;
+            if(parent == address(0)) continue;
+
+            for(uint256 i = 0; i < collections.length; ++i) {
+                IBlastooorGenesisAgents collection = IBlastooorGenesisAgents(collections[i]);
+                uint256 balance = collection.balanceOf(parent);
+                for(uint256 n = 0; n < balance; ++n) {
+                    uint256 agentID = collection.tokenOfOwnerByIndex(parent, n);
+                    queue[count++] = _fetchAgent(parent, collections[i], agentID, tokens);
+                }
+            }
+        }
+        // Copy to final array to get the right length
+        agents = new Agent[](count);
+        for(uint256 i = 0; i < count; ++i) {
+            agents[i] = queue[i];
         }
     }
 
@@ -57,6 +110,58 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
             address account = accounts[i];
             quotes[i].quoteAmountAllGas = _tryQuoteClaimAllGas(account);
             quotes[i].quoteAmountMaxGas = _tryQuoteClaimMaxGas(account);
+        }
+    }
+
+    /**
+     * @notice Fetch key information for a uniswap v2 style pool
+     * @param poolAddress The address of the pool
+     * @return total Total supply of the pool
+     * @return address0 Token 0 address
+     * @return address1 Token 1 address
+     * @return reserve0 Token 0 reserve
+     * @return reserve1 Token 1 reserve
+     */
+    function fetchPoolInfoV2(address poolAddress) public view returns (uint256 total, address address0, address address1, uint112 reserve0, uint112 reserve1) {
+        IRingV2Pair pool = IRingV2Pair(poolAddress);
+
+        total = pool.totalSupply();
+
+        address0 = pool.token0();
+        address1 = pool.token1();
+        (reserve0, reserve1,) = pool.getReserves();
+    }
+
+    /**
+     * @notice Fetch information about a particular agent
+     * @param collection Nft contract address
+     * @param agentID Id of the token on the token address
+     * @param tokens List of tokens to get fetch balances for
+     * @return agent Agent information, including balances
+     */
+    function _fetchAgent(address owner, address collection, uint256 agentID, address[] calldata tokens) internal returns (Agent memory agent) {
+        IAgentRegistry registry = IAgentRegistry(agentRegistry);
+
+        IAgentRegistry.AgentInfo[] memory info = registry.getTbasOfNft(collection, agentID);
+
+        if(info.length == 0) {
+            agent = Agent({
+                collection: collection,
+                agentID: agentID,
+                agentAddress: address(0),
+                implementation: address(0),
+                owner: owner,
+                balances: new uint256[](0)
+            });
+        } else {
+            agent = Agent({
+                collection: collection,
+                agentID: agentID,
+                agentAddress: info[0].agentAddress,
+                implementation: info[0].implementationAddress,
+                owner: owner,
+                balances: fetchBalances(info[0].agentAddress, tokens)
+            });
         }
     }
 

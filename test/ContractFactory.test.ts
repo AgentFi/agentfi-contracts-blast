@@ -23,8 +23,11 @@ import { deployContract, deployContractUsingContractFactory } from "../scripts/u
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 
 let maxuint256  = '115792089237316195423570985008687907853269984665640564039457584007913129639935'
 let mintAmount1 = '101234567890123456789012345678901234567890123456789012345678901234567890123456'
@@ -74,13 +77,13 @@ describe("ContractFactory", function () {
 
   describe("ContractFactory deployment", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("should deploy factory successfully", async function () {
-      contractFactory = await deployContract(deployer, "ContractFactory", [owner.address, BLAST_ADDRESS, gasCollector.address]) as ContractFactory;
+      contractFactory = await deployContract(deployer, "ContractFactory", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as ContractFactory;
       await expectDeployed(contractFactory.address);
     });
   });

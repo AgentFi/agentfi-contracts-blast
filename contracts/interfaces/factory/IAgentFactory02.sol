@@ -25,11 +25,11 @@ interface IAgentFactory02 {
     ***************************************/
 
     struct AgentCreationSettings {
-      address agentImplementation;
-      bytes[] initializationCalls;
-      bool isPaused;
-      address[] giveTokenList;
-      uint256[] giveTokenAmounts;
+        address agentImplementation;
+        bytes[] initializationCalls;
+        bool isPaused;
+        address[] giveTokenList;
+        uint256[] giveTokenAmounts;
     }
 
     /**

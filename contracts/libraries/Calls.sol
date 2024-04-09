@@ -21,6 +21,9 @@ library Calls {
         address target,
         uint256 value
     ) internal returns (bytes memory result) {
+        if (address(this).balance < value) {
+            revert Errors.InsufficientBalance();
+        }
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returndata) = target.call{value:value}("");
         if(success) {
@@ -82,6 +85,9 @@ library Calls {
         bytes memory data,
         uint256 value
     ) internal returns (bytes memory result) {
+        if (address(this).balance < value) {
+            revert Errors.InsufficientBalance();
+        }
         // solhint-disable-next-line avoid-low-level-calls
         (bool success, bytes memory returndata) = target.call{value:value}(data);
         if(success) {

@@ -272,6 +272,7 @@ contract AccountV3 is
      * updated prior to execution.
      */
     function _beforeExecute() internal override {
+        super._beforeExecute();
         _verifyIsUnlocked();
         _updateState();
     }
@@ -280,6 +281,7 @@ contract AccountV3 is
      * @dev Called before locking the account. Reverts if account is locked. Updates account state.
      */
     function _beforeLock() internal override {
+        super._beforeLock();
         _verifyIsUnlocked();
         _updateState();
     }
@@ -289,6 +291,7 @@ contract AccountV3 is
      * account state.
      */
     function _beforeSetOverrides() internal override {
+        super._beforeSetOverrides();
         _verifyIsUnlocked();
         _updateState();
     }
@@ -298,6 +301,7 @@ contract AccountV3 is
      * account state.
      */
     function _beforeSetPermissions() internal override {
+        super._beforeSetPermissions();
         _verifyIsUnlocked();
         _updateState();
     }

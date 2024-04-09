@@ -50,15 +50,19 @@ contract Agents is IAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall
      * @notice Constructs the Agents nft contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
-     * @param governor_ The address of the gas governor.
+     * @param gasCollector_ The address of the gas collector.
+     * @param blastPoints_ The address of the blast points contract.
+     * @param pointsOperator_ The address of the blast points operator.
      * @param erc6551Registry_ The address of the ERC6551Registry.
      */
     constructor(
         address owner_,
         address blast_,
-        address governor_,
+        address gasCollector_,
+        address blastPoints_,
+        address pointsOperator_,
         address erc6551Registry_
-    ) Blastable(blast_, governor_) ERC721("Agents", "AGENTS") {
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) ERC721("Agents", "AGENTS") {
         _transferOwnership(owner_);
         _erc6551Registry = erc6551Registry_;
     }

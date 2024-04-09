@@ -54,7 +54,7 @@ abstract contract Overridable {
 
     /**
      * @dev Calls into the implementation address using sandbox if override is set for the current
-     * function selector. If an implementation is defined, this funciton will either revert or
+     * function selector. If an implementation is defined, this function will either revert or
      * return with the return value of the implementation
      */
     function _handleOverride() internal virtual {
@@ -76,7 +76,7 @@ abstract contract Overridable {
 
     /**
      * @dev Static calls into the implementation addressif override is set for the current function
-     * selector. If an implementation is defined, this funciton will either revert or return with
+     * selector. If an implementation is defined, this function will either revert or return with
      * the return value of the implementation
      */
     function _handleOverrideStatic() internal view virtual {

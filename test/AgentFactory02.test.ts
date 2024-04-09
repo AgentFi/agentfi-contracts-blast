@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, Agents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastAgentAccount } from "./../typechain-types";
+import { IERC6551Registry, Agents, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -21,10 +21,12 @@ import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAb
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const WeiPerUsdc = BN.from(1_000_000); // 6 decimals
 
-const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
-const BLAST_ADDRESS            = "0x4300000000000000000000000000000000000002";
-const ENTRY_POINT_ADDRESS      = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const badcode = "0x000000000000000000000000000000000baDC0DE"
+const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
+const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
+const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+const MULTICALL_FORWARDER_ADDRESS     = ""; // v1.0.1
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
@@ -55,9 +57,14 @@ describe("AgentFactory02", function () {
 
   let gasCollector: GasCollector;
   let agentNft: Agents;
-  let blastAccountImplementation: BlastAgentAccount; // the base implementation for token bound accounts
-  let tbaccount1: BlastAgentAccount; // an account bound to a token
-  let tbaccount2: BlastAgentAccount; // an account bound to a token
+
+  let multicallForwarder: MulticallForwarder;
+  let agentRegistry: AgentRegistry;
+  let genesisAccountFactory: BlastooorAccountFactory;
+
+  let blastAccountImplementation: BlastooorGenesisAgentAccount; // the base implementation for token bound accounts
+  let tbaccount1: BlastooorGenesisAgentAccount; // an account bound to a token
+  let tbaccount2: BlastooorGenesisAgentAccount; // an account bound to a token
   let agentInitializationCode1: any;
   let agentInitializationCode2: any;
   // factory
@@ -97,42 +104,47 @@ describe("AgentFactory02", function () {
 
   describe("setup", function () {
     it("can deploy gas collector", async function () {
-      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS]);
+      gasCollector = await deployContract(deployer, "GasCollector", [owner.address, BLAST_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await expectDeployed(gasCollector.address);
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
     it("can deploy Agents ERC721", async function () {
       // to deployer
-      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(deployer.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
       // to owner
-      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, ERC6551_REGISTRY_ADDRESS]) as Agents;
+      agentNft = await deployContract(deployer, "Agents", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ERC6551_REGISTRY_ADDRESS]) as Agents;
       await expectDeployed(agentNft.address);
       expect(await agentNft.owner()).eq(owner.address);
-      l1DataFeeAnalyzer.register("deploy Boomagents", agentNft.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy Agents", agentNft.deployTransaction);
     });
     it("initializes properly", async function () {
       expect(await agentNft.totalSupply()).eq(0);
       expect(await agentNft.balanceOf(user1.address)).eq(0);
       expect(await agentNft.getERC6551Registry()).eq(ERC6551_REGISTRY_ADDRESS);
     });
+    it("can deploy MulticallForwarder", async function () {
+      multicallForwarder = await deployContract(deployer, "MulticallForwarder", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as MulticallForwarder;
+      await expectDeployed(multicallForwarder.address);
+      l1DataFeeAnalyzer.register("deploy MulticallForwarder", multicallForwarder.deployTransaction);
+    });
     it("can deploy account implementations", async function () {
-      // BlastAgentAccount
-      blastAccountImplementation = await deployContract(deployer, "BlastAgentAccount", [BLAST_ADDRESS, deployer.address,ENTRY_POINT_ADDRESS,badcode,ERC6551_REGISTRY_ADDRESS,AddressZero]) as BlastAgentAccount;
+      // BlastooorGenesisAgentAccount
+      blastAccountImplementation = await deployContract(deployer, "BlastooorGenesisAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
       await expectDeployed(blastAccountImplementation.address);
-      l1DataFeeAnalyzer.register("deploy BlastAgentAccount impl", blastAccountImplementation.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy BlastooorGenesisAgentAccount impl", blastAccountImplementation.deployTransaction);
     });
     it("can deploy AgentFactory02", async function () {
       // to deployer
-      factory = await deployContract(deployer, "AgentFactory02", [deployer.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory02;
+      factory = await deployContract(deployer, "AgentFactory02", [deployer.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory02;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(deployer.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory02", factory.deployTransaction);
       // to owner
-      factory = await deployContract(deployer, "AgentFactory02", [owner.address, BLAST_ADDRESS, gasCollector.address, agentNft.address]) as AgentFactory02;
+      factory = await deployContract(deployer, "AgentFactory02", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentNft.address]) as AgentFactory02;
       await expectDeployed(factory.address);
       expect(await factory.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy AgentFactory02", factory.deployTransaction);
@@ -197,7 +209,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount1 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
+      tbaccount1 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
   });
@@ -302,7 +314,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("can create agent pt 3", async function () {
@@ -331,7 +343,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("owner can whitelist pt 2", async function () {
@@ -436,7 +448,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
   });
@@ -467,7 +479,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount1 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
+      tbaccount1 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("can create agent pt 6", async function () {
@@ -496,8 +508,8 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount1 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount1 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
   });
@@ -536,7 +548,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("can create agent pt 8", async function () {
@@ -566,7 +578,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("create fails if extra data is bad", async function () {
@@ -628,7 +640,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("owner can postAgentCreationSettings pt 4", async function () {
@@ -677,7 +689,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("can create agent pt 11", async function () {
@@ -707,7 +719,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
     });
     it("can create agent pt 12", async function () {
@@ -736,7 +748,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
 
     });
@@ -771,7 +783,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(75)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(0)
@@ -803,76 +815,11 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(95)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(0)
     });
-    /*
-    it("cannot create agent with bad init code pt 1", async function () {
-      // revert with reason
-      let agentInitializationCode32 = revertModule.interface.encodeFunctionData("revertWithReason", [])
-      let agentInitializationCode31 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode32]
-      }], AddressZero, "0x"])
-      let txdatas3 = [agentInitializationCode31, agentInitializationCode32]
-      let agentInitializationCode33 = modulePack100.interface.encodeFunctionData("multicall", [txdatas3])
-      let params = {
-        agentImplementation: blastAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode33],
-        isPaused: false,
-        giveTokenList: [],
-        giveTokenAmounts: [],
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(5)
-      await expect(factory.connect(user1)['createAgent(uint256)'](5)).to.be.revertedWithCustomError;//(newAccount, "RevertWithReason")
-    })
-    it("cannot create agent with bad init code pt 2", async function () {
-      // revert without reason
-      let agentInitializationCode42 = revertModule.interface.encodeFunctionData("revertWithoutReason", [])
-      let agentInitializationCode41 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode42]
-      }], AddressZero, "0x"])
-      let txdatas4 = [agentInitializationCode41, agentInitializationCode42]
-      let agentInitializationCode43 = modulePack100.interface.encodeFunctionData("multicall", [txdatas4])
-      let params = {
-        agentImplementation: blastAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode43],
-        isPaused: false,
-        giveTokenList: [],
-        giveTokenAmounts: [],
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(6)
-      await expect(factory.connect(user1)['createAgent(uint256)'](6)).to.be.revertedWithCustomError;//(factory, "CallFailed");
-    })
-    it("cannot create agent with bad init code pt 3", async function () {
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0x"
-      })).to.be.reverted;
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0xabcd"
-      })).to.be.reverted;
-    })
-    it("cannot create agent with bad init code pt 4", async function () {
-      revertAccount = await deployContract(deployer, "RevertAccount", []) as RevertAccount;
-      await expect(user1.sendTransaction({
-        to: revertAccount.address,
-        data: "0x"
-      })).to.be.reverted;
-      await expect(user1.sendTransaction({
-        to: revertAccount.address,
-        data: "0xabcd"
-      })).to.be.reverted;
-    })
-    */
     it("post filler", async function () {
       let params = {
         agentImplementation: blastAccountImplementation.address,
@@ -941,7 +888,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(35)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(60)
@@ -975,7 +922,7 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(0)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(35)
@@ -1009,12 +956,67 @@ describe("AgentFactory02", function () {
       let isDeployed2 = await isDeployed(agentInfo.agentAddress)
       expect(isDeployed2).to.be.true;
       expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
-      tbaccount2 = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
       l1DataFeeAnalyzer.register("createAgent", tx);
       expect(await provider.getBalance(factory.address)).eq(0)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(0)
       expect(await erc20a.balanceOf(factory.address)).eq(0)
       expect(await erc20a.balanceOf(agentInfo.agentAddress)).eq(WeiPerEther.mul(0))
+    });
+
+
+    it("owner can postAgentCreationSettings pt 8", async function () {
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [
+          blastAccountImplementation.interface.encodeFunctionData("execute", [user1.address, 0, "0x", 0])
+        ],
+        isPaused: false,
+        giveTokenList: [],
+        giveTokenAmounts: [],
+      }
+      let tx = await factory.connect(owner).postAgentCreationSettings(params)
+      expect(await factory.getAgentCreationSettingsCount()).eq(8)
+      let res = await factory.getAgentCreationSettings(8)
+      expect(res.agentImplementation).eq(params.agentImplementation)
+      expect(res.initializationCalls.length).eq(params.initializationCalls.length)
+      expect(res.isPaused).eq(params.isPaused)
+      expect(res.giveTokenList).deep.eq(params.giveTokenList)
+      expect(res.giveTokenAmounts).deep.eq(params.giveTokenAmounts)
+      await expect(tx).to.emit(factory, "AgentCreationSettingsPosted").withArgs(8)
+      await expect(tx).to.emit(factory, "AgentCreationSettingsPaused").withArgs(8, params.isPaused)
+      await erc20a.mint(factory.address, WeiPerEther.mul(125));
+    })
+
+    it("can create agent pt 18", async function () {
+      let ts = await agentNft.totalSupply();
+      let bal = await agentNft.balanceOf(user1.address);
+      let agentID = ts.add(1);
+      let extraData = ["0x"] // single call to receive
+      let agentRes = await factory.connect(user1).callStatic['createAgent(uint256)'](7);
+      expect(agentRes.agentID).eq(agentID);
+      expect(await agentNft.exists(agentID)).eq(false);
+      //await expect(agentNft.getAgentID(agentRes.agentAddress)).to.be.revertedWithCustomError(agentNft, "AgentDoesNotExist");
+      expect(await agentNft.getAgentID(agentRes.agentAddress)).eq(0);
+      expect(await agentNft.isAddressAgent(agentRes.agentAddress)).eq(false);
+      let isDeployed1 = await isDeployed(agentRes.agentAddress)
+      expect(isDeployed1).to.be.false;
+      let tx = await factory.connect(user1)['createAgent(uint256)'](8);
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(AddressZero, factory.address, agentRes.agentID);
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(factory.address, user1.address, agentRes.agentID);
+      expect(await agentNft.totalSupply()).eq(ts.add(1));
+      expect(await agentNft.balanceOf(user1.address)).eq(bal.add(1));
+      expect(await agentNft.exists(agentID)).eq(true);
+      expect(await agentNft.ownerOf(agentRes.agentID)).eq(user1.address);
+      let agentInfo = await agentNft.getAgentInfo(agentID);
+      //expect(agentInfo.agentAddress).eq(agentRes.agentAddress); // may change
+      expect(await agentNft.getAgentID(agentInfo.agentAddress)).eq(agentID);
+      expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
+      let isDeployed2 = await isDeployed(agentInfo.agentAddress)
+      expect(isDeployed2).to.be.true;
+      expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
+      l1DataFeeAnalyzer.register("createAgent", tx);
     });
   })
 
@@ -1028,22 +1030,8 @@ describe("AgentFactory02", function () {
       let predictedAddress = await erc6551Registry.account(blastAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
       let tx = await erc6551Registry.createAccount(blastAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
       await expectDeployed(predictedAddress)
-      let bbaccount2 = await ethers.getContractAt("BlastAgentAccount", predictedAddress);
-      /*
-      // before init
-      await expect(bbaccount2.owner()).to.be.reverted;
-      await expect(bbaccount2.token()).to.be.reverted;
-      // init
-      let diamondCutInit = [
-        {
-          facetAddress: modulePack100.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(modulePack100, 'ModulePack100'),
-        },
-      ]
-      await bbaccount2.initialize(diamondCutInit, dataStore.address)
-      // after init
-      */
+      let bbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", predictedAddress);
+
       expect(await bbaccount2.owner()).eq(AddressZero);
       let tokenRes = await bbaccount2.token();
       expect(tokenRes.chainId).eq(chainId2);
@@ -1063,94 +1051,99 @@ describe("AgentFactory02", function () {
   const agentMetadatas = [
     { // created by eoa, improperly setup
       agentID: 1,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "EOA",
       createdState: "correct",
     },{ // created by factory, improperly setup
       agentID: 2,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 3,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 4,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by eoa, improperly setup
       agentID: 5,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "EOA",
       createdState: "correct",
     },{ // created by eoa, properly setup
       agentID: 6,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "EOA",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 7,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 8,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 9,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 10,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 11,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
       initialStateNum: 1
     },{ // created by factory, properly setup
       agentID: 12,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 13,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
       extraModules: "fallback",
     },{ // created by factory, properly setup
       agentID: 14,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 15,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 16,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 17,
-      accountType: "BlastAgentAccount",
+      accountType: "BlastooorGenesisAgentAccount",
+      createdBy: "contract",
+      createdState: "correct",
+    },{ // created by factory, properly setup
+      agentID: 18,
+      accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",
     }
@@ -1169,11 +1162,11 @@ describe("AgentFactory02", function () {
           // get info
           expect(await agentNft.exists(agentID)).eq(true);
           let agentInfo = await agentNft.getAgentInfo(agentID);
-          if(accountType == "BlastAgentAccount") agentAccount = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
-          //else if(accountType == "BlastAgentAccount") agentAccount = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress) as BlastAgentAccount;
-          //else if(accountType == "BlastAgentAccount") agentAccount = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
-          else if(accountType == "BlastAgentAccount" || accountType == "BlastAgentAccount") {
-            agentAccount = await ethers.getContractAt("BlastAgentAccount", agentInfo.agentAddress);
+          if(accountType == "BlastooorGenesisAgentAccount") agentAccount = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
+          //else if(accountType == "BlastooorGenesisAgentAccount") agentAccount = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
+          //else if(accountType == "BlastooorGenesisAgentAccount") agentAccount = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
+          else if(accountType == "BlastooorGenesisAgentAccount" || accountType == "BlastooorGenesisAgentAccount") {
+            agentAccount = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress);
           }
           else throw new Error("unknown agent type");
 
