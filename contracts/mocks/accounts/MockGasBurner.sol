@@ -92,4 +92,34 @@ contract MockGasBurner is Multicall, Blastable, Ownable2Step {
     function x4WithRevert() external pure {
         revert Errors.RevertForAmount(5);
     }
+
+    /***************************************
+    GAS REWARD QUOTE CLAIM FUNCTIONS
+    ***************************************/
+
+    // does not try to claim, just return a value
+
+    /**
+     * @notice Quotes the amount of gas expected when claiming all gas.
+     * This _should_ be a view function, except that it relies on the state change then reverting it.
+     * This _should_ be called with an offchain staticcall.
+     * This _should not_ be called onchain.
+     * Can be called by anyone.
+     * @return quoteAmount The amount of gas that can be claimed.
+     */
+    function quoteClaimAllGas() external payable returns (uint256 quoteAmount) {
+        quoteAmount = 5;
+    }
+
+    /**
+     * @notice Quotes the amount of gas expected when claiming max gas.
+     * This _should_ be a view function, except that it relies on the state change then reverting it.
+     * This _should_ be called with an offchain staticcall.
+     * This _should not_ be called onchain.
+     * Can be called by anyone.
+     * @return quoteAmount The amount of gas that can be claimed.
+     */
+    function quoteClaimMaxGas() external payable returns (uint256 quoteAmount) {
+        quoteAmount = 7;
+    }
 }

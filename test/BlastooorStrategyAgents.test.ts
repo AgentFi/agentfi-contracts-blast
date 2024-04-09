@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, BlastooorGenesisAgents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount, AgentRegistry, BlastooorAccountFactory, BalanceFetcher } from "./../typechain-types";
+import { IERC6551Registry, BlastooorGenesisAgents, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount, AgentRegistry, BlastooorAccountFactory, BalanceFetcher } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -234,7 +234,7 @@ describe("BlastooorStrategyAgents", function () {
     it("can deploy BlastooorStrategyAgentAccount implementation", async function () {
       strategyAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
       await expectDeployed(strategyAccountImplementation.address);
-      l1DataFeeAnalyzer.register("deploy BlastooorGenesisAgentAccount impl", strategyAccountImplementation.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgentAccount impl", strategyAccountImplementation.deployTransaction);
     });
     it("can deploy BlastooorStrategyFactory", async function () {
       strategyFactory = await deployContract(deployer, "BlastooorStrategyFactory", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, genesisAgentNft.address, strategyAgentNft.address, ERC6551_REGISTRY_ADDRESS, agentRegistry.address]) as BlastooorStrategyFactory;
@@ -380,51 +380,6 @@ describe("BlastooorStrategyAgents", function () {
     })
   });
 
-  describe("AgentRegistry setup", function () {
-    it("begins with no agents", async function () {
-      let agentID = 1
-      let agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
-      expect(agentInfo.length).eq(0)
-      let nftInfo = await agentRegistry.getNftOfTba(tbaccountG1A.address)
-      expect(nftInfo.collection).eq(AddressZero)
-      expect(nftInfo.agentID).eq(0)
-      expect(await agentRegistry.isTbaRegisteredAgent(tbaccountG1A.address)).eq(false)
-    });
-    it("begins with no operators", async function () {});
-    it("non owner cannot add operators", async function () {
-      await expect(agentRegistry.connect(user1).setOperators([])).to.be.revertedWithCustomError(agentRegistry, "NotContractOwner")
-    });
-    it("owner can add operators", async function () {
-      let params1 = [
-        {
-          account: user3.address,
-          isAuthorized: true,
-        },
-        {
-          account: user4.address,
-          isAuthorized: false,
-        },
-      ]
-      let tx = await agentRegistry.connect(owner).setOperators(params1)
-      for(let i = 0; i < params1.length; i++) {
-        let { account, isAuthorized } = params1[i]
-        await expect(tx).to.emit(agentRegistry, "OperatorSet").withArgs(account, isAuthorized);
-        expect(await agentRegistry.isOperator(account)).eq(isAuthorized);
-      }
-    });
-    it("non operator cannot register agents", async function () {});
-    it("operator can register agents", async function () {});
-    it("double register hard fails", async function () {});
-    it("double try register fails gracefully", async function () {});
-    it("", async function () {});
-    it("", async function () {});
-  });
-
-  describe("Dispatcher setup", function () {
-    it("", async function () {});
-
-  });
-
   describe("new genesis accounts", function () {
     it("registry setup", async function () {
       let params1 = [
@@ -539,7 +494,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[1]", tx);
     });
     it("genesis nft owner can create account pt 2", async function () {
@@ -575,7 +530,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[2]", tx);
     });
     it("owner can postAgentCreationSettings pt 2", async function () {
@@ -662,7 +617,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[3]", tx);
     });
     it("reverts if including call to protected function via factory", async function () {
@@ -719,7 +674,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[4]", tx);
     });
     it("can call to protected function via MulticallForwarder and transfer in gas", async function () {
@@ -775,7 +730,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[5]", tx);
     });
     it("non owner cannot setActiveStatus", async function () {
@@ -808,8 +763,6 @@ describe("BlastooorStrategyAgents", function () {
       //console.log(`Balances 2: (${res.length})`)
       //console.log(res)
     })
-    it("", async function () {});
-    it("", async function () {});
   });
 
   describe("strategy agent creation basic", function () {
@@ -964,7 +917,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(1)
       tbaccountS1 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[1]", tx);
     });
     it("cannot create with paused settingsID pt 1", async function () {
@@ -1067,7 +1020,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[2]", tx);
     });
     it("cannot deposit erc20 with insufficient balance", async function () {
@@ -1185,7 +1138,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS3 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[3]", tx);
     });
     it("can create strategy agent pt 4", async function () {
@@ -1263,7 +1216,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS4 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[4]", tx);
     });
     it("can create strategy agent pt 5", async function () {
@@ -1322,7 +1275,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS5 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[5]", tx);
     });
     it("owner can postAgentCreationSettings pt 2", async function () {
@@ -1435,7 +1388,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS6 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[6]", tx);
     });
     it("can swap eth for usdb in thruster", async function () {
@@ -1523,7 +1476,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS7 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toString()}`)
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[7]", tx);
     });
     it("can fetch balances 3", async function () {
@@ -1531,7 +1484,6 @@ describe("BlastooorStrategyAgents", function () {
       //console.log(`Balances 3: (${res.length})`)
       //console.log(res)
     })
-    it("", async function () {});
   })
 
   describe("strategy agent roles", function () {
@@ -1600,7 +1552,6 @@ describe("BlastooorStrategyAgents", function () {
       //console.log(`Balances 4: (${res.length})`)
       //console.log(res)
     })
-    it("", async function () {})
   })
 
   describe("strategy agent usage pt 1", function () {
@@ -1663,10 +1614,10 @@ describe("BlastooorStrategyAgents", function () {
       ]
 
       accountProxy = await ethers.getContractAt("DexBalancerModuleA", tbaccountS1.address)
-      let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', true)
-      let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', true)
-      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', true)
-      let sighashes4 = calcSighashes(strategyModuleA, 'DexBalancerModuleA', true)
+      let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', false)
+      let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', false)
+      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', false)
+      let sighashes4 = calcSighashes(strategyModuleA, 'DexBalancerModuleA', false)
     });
     it("non owner cannot set overrides", async function () {
       await expect(tbaccountS1.connect(user1).setOverrides([])).to.be.revertedWithCustomError(strategyFactory, "NotAuthorized")
@@ -1815,20 +1766,7 @@ describe("BlastooorStrategyAgents", function () {
     })
   })
 
-  describe("strategy agent creation advanced", function () {
-    it("calcSighashes", async function () {
-      let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', true)
-      let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', true)
-      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', true)
-      let sighashes4 = calcSighashes(strategyModuleA, 'DexBalancerModuleA', true)
-      //let sighashes = calcSighashes(, '')
-    });
-    it("", async function () {});
-    it("", async function () {});
-
-  })
-
-  async function getBalances(account:string) {
+  async function getBalances(account:string, log=false) {
     let res = {
       eth: await provider.getBalance(account),
       weth: await weth.balanceOf(account),
@@ -1841,18 +1779,20 @@ describe("BlastooorStrategyAgents", function () {
       ringStakingEarned: await ringStakingRewards.earned(RING_STAKING_REWARDS_INDEX, account),
       blasterLpToken: await blasterLpToken.balanceOf(account),
     }
-    console.log({
-      eth: formatUnits(res.eth),
-      weth: formatUnits(res.weth),
-      usdb: formatUnits(res.usdb),
-      //ring: formatUnits(res.ring),
-      thrusterLpToken: formatUnits(res.thrusterLpToken),
-      hyperlockStaking: formatUnits(res.hyperlockStaking),
-      ringLpToken: formatUnits(res.ringLpToken),
-      ringStakingBalance: formatUnits(res.ringStakingBalance),
-      ringStakingEarned: formatUnits(res.ringStakingEarned),
-      blasterLpToken: formatUnits(res.blasterLpToken),
-    })
+    if(log) {
+      console.log({
+        eth: formatUnits(res.eth),
+        weth: formatUnits(res.weth),
+        usdb: formatUnits(res.usdb),
+        //ring: formatUnits(res.ring),
+        thrusterLpToken: formatUnits(res.thrusterLpToken),
+        hyperlockStaking: formatUnits(res.hyperlockStaking),
+        ringLpToken: formatUnits(res.ringLpToken),
+        ringStakingBalance: formatUnits(res.ringStakingBalance),
+        ringStakingEarned: formatUnits(res.ringStakingEarned),
+        blasterLpToken: formatUnits(res.blasterLpToken),
+      })
+    }
     return res
   }
 

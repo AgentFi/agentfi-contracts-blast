@@ -135,9 +135,6 @@ describe("BlastooorGenesisAgentAccount", function () {
       //expect(await erc6551AccountImplementation.supportsInterface("0xffffffff")).eq(false);
       //expect(await erc6551AccountImplementation.supportsInterface("0x00000000")).eq(false);
     });
-    //it("deployed ")
-    //it("deployed correctly", async function () {});
-    //it("", async function () {});
   });
 
   describe("account creation and registration", function () {

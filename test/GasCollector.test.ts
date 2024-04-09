@@ -9,7 +9,7 @@ import chai from "chai";
 const { expect, assert } = chai;
 import fs from "fs";
 
-import { Agents, FallbackModule, RevertModule, Test1Module, Test2Module, Test3Module, ModulePack100, AgentFactory01, MockERC20, MockERC721, MockERC1155, MockGasBurner, IBlast, MockBlast, SometimesRevertAccount, GasCollector } from "./../typechain-types";
+import { Agents, AgentFactory01, MockERC20, MockERC721, MockERC1155, MockGasBurner, IBlast, MockBlast, SometimesRevertAccount, GasCollector } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";

@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, Agents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount } from "./../typechain-types";
+import { IERC6551Registry, Agents, AgentFactory01, AgentFactory02, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -820,71 +820,6 @@ describe("AgentFactory02", function () {
       expect(await provider.getBalance(factory.address)).eq(95)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(0)
     });
-    /*
-    it("cannot create agent with bad init code pt 1", async function () {
-      // revert with reason
-      let agentInitializationCode32 = revertModule.interface.encodeFunctionData("revertWithReason", [])
-      let agentInitializationCode31 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode32]
-      }], AddressZero, "0x"])
-      let txdatas3 = [agentInitializationCode31, agentInitializationCode32]
-      let agentInitializationCode33 = modulePack100.interface.encodeFunctionData("multicall", [txdatas3])
-      let params = {
-        agentImplementation: blastAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode33],
-        isPaused: false,
-        giveTokenList: [],
-        giveTokenAmounts: [],
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(5)
-      await expect(factory.connect(user1)['createAgent(uint256)'](5)).to.be.revertedWithCustomError;//(newAccount, "RevertWithReason")
-    })
-    it("cannot create agent with bad init code pt 2", async function () {
-      // revert without reason
-      let agentInitializationCode42 = revertModule.interface.encodeFunctionData("revertWithoutReason", [])
-      let agentInitializationCode41 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode42]
-      }], AddressZero, "0x"])
-      let txdatas4 = [agentInitializationCode41, agentInitializationCode42]
-      let agentInitializationCode43 = modulePack100.interface.encodeFunctionData("multicall", [txdatas4])
-      let params = {
-        agentImplementation: blastAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode43],
-        isPaused: false,
-        giveTokenList: [],
-        giveTokenAmounts: [],
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(6)
-      await expect(factory.connect(user1)['createAgent(uint256)'](6)).to.be.revertedWithCustomError;//(factory, "CallFailed");
-    })
-    it("cannot create agent with bad init code pt 3", async function () {
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0x"
-      })).to.be.reverted;
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0xabcd"
-      })).to.be.reverted;
-    })
-    it("cannot create agent with bad init code pt 4", async function () {
-      revertAccount = await deployContract(deployer, "RevertAccount", []) as RevertAccount;
-      await expect(user1.sendTransaction({
-        to: revertAccount.address,
-        data: "0x"
-      })).to.be.reverted;
-      await expect(user1.sendTransaction({
-        to: revertAccount.address,
-        data: "0xabcd"
-      })).to.be.reverted;
-    })
-    */
     it("post filler", async function () {
       let params = {
         agentImplementation: blastAccountImplementation.address,
@@ -1028,6 +963,61 @@ describe("AgentFactory02", function () {
       expect(await erc20a.balanceOf(factory.address)).eq(0)
       expect(await erc20a.balanceOf(agentInfo.agentAddress)).eq(WeiPerEther.mul(0))
     });
+
+
+    it("owner can postAgentCreationSettings pt 8", async function () {
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [
+          blastAccountImplementation.interface.encodeFunctionData("execute", [user1.address, 0, "0x", 0])
+        ],
+        isPaused: false,
+        giveTokenList: [],
+        giveTokenAmounts: [],
+      }
+      let tx = await factory.connect(owner).postAgentCreationSettings(params)
+      expect(await factory.getAgentCreationSettingsCount()).eq(8)
+      let res = await factory.getAgentCreationSettings(8)
+      expect(res.agentImplementation).eq(params.agentImplementation)
+      expect(res.initializationCalls.length).eq(params.initializationCalls.length)
+      expect(res.isPaused).eq(params.isPaused)
+      expect(res.giveTokenList).deep.eq(params.giveTokenList)
+      expect(res.giveTokenAmounts).deep.eq(params.giveTokenAmounts)
+      await expect(tx).to.emit(factory, "AgentCreationSettingsPosted").withArgs(8)
+      await expect(tx).to.emit(factory, "AgentCreationSettingsPaused").withArgs(8, params.isPaused)
+      await erc20a.mint(factory.address, WeiPerEther.mul(125));
+    })
+
+    it("can create agent pt 18", async function () {
+      let ts = await agentNft.totalSupply();
+      let bal = await agentNft.balanceOf(user1.address);
+      let agentID = ts.add(1);
+      let extraData = ["0x"] // single call to receive
+      let agentRes = await factory.connect(user1).callStatic['createAgent(uint256)'](7);
+      expect(agentRes.agentID).eq(agentID);
+      expect(await agentNft.exists(agentID)).eq(false);
+      //await expect(agentNft.getAgentID(agentRes.agentAddress)).to.be.revertedWithCustomError(agentNft, "AgentDoesNotExist");
+      expect(await agentNft.getAgentID(agentRes.agentAddress)).eq(0);
+      expect(await agentNft.isAddressAgent(agentRes.agentAddress)).eq(false);
+      let isDeployed1 = await isDeployed(agentRes.agentAddress)
+      expect(isDeployed1).to.be.false;
+      let tx = await factory.connect(user1)['createAgent(uint256)'](8);
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(AddressZero, factory.address, agentRes.agentID);
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(factory.address, user1.address, agentRes.agentID);
+      expect(await agentNft.totalSupply()).eq(ts.add(1));
+      expect(await agentNft.balanceOf(user1.address)).eq(bal.add(1));
+      expect(await agentNft.exists(agentID)).eq(true);
+      expect(await agentNft.ownerOf(agentRes.agentID)).eq(user1.address);
+      let agentInfo = await agentNft.getAgentInfo(agentID);
+      //expect(agentInfo.agentAddress).eq(agentRes.agentAddress); // may change
+      expect(await agentNft.getAgentID(agentInfo.agentAddress)).eq(agentID);
+      expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
+      let isDeployed2 = await isDeployed(agentInfo.agentAddress)
+      expect(isDeployed2).to.be.true;
+      expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
+      tbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", agentInfo.agentAddress) as BlastooorGenesisAgentAccount;
+      l1DataFeeAnalyzer.register("createAgent", tx);
+    });
   })
 
   // bypasses the nft
@@ -1041,21 +1031,7 @@ describe("AgentFactory02", function () {
       let tx = await erc6551Registry.createAccount(blastAccountImplementation.address, salt, chainId2, agentNft.address, tokenId2);
       await expectDeployed(predictedAddress)
       let bbaccount2 = await ethers.getContractAt("BlastooorGenesisAgentAccount", predictedAddress);
-      /*
-      // before init
-      await expect(bbaccount2.owner()).to.be.reverted;
-      await expect(bbaccount2.token()).to.be.reverted;
-      // init
-      let diamondCutInit = [
-        {
-          facetAddress: modulePack100.address,
-          action: FacetCutAction.Add,
-          functionSelectors: calcSighashes(modulePack100, 'ModulePack100'),
-        },
-      ]
-      await bbaccount2.initialize(diamondCutInit, dataStore.address)
-      // after init
-      */
+
       expect(await bbaccount2.owner()).eq(AddressZero);
       let tokenRes = await bbaccount2.token();
       expect(tokenRes.chainId).eq(chainId2);
@@ -1162,6 +1138,11 @@ describe("AgentFactory02", function () {
       createdState: "correct",
     },{ // created by factory, properly setup
       agentID: 17,
+      accountType: "BlastooorGenesisAgentAccount",
+      createdBy: "contract",
+      createdState: "correct",
+    },{ // created by factory, properly setup
+      agentID: 18,
       accountType: "BlastooorGenesisAgentAccount",
       createdBy: "contract",
       createdState: "correct",

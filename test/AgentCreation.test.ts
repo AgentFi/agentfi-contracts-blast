@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect, assert } = chai;
 
-import { IERC6551Registry, ERC6551Account, Agents, ERC165Module, FallbackModule, RevertModule, AgentFactory01, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector } from "./../typechain-types";
+import { IERC6551Registry, ERC6551Account, Agents, AgentFactory01, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -65,14 +65,6 @@ describe("AgentCreation", function () {
   let accountV3Implementation: AccountV3; // the base implementation for token bound accounts
   let tbaccount1: ERC6551; // an account bound to a token
   let tbaccount2: BlastooorStrategyAgentAccount; // an account bound to a token
-  // modules
-  let modulePack100: ModulePack100;
-  let erc2535Module: ERC2535Module;
-  let erc6551AccountModule: ERC6551AccountModule;
-  let multicallModule: MulticallModule;
-  let erc165Module: ERC165Module;
-  let fallbackModule: FallbackModule;
-  let revertModule: RevertModule;
   let revertAccount: RevertAccount;
 
   let agentInitializationCode0: any;
@@ -107,11 +99,6 @@ describe("AgentCreation", function () {
 
   let abi = getCombinedAbi([
     "artifacts/contracts/accounts/BlastooorGenesisAgentAccount.sol/BlastooorGenesisAgentAccount.json",
-    "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
-    "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
-    "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
-    "artifacts/contracts/mocks/modules/Test2Module.sol/Test2Module.json",
-    "artifacts/contracts/mocks/modules/Test3Module.sol/Test3Module.json",
     "artifacts/contracts/libraries/Calls.sol/Calls.json",
     "artifacts/contracts/libraries/Errors.sol/Errors.json",
   ])
@@ -143,11 +130,6 @@ describe("AgentCreation", function () {
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
     combinedAbi = getCombinedAbi([
       "artifacts/contracts/accounts/BlastooorGenesisAgentAccount.sol/BlastooorGenesisAgentAccount.json",
-      "artifacts/contracts/mocks/modules/FallbackModule.sol/FallbackModule.json",
-      "artifacts/contracts/mocks/modules/RevertModule.sol/RevertModule.json",
-      "artifacts/contracts/mocks/modules/Test1Module.sol/Test1Module.json",
-      "artifacts/contracts/mocks/modules/Test2Module.sol/Test2Module.json",
-      "artifacts/contracts/mocks/modules/Test3Module.sol/Test3Module.json",
       "artifacts/contracts/libraries/Errors.sol/Errors.json",
     ])
 
@@ -188,25 +170,17 @@ describe("AgentCreation", function () {
       await expectDeployed(multicallForwarder.address);
       l1DataFeeAnalyzer.register("deploy MulticallForwarder", multicallForwarder.deployTransaction);
     });
-    it("can deploy account implementations", async function () {
+    it("can deploy AccountV3 implementation", async function () {
       // AccountV3
       accountV3Implementation = await deployContract(deployer, "AccountV3", [ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as AccountV3;
       await expectDeployed(accountV3Implementation.address);
       l1DataFeeAnalyzer.register("deploy AccountV3 impl", accountV3Implementation.deployTransaction);
+    });
+    it("can deploy BlastooorStrategyAgentAccount implementation", async function () {
       // BlastooorStrategyAgentAccount
       strategyAgentAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorStrategyAgentAccount;
       await expectDeployed(strategyAgentAccountImplementation.address);
       l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgentAccount impl", strategyAgentAccountImplementation.deployTransaction);
-    });
-    it("can deploy modules", async function () {
-      // FallbackModule
-      fallbackModule = await deployContract(deployer, "FallbackModule", []) as FallbackModule;
-      await expectDeployed(fallbackModule.address);
-      l1DataFeeAnalyzer.register("deploy FallbackModule impl", fallbackModule.deployTransaction);
-      // RevertModule
-      revertModule = await deployContract(deployer, "RevertModule", []) as RevertModule;
-      await expectDeployed(revertModule.address);
-      l1DataFeeAnalyzer.register("deploy RevertModule impl", revertModule.deployTransaction);
     });
     it("can deploy AgentFactory01", async function () {
       // to deployer
@@ -889,57 +863,7 @@ describe("AgentCreation", function () {
       expect(await provider.getBalance(factory.address)).eq(0)
       expect(await provider.getBalance(agentInfo.agentAddress)).eq(75)
     });
-    /*
-    it("cannot create agent with bad init code pt 1", async function () {
-      // revert with reason
-      let agentInitializationCode32 = revertModule.interface.encodeFunctionData("revertWithReason", [])
-      let agentInitializationCode31 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode32]
-      }], AddressZero, "0x"])
-      let txdatas3 = [agentInitializationCode31, agentInitializationCode32]
-      let agentInitializationCode33 = modulePack100.interface.encodeFunctionData("multicall", [txdatas3])
-      let params = {
-        agentImplementation: strategyAgentAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode33],
-        isPaused: false
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(5)
-      await expect(factory.connect(user1)['createAgent(uint256)'](5)).to.be.revertedWithCustomError;//(newAccount, "RevertWithReason")
-    })
-    it("cannot create agent with bad init code pt 2", async function () {
-      // revert without reason
-      let agentInitializationCode42 = revertModule.interface.encodeFunctionData("revertWithoutReason", [])
-      let agentInitializationCode41 = modulePack100.interface.encodeFunctionData("diamondCut", [[{
-        facetAddress: revertModule.address,
-        action: FacetCutAction.Add,
-        functionSelectors: [agentInitializationCode42]
-      }], AddressZero, "0x"])
-      let txdatas4 = [agentInitializationCode41, agentInitializationCode42]
-      let agentInitializationCode43 = modulePack100.interface.encodeFunctionData("multicall", [txdatas4])
-      let params = {
-        agentImplementation: strategyAgentAccountImplementation.address,
-        initializationCalls: [agentInitializationCode1, agentInitializationCode43],
-        isPaused: false
-      }
-      let tx = await factory.connect(owner).postAgentCreationSettings(params)
-      expect(await factory.getAgentCreationSettingsCount()).eq(6)
-      await expect(factory.connect(user1)['createAgent(uint256)'](6)).to.be.revertedWithCustomError;//(factory, "CallFailed");
-    })
-    */
     it("cannot create agent with bad init code pt 3", async function () {
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0x"
-      })).to.be.reverted;
-      await expect(user1.sendTransaction({
-        to: revertModule.address,
-        data: "0xabcd"
-      })).to.be.reverted;
-    })
-    it("cannot create agent with bad init code pt 4", async function () {
       revertAccount = await deployContract(deployer, "RevertAccount", []) as RevertAccount;
       await expect(user1.sendTransaction({
         to: revertAccount.address,
@@ -981,7 +905,7 @@ describe("AgentCreation", function () {
   })
 
   const agentMetadatas = [
-    { // created by eoa, improperly setup
+    { // created by eoa, properly setup
       agentID: 1,
       accountType: "AccountV3",
       createdBy: "EOA",
@@ -1071,7 +995,6 @@ describe("AgentCreation", function () {
       const extraModules = agentMetadata.extraModules || ""
       let agentAccount:any;
       let agentOwner: any;
-      let accountIsModular: any;
 
       describe(`agentID ${agentID} created by ${createdBy} type ${accountType}`, function () {
 
@@ -1081,13 +1004,11 @@ describe("AgentCreation", function () {
           let agentInfo = await agentNft.getAgentInfo(agentID);
           if(accountType == "AccountV3") {
             agentAccount = await ethers.getContractAt(abi, agentInfo.agentAddress);
-            accountIsModular = true;
           }
           //else if(accountType == "BlastooorStrategyAgentAccount") agentAccount = await ethers.getContractAt("BlastooorStrategyAgentAccount", agentInfo.agentAddress) as BlastooorStrategyAgentAccount;
           //else if(accountType == "BlastooorStrategyAgentAccount") agentAccount = await ethers.getContractAt(abi, agentInfo.agentAddress);
           else if(accountType == "BlastooorStrategyAgentAccount") {
             agentAccount = await ethers.getContractAt(combinedAbi, agentInfo.agentAddress);
-            accountIsModular = false;
           }
           else throw new Error("unknown agent type");
 

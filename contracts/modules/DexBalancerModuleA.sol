@@ -79,24 +79,32 @@ contract DexBalancerModuleA is Blastable {
     VIEW FUNCTIONS
     ***************************************/
 
-    function weth() external view returns (address weth_) { weth_ = _weth; }
-    function usdb() external view returns (address usdb_) { usdb_ = _usdb; }
+    function moduleName() external pure returns (string memory name_) {
+        name_ = "DexBalancerModuleA";
+    }
 
-    function thrusterRouter100() external view returns (address thrusterRouter100_) { thrusterRouter100_ = _thrusterRouter100; }
-    function thrusterRouter030() external view returns (address thrusterRouter030_) { thrusterRouter030_ = _thrusterRouter030; }
-    function thrusterLpToken() external view returns (address thrusterLpToken_) { thrusterLpToken_ = _thrusterLpToken; }
-    function hyperlockStaking() external view returns (address hyperlockStaking_) { hyperlockStaking_ = _hyperlockStaking; }
+    function strategyType() external pure returns (string memory type_) {
+        type_ = "Dex Balancer";
+    }
 
-    function ringSwapV2Router() external view returns (address ringSwapV2Router_) { ringSwapV2Router_ = _ringSwapV2Router; }
-    function ringFwWeth() external view returns (address ringFwWeth_) { ringFwWeth_ = _ringFwWeth; }
-    function ringFwUsdb() external view returns (address ringFwUsdb_) { ringFwUsdb_ = _ringFwUsdb; }
-    function ringLpToken() external view returns (address ringLpToken_) { ringLpToken_ = _ringLpToken; }
-    function ringFwLpToken() external view returns (address ringFwLpToken_) { ringFwLpToken_ = _ringFwLpToken; }
-    function ringStakingRewards() external view returns (address ringStakingRewards_) { ringStakingRewards_ = _ringStakingRewards; }
-    function ringStakingIndex() external view returns (uint256 ringStakingIndex_) { ringStakingIndex_ = _ringStakingIndex; }
+    function weth() external pure returns (address weth_) { weth_ = _weth; }
+    function usdb() external pure returns (address usdb_) { usdb_ = _usdb; }
 
-    function blasterswapRouter() external view returns (address blasterswapRouter_) { blasterswapRouter_ = _blasterswapRouter; }
-    function blasterswapLpToken() external view returns (address blasterswapLpToken_) { blasterswapLpToken_ = _blasterswapLpToken; }
+    function thrusterRouter100() external pure returns (address thrusterRouter100_) { thrusterRouter100_ = _thrusterRouter100; }
+    function thrusterRouter030() external pure returns (address thrusterRouter030_) { thrusterRouter030_ = _thrusterRouter030; }
+    function thrusterLpToken() external pure returns (address thrusterLpToken_) { thrusterLpToken_ = _thrusterLpToken; }
+    function hyperlockStaking() external pure returns (address hyperlockStaking_) { hyperlockStaking_ = _hyperlockStaking; }
+
+    function ringSwapV2Router() external pure returns (address ringSwapV2Router_) { ringSwapV2Router_ = _ringSwapV2Router; }
+    function ringFwWeth() external pure returns (address ringFwWeth_) { ringFwWeth_ = _ringFwWeth; }
+    function ringFwUsdb() external pure returns (address ringFwUsdb_) { ringFwUsdb_ = _ringFwUsdb; }
+    function ringLpToken() external pure returns (address ringLpToken_) { ringLpToken_ = _ringLpToken; }
+    function ringFwLpToken() external pure returns (address ringFwLpToken_) { ringFwLpToken_ = _ringFwLpToken; }
+    function ringStakingRewards() external pure returns (address ringStakingRewards_) { ringStakingRewards_ = _ringStakingRewards; }
+    function ringStakingIndex() external pure returns (uint256 ringStakingIndex_) { ringStakingIndex_ = _ringStakingIndex; }
+
+    function blasterswapRouter() external pure returns (address blasterswapRouter_) { blasterswapRouter_ = _blasterswapRouter; }
+    function blasterswapLpToken() external pure returns (address blasterswapLpToken_) { blasterswapLpToken_ = _blasterswapLpToken; }
 
     /***************************************
     MUTATOR FUNCTIONS
