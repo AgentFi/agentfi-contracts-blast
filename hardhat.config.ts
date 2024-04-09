@@ -134,7 +134,8 @@ const config: HardhatUserConfig = {
       polygonMumbai: process.env.POLYGONSCAN_API_KEY || "",
       base: process.env.BASESCAN_API_KEY || "",
       "base-goerli": "PLACEHOLDER_STRING",
-      blast: "blast", // apiKey is not required, just set a placeholder
+      //blast: "blast", // apiKey is not required, just set a placeholder
+      blast: process.env.BLASTSCAN_API_KEY || "",
       blast_sepolia: "blast_sepolia", // apiKey is not required, just set a placeholder
     },
     customChains: [
@@ -157,9 +158,15 @@ const config: HardhatUserConfig = {
       {
         network: "blast",
         chainId: 81457,
+        /*
         urls: {
           apiURL: "https://api.routescan.io/v2/network/mainnet/evm/81457/etherscan",
           browserURL: "https://blastexplorer.io"
+        }
+        */
+        urls: {
+          apiURL: "https://api.blastscan.io/api",
+          browserURL: "https://blastscan.io"
         }
       },
       {
