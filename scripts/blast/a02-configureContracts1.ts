@@ -162,7 +162,9 @@ async function main() {
   //await postStrategyAgentCreationSettings_2();
   //await postStrategyAgentCreationSettings_3();
   //await postStrategyAgentCreationSettings_4();
-  await postStrategyAgentCreationSettings_5();
+  //await postStrategyAgentCreationSettings_5();
+  //await postStrategyAgentCreationSettings_6();
+
   //await addOperatorsToDispatcher();
 }
 
@@ -695,6 +697,58 @@ async function postStrategyAgentCreationSettings_5() {
       implementation: MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS,
       functionParams: functionParams
     }
+  ]
+  let params = {
+    agentImplementation: strategyAccountImpl.address,
+    initializationCalls: [
+      strategyAccountImpl.interface.encodeFunctionData("blastConfigure"),
+      strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles]),
+      strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides]),
+    ],
+    isActive: true,
+  }
+  let tx = await strategyFactory.connect(agentfideployer).postAgentCreationSettings(params, networkSettings.overrides)
+  let receipt = await tx.wait(networkSettings.confirmations)
+  let postEvent = receipt.events.filter(event=>event.event=="AgentCreationSettingsPosted")[0]
+  let settingsID = postEvent.args[0]
+  if(settingsID != expectedSettingsID) throw new Error(`Unexpected settingsID returned. Expected ${expectedSettingsID} got ${settingsID}`)
+
+  console.log(`Called postStrategyAgentCreationSettings_${expectedSettingsID}`)
+}
+
+// 6: create new strategy agent
+// turns into multiplier maxxooor strategy
+// also has some basic withdraw functions
+async function postStrategyAgentCreationSettings_6() {
+  let expectedSettingsID = 6
+  let count = (await strategyFactory.getAgentCreationSettingsCount()).toNumber()
+  if(count >= expectedSettingsID) return // already created
+  if(count != expectedSettingsID - 1) throw new Error("postAgentCreationSettings out of order")
+  console.log(`Calling postStrategyAgentCreationSettings_${expectedSettingsID}`)
+
+  let roles = [
+    {
+      role: STRATEGY_MANAGER_ROLE,
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    }
+  ]
+  let functionParamsB = [
+    { selector: "0x82ccd330", isProtected: false }, // strategyType()
+  ]
+  let functionParamsA = [
+    { selector: "0xd36bfc2e", isProtected: true }, // moduleA_withdrawBalance()
+    { selector: "0xc4fb5289", isProtected: true }, // moduleA_withdrawBalanceTo(address)
+  ]
+  let overrides = [
+    {
+      implementation: MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS,
+      functionParams: functionParamsB
+    },
+    {
+      implementation: dexBalancerModuleA.address,
+      functionParams: functionParamsA
+    },
   ]
   let params = {
     agentImplementation: strategyAccountImpl.address,
