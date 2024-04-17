@@ -1,0 +1,16 @@
+# We want to ignore everything but specific files. A bit hacky to get a specific file deeply nexted
+/*
+
+
+# ====
+!/contracts/
+/contracts/*
+!/contracts/modules/
+/contracts/modules/**
+!/contracts/modules/ConcentratedLiquidityModuleC.sol
+
+
+# ====
+!/test/
+/test/*
+!/test/ConcentratedLiquidityModuleC.test.ts

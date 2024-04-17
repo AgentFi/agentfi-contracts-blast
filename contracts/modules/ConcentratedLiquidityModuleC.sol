@@ -7,7 +7,6 @@ import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
 
-
 /**
  * @title ConcentratedLiquidityModuleC
  * @author AgentFi
@@ -16,18 +15,17 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
  * Designed for use on Blast Mainnet only.
  */
 contract ConcentratedLiquidityModuleC is Blastable {
-
     /***************************************
     CONSTANTS
     ***************************************/
 
     // tokens
 
-    address internal constant _weth                = 0x4300000000000000000000000000000000000004;
-    address internal constant _usdb                = 0x4300000000000000000000000000000000000003;
+    address internal constant _weth = 0x4300000000000000000000000000000000000004;
+    address internal constant _usdb = 0x4300000000000000000000000000000000000003;
 
     // thruster
-    address internal constant _thrusterManager     = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
+    address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
 
     // Config
     uint256 _tokenId = 0;
@@ -63,12 +61,20 @@ contract ConcentratedLiquidityModuleC is Blastable {
         type_ = "Concentrated Liquidity";
     }
 
-    function weth() external pure returns (address weth_) { weth_ = _weth; }
-    function usdb() external pure returns (address usdb_) { usdb_ = _usdb; }
+    function weth() external pure returns (address weth_) {
+        weth_ = _weth;
+    }
+    function usdb() external pure returns (address usdb_) {
+        usdb_ = _usdb;
+    }
 
-    function thrusterManager() external pure returns (address thrusterManager_) { thrusterManager_ = _thrusterManager; }
+    function thrusterManager() external pure returns (address thrusterManager_) {
+        thrusterManager_ = _thrusterManager;
+    }
 
-    function tokenId() external view returns (uint256 tokenId_) { tokenId_ = _tokenId; }
+    function tokenId() external view returns (uint256 tokenId_) {
+        tokenId_ = _tokenId;
+    }
 
     /***************************************
     MUTATOR FUNCTIONS
@@ -85,11 +91,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_withdrawBalanceTo(address receiver) external payable {
         _withdrawBalance();
         uint256 balance = address(this).balance;
-        if(balance > 0) Calls.sendValue(receiver, balance);
+        if (balance > 0) Calls.sendValue(receiver, balance);
         balance = IERC20(_weth).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_weth), receiver, balance);
+        if (balance > 0) SafeERC20.safeTransfer(IERC20(_weth), receiver, balance);
         balance = IERC20(_usdb).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
+        if (balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
     }
 
     /***************************************
@@ -101,31 +107,32 @@ contract ConcentratedLiquidityModuleC is Blastable {
      */
     function _depositBalance() internal returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
         {
-        uint256 ethAmount = address(this).balance;
-        if(ethAmount > 0) Calls.sendValue(_weth, ethAmount);
+            uint256 ethAmount = address(this).balance;
+            if (ethAmount > 0) Calls.sendValue(_weth, ethAmount);
         }
         uint256 wethAmount = IERC20(_weth).balanceOf(address(this));
         uint256 usdbAmount = IERC20(_usdb).balanceOf(address(this));
 
-        INonfungiblePositionManager thruster = INonfungiblePositionManager (_thrusterManager);
-        
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+
         _checkApproval(_weth, _thrusterManager, wethAmount);
         _checkApproval(_usdb, _thrusterManager, usdbAmount);
-         
 
-        (tokenId, liquidity, amount0, amount1) = thruster.mint(INonfungiblePositionManager.MintParams({
-            token0: _usdb,
-            token1: _weth,
-            fee: fee,
-            tickLower: -120000,
-            tickUpper: 120000,
-            amount0Desired: usdbAmount,
-            amount1Desired: wethAmount,
-            amount0Min: 0,
-            amount1Min: 0,
-            recipient: address(this),
-            deadline: block.timestamp
-        }));
+        (tokenId, liquidity, amount0, amount1) = thruster.mint(
+            INonfungiblePositionManager.MintParams({
+                token0: _usdb,
+                token1: _weth,
+                fee: fee,
+                tickLower: -120000,
+                tickUpper: 120000,
+                amount0Desired: usdbAmount,
+                amount1Desired: wethAmount,
+                amount0Min: 0,
+                amount1Min: 0,
+                recipient: address(this),
+                deadline: block.timestamp
+            })
+        );
         _tokenId = tokenId;
     }
 
@@ -133,11 +140,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
     WITHDRAW FUNCTIONS
     ***************************************/
 
-    function _withdrawBalance() internal {
-    }
-
+    function _withdrawBalance() internal {}
 
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
-        if(IERC20(token).allowance(address(this), recipient) < minAmount) IERC20(token).approve(recipient, type(uint256).max);
+        if (IERC20(token).allowance(address(this), recipient) < minAmount)
+            IERC20(token).approve(recipient, type(uint256).max);
     }
 }
