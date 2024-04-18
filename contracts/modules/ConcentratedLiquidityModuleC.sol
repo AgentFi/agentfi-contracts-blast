@@ -14,6 +14,7 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
  *
  * Designed for use on Blast Mainnet only.
  */
+// ?? How do we handle multiple nft positions? We can assume one, but if we get sent one?
 contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTANTS
@@ -89,6 +90,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function moduleC_withdrawBalanceTo(address receiver) external payable {
+        // ?? Should we unwrap to ETH
         _withdrawBalance();
         uint256 balance = address(this).balance;
         if (balance > 0) Calls.sendValue(receiver, balance);
@@ -105,7 +107,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /**
      * @notice Deposits this contracts balance into the dexes.
      */
-    function _depositBalance() internal returns (uint256 tokenId, uint128 liquidity, uint256 amount0, uint256 amount1) {
+    function _depositBalance()
+        internal
+        returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1)
+    {
         {
             uint256 ethAmount = address(this).balance;
             if (ethAmount > 0) Calls.sendValue(_weth, ethAmount);
@@ -118,7 +123,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _checkApproval(_weth, _thrusterManager, wethAmount);
         _checkApproval(_usdb, _thrusterManager, usdbAmount);
 
-        (tokenId, liquidity, amount0, amount1) = thruster.mint(
+        (tokenId_, liquidity, amount0, amount1) = thruster.mint(
             INonfungiblePositionManager.MintParams({
                 token0: _usdb,
                 token1: _weth,
@@ -133,14 +138,41 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 deadline: block.timestamp
             })
         );
-        _tokenId = tokenId;
+        _tokenId = tokenId_;
+        // ?? Should we send back any leftover assets
     }
 
     /***************************************
     WITHDRAW FUNCTIONS
     ***************************************/
 
-    function _withdrawBalance() internal {}
+    function _withdrawBalance() internal {
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+
+        (, , , , , , , uint128 liquidity, , , , ) = thruster.positions(_tokenId);
+
+        thruster.decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: _tokenId,
+                liquidity: liquidity,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+
+        thruster.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: _tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+
+        thruster.burn(_tokenId);
+        _tokenId = 0;
+    }
 
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         if (IERC20(token).allowance(address(this), recipient) < minAmount)

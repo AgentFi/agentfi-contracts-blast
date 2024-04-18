@@ -100,7 +100,7 @@ describe("ConcentratedLiquidityModuleC", function () {
     ]);
   });
 
-  afterEach(async function () {
+  beforeEach(async function () {
     await provider.send("evm_revert", [snapshot]);
     snapshot = await provider.send("evm_snapshot", []); // Snapshots can only be used once
   });
@@ -215,5 +215,61 @@ describe("ConcentratedLiquidityModuleC", function () {
         WETH.balanceOf(module.address),
       ]),
     ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+  });
+
+  describe("Withdrawal", () => {
+    beforeEach(async () => {
+      await signer
+        .sendTransaction({
+          to: module.address,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
+
+      await USDB.transfer(module.address, USDB.balanceOf(user));
+
+      await module.moduleC_depositBalance().then((tx) => tx.wait());
+    });
+
+    it("Can withdrawal to tba", async () => {
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+
+      await module.moduleC_withdrawBalance().then((tx) => tx.wait());
+
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([
+        BN.from("413026157656739951683271"),
+        BN.from("60764638839453191712"),
+      ]);
+    });
+
+    it("Can withdrawal to user", async () => {
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+
+      await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
+
+      expect(
+        await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
+      ).to.deep.equal([
+        BN.from("413026157656739951683271"),
+        BN.from("60764638839453191712"),
+      ]);
+    });
   });
 });
