@@ -6,9 +6,14 @@
 !/contracts/
 /contracts/*
 !/contracts/modules/
-/contracts/modules/**
+/contracts/modules/*
 !/contracts/modules/ConcentratedLiquidityModuleC.sol
 
+!/scripts/
+/scripts/*
+!/scripts/utils/
+/scripts/utils/*
+!/scripts/utils/V3Pools.ts
 
 # ====
 !/test/

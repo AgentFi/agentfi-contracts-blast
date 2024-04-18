@@ -94,9 +94,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
     MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleC_depositBalance() external payable {
-        // TODO: take in these as params
-        _depositBalance(-120000, 120000);
+    function moduleC_depositBalance(int24 tickLower, int24 tickUpper) external payable {
+        _depositBalance(tickLower, tickUpper);
     }
 
     function moduleC_withdrawBalance() external payable {
@@ -132,6 +131,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
         int24 tickLower,
         int24 tickUpper
     ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+        require(_tokenId == 0, "Cannot deposit with existing position");
+
         {
             uint256 ethAmount = address(this).balance;
             if (ethAmount > 0) Calls.sendValue(_weth, ethAmount);

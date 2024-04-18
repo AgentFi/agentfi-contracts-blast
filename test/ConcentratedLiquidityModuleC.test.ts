@@ -15,6 +15,10 @@ import {
 } from "../typechain-types";
 
 import { deployContract } from "../scripts/utils/deployContract";
+import {
+  priceInverseToTick,
+  sqrtPriceX96ToPriceInverse,
+} from "../scripts/utils/concetratedLiquidityPools";
 
 // Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
 function convertToStruct(res: any) {
@@ -29,11 +33,6 @@ function convertToStruct(res: any) {
     );
 }
 
-// Price in 1 ETH = X USDB
-// Price in pool is "inverse" due to ordering
-function getTick(price: number) {
-  return Math.floor(Math.log(1 / price) / Math.log(1.0001));
-}
 // TODO: remove ignore before merging and not autoformating
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
@@ -42,9 +41,10 @@ function getTick(price: number) {
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
+/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00da13d2960cf113edcef6e3f30d92e52906537";
 
+const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityModuleC", function () {
-  const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
   async function fixtureDeployed() {
     const [deployer] = await ethers.getSigners();
     const blockNumber = 2178591;
@@ -71,6 +71,14 @@ describe("ConcentratedLiquidityModuleC", function () {
     // Get ecosystem contracts
     const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
     const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
+    const pool = new ethers.Contract(
+      POOL_ADDRESS,
+      new ethers.utils.Interface([
+        "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+      ]),
+      deployer,
+    );
+
     const PositionManager = await ethers.getContractAt(
       "INonfungiblePositionManager",
       THRUSTER_ADDRESS,
@@ -101,11 +109,12 @@ describe("ConcentratedLiquidityModuleC", function () {
     ]);
 
     return {
+      PositionManager,
       USDB,
       WETH,
-      signer,
       module,
-      PositionManager,
+      pool,
+      signer,
     };
   }
 
@@ -116,15 +125,27 @@ describe("ConcentratedLiquidityModuleC", function () {
     await signer
       .sendTransaction({
         to: module.address,
-        value: (await signer.getBalance()).sub(ethers.utils.parseEther("0.1")),
+        value: (await signer.getBalance()).sub(ethers.utils.parseEther("10")),
       })
       .then((x) => x.wait());
 
-    await USDB.transfer(module.address, USDB.balanceOf(user));
+    await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
 
-    await module.moduleC_depositBalance().then((tx) => tx.wait());
+    await module
+      .moduleC_depositBalance(-120000, 120000)
+      .then((tx) => tx.wait());
+
     return fixture;
   }
+
+  it("Verify initial pool state", async () => {
+    const { pool } = await loadFixture(fixtureDeployed);
+
+    const [sqrtPriceX96] = await pool.slot0();
+    const price = sqrtPriceX96ToPriceInverse(BigInt(sqrtPriceX96.toString()));
+
+    expect(price).to.equal(3236.9999999999995);
+  });
 
   it("View functions", async function () {
     const { module } = await loadFixture(fixtureDeployed);
@@ -134,6 +155,32 @@ describe("ConcentratedLiquidityModuleC", function () {
   });
 
   describe("Deposit flow", () => {
+    it("Can reject deposit when position exists", async function () {
+      const { module, USDB, WETH, signer } =
+        await loadFixture(fixtureDeposited);
+      // Wrap existing ETH to WETH, leaving some gas
+      await signer
+        .sendTransaction({
+          to: WETH_ADDRESS,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
+      // Transfer all assets to tba
+      await USDB.transfer(module.address, USDB.balanceOf(user));
+      await WETH.transfer(module.address, WETH.balanceOf(user));
+
+      expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
+      // Trigger the deposit
+      await expect(
+        module.moduleC_depositBalance(
+          priceInverseToTick(4000),
+          priceInverseToTick(2000),
+        ),
+      ).to.be.revertedWith("Cannot deposit with existing position");
+    });
+
     it("Can deposit with WETH", async function () {
       const { module, signer, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
@@ -161,7 +208,12 @@ describe("ConcentratedLiquidityModuleC", function () {
       await WETH.transfer(module.address, WETH.balanceOf(user));
 
       // Trigger the deposit
-      await module.moduleC_depositBalance().then((tx) => tx.wait());
+      await module
+        .moduleC_depositBalance(
+          priceInverseToTick(4000),
+          priceInverseToTick(2000),
+        )
+        .then((tx) => tx.wait());
 
       // Expect all Assets to be transferred to tba
       expect(
@@ -179,11 +231,15 @@ describe("ConcentratedLiquidityModuleC", function () {
         token0: "0x4300000000000000000000000000000000000003",
         token1: "0x4300000000000000000000000000000000000004",
         fee: 3000,
-        tickLower: -120000,
-        tickUpper: 120000,
-        liquidity: BN.from("4025171919278639863411"),
-        feeGrowthInside0LastX128: BN.from("0"),
-        feeGrowthInside1LastX128: BN.from("0"),
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
         tokensOwed0: BN.from("0"),
         tokensOwed1: BN.from("0"),
       });
@@ -193,7 +249,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
     });
 
     it("Can deposit with ETH", async function () {
@@ -218,7 +274,9 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       await USDB.transfer(module.address, USDB.balanceOf(user));
 
-      await module.moduleC_depositBalance().then((tx) => tx.wait());
+      await module
+        .moduleC_depositBalance(-120000, 120000)
+        .then((tx) => tx.wait());
 
       const tokenId = await module.tokenId();
 
@@ -257,7 +315,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
 
       await module.moduleC_withdrawBalance().then((tx) => tx.wait());
 
@@ -267,8 +325,8 @@ describe("ConcentratedLiquidityModuleC", function () {
           WETH.balanceOf(module.address),
         ]),
       ).to.deep.equal([
-        BN.from("413026157656739951683271"),
-        BN.from("60764638839453191712"),
+        BN.from("206513078828369975841635"),
+        BN.from("50864638839453191712"),
       ]);
       // TODO:- Check if position is burned
     });
@@ -280,7 +338,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
 
       await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
 
@@ -288,7 +346,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
       ).to.deep.equal([
         BN.from("413026157656739951683271"),
-        BN.from("60764638839453191712"),
+        BN.from("50864638839453191712"),
       ]);
     });
   });
@@ -302,7 +360,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
+      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
@@ -321,7 +379,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         fee: 3000,
         tickLower: -6000,
         tickUpper: 6000,
-        liquidity: BN.from("339096796943607078348399"),
+        liquidity: BN.from("169548398471803539174199"),
         feeGrowthInside0LastX128: BN.from("0"),
         feeGrowthInside1LastX128: BN.from("0"),
         tokensOwed0: BN.from("0"),
@@ -334,7 +392,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("0"), BN.from("124238981317396283411")]);
+      ).to.deep.equal([BN.from("0"), BN.from("82633510515751027939")]);
     });
   });
 });
