@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
+import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 
 /**
  * @title ConcentratedLiquidityModuleC
@@ -15,6 +16,16 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
  * Designed for use on Blast Mainnet only.
  */
 // ?? How do we handle multiple nft positions? We can assume one, but if we get sent one?
+// ! Need to be careful of signature collisions
+
+/*
+
+ Deposit (mints with 100% from tba wallet -> needs to take in pa, pb)
+ Increase liquidity
+ Withdrawal
+ Decrease liquidity
+ Rebalance (withdrawal + swap + deposit)
+*/
 contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTANTS
@@ -27,8 +38,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     // thruster
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
+    address internal constant _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
 
     // Config
+    // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
     uint256 _tokenId = 0;
     uint24 fee = 3000;
 
@@ -82,15 +95,23 @@ contract ConcentratedLiquidityModuleC is Blastable {
     ***************************************/
 
     function moduleC_depositBalance() external payable {
-        _depositBalance();
+        // TODO: take in these as params
+        _depositBalance(-120000, 120000);
     }
 
     function moduleC_withdrawBalance() external payable {
         _withdrawBalance();
     }
 
+    function moduleC_rebalance() external {
+        // TODO: take in tickUpper, tickLower, amount, tokenIn
+        _withdrawBalance();
+        _swap();
+        _depositBalance(-6000, 6000);
+    }
+
     function moduleC_withdrawBalanceTo(address receiver) external payable {
-        // ?? Should we unwrap to ETH
+        // TODO:- unwrap WETH to ETH before sending back (if is weth)
         _withdrawBalance();
         uint256 balance = address(this).balance;
         if (balance > 0) Calls.sendValue(receiver, balance);
@@ -107,10 +128,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /**
      * @notice Deposits this contracts balance into the dexes.
      */
-    function _depositBalance()
-        internal
-        returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1)
-    {
+    function _depositBalance(
+        int24 tickLower,
+        int24 tickUpper
+    ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
         {
             uint256 ethAmount = address(this).balance;
             if (ethAmount > 0) Calls.sendValue(_weth, ethAmount);
@@ -128,8 +149,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 token0: _usdb,
                 token1: _weth,
                 fee: fee,
-                tickLower: -120000,
-                tickUpper: 120000,
+                tickLower: tickLower,
+                tickUpper: tickUpper,
                 amount0Desired: usdbAmount,
                 amount1Desired: wethAmount,
                 amount0Min: 0,
@@ -174,6 +195,28 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _tokenId = 0;
     }
 
+    function _swap() internal {
+        ISwapRouter router = ISwapRouter(_thrusterRouter);
+
+        // TODO:- Take in amount and token to swap, and slippage (either with amount minim or bps)
+        uint256 amount = IERC20(_usdb).balanceOf(address(this)) / 2;
+        _checkApproval(_usdb, _thrusterRouter, amount);
+
+        router.exactInputSingle(
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: _usdb,
+                tokenOut: _weth,
+                fee: 3000,
+                recipient: address(this),
+                deadline: block.timestamp,
+                amountIn: amount,
+                amountOutMinimum: 0,
+                sqrtPriceLimitX96: 0 // TODO:- Check why we don't need to set this
+            })
+        );
+    }
+
+    //? I think this should approve the same amount - no need to expose leftover tba balance to the protocols
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         if (IERC20(token).allowance(address(this), recipient) < minAmount)
             IERC20(token).approve(recipient, type(uint256).max);
