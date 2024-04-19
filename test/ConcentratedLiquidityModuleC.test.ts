@@ -18,6 +18,7 @@ import { deployContract } from "../scripts/utils/deployContract";
 import {
   priceInverseToTick,
   sqrtPriceX96ToPriceInverse,
+  tickToPrice,
 } from "../scripts/utils/concetratedLiquidityPools";
 
 // Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
@@ -131,9 +132,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
 
-    await module
-      .moduleC_depositBalance(-120000, 120000)
-      .then((tx) => tx.wait());
+    await module.moduleC_depositBalance(-82920, -76020).then((tx) => tx.wait());
 
     return fixture;
   }
@@ -141,9 +140,12 @@ describe("ConcentratedLiquidityModuleC", function () {
   it("Verify initial pool state", async () => {
     const { pool } = await loadFixture(fixtureDeployed);
 
-    const [sqrtPriceX96] = await pool.slot0();
+    const [sqrtPriceX96, tick] = await pool.slot0();
     const price = sqrtPriceX96ToPriceInverse(BigInt(sqrtPriceX96.toString()));
 
+    expect(tick).to.equal(BN.from("-80829"));
+
+    expect(1 / tickToPrice(tick)).to.equal(3237.303088069362);
     expect(price).to.equal(3236.9999999999995);
   });
 
@@ -315,7 +317,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
+      ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
 
       await module.moduleC_withdrawBalance().then((tx) => tx.wait());
 
@@ -338,7 +340,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
+      ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
 
       await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
 
@@ -360,11 +362,11 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("14814446426365640464329"), BN.from("0")]);
+      ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await module.moduleC_rebalance(-6000, 6000).then((tx) => tx.wait());
+      await module.moduleC_rebalance().then((tx) => tx.wait());
 
       const tokenId = await module.tokenId();
       expect(tokenId).to.deep.equal(BN.from("54354"));
@@ -377,11 +379,15 @@ describe("ConcentratedLiquidityModuleC", function () {
         token0: "0x4300000000000000000000000000000000000003",
         token1: "0x4300000000000000000000000000000000000004",
         fee: 3000,
-        tickLower: -6000,
-        tickUpper: 6000,
-        liquidity: BN.from("169548398471803539174199"),
-        feeGrowthInside0LastX128: BN.from("0"),
-        feeGrowthInside1LastX128: BN.from("0"),
+        tickLower: -82020,
+        tickUpper: -79620,
+        liquidity: BN.from("24686722006744888639176"),
+        feeGrowthInside0LastX128: BN.from(
+          "164493372584618343611740984398229833213",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "47576493912879488100221262857572274",
+        ),
         tokensOwed0: BN.from("0"),
         tokensOwed1: BN.from("0"),
       });
@@ -392,7 +398,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("0"), BN.from("82633510515751027939")]);
+      ).to.deep.equal([BN.from("207274944484380558129338"), BN.from("0")]);
     });
   });
 });

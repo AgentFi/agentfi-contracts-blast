@@ -7,6 +7,7 @@ import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
+import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
 
 /**
  * @title ConcentratedLiquidityModuleC
@@ -35,10 +36,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     address internal constant _token0 = 0x4300000000000000000000000000000000000003;
     address internal constant _token1 = 0x4300000000000000000000000000000000000004;
+    uint256 private constant sqrt2 = 0x16a09e667f3bcc908b2fb1366ea93704;
 
     // thruster
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
     address internal constant _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
+    address internal constant _thrusterPool = 0xf00DA13d2960Cf113edCef6e3f30D92E52906537;
 
     // Config
     // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
@@ -102,9 +105,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _withdrawBalance();
     }
 
-    function moduleC_rebalance(int24 tickLower, int24 tickUpper) external {
+    function moduleC_rebalance() external {
+        (int24 tickLower, int24 tickUpper) = reCentreTicks(20);
+
         _withdrawBalance();
-        _swap();
+        _balanceTokens();
         _depositBalance(tickLower, tickUpper);
     }
 
@@ -197,25 +202,56 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _tokenId = 0;
     }
 
-    function _swap() internal {
-        ISwapRouter router = ISwapRouter(_thrusterRouter);
+    function _balanceTokens() internal {
+        IThrusterPool pool = IThrusterPool(_thrusterPool);
+        (uint160 sqrtPriceX96, , , , , , ) = pool.slot0();
+        uint256 price = (uint256(sqrtPriceX96) ** 2) >> 96;
 
-        // TODO:- Take in amount and token to swap, and slippage (either with amount minim or bps)
-        uint256 amount = IERC20(_token0).balanceOf(address(this)) / 2;
-        _checkApproval(_token0, _thrusterRouter, amount);
+        uint256 token0Balance = IERC20(_token0).balanceOf(address(this));
+        uint256 token1Balance = IERC20(_token1).balanceOf(address(this));
 
-        router.exactInputSingle(
+        // Decide whether to sell token0 for token1 or reverse
+        if (token0Balance > token1Balance * price) {
+            uint256 amountIn = (token0Balance - token1Balance * price) / 2;
+            _performSwap(_token0, _token1, amountIn);
+        } else {
+            uint256 amountIn = (token1Balance - token0Balance / price) / 2;
+            _performSwap(_token1, _token0, amountIn);
+        }
+    }
+
+    function _performSwap(address tokenIn, address tokenOut, uint256 amountInput) internal {
+        ISwapRouter swapRouter = ISwapRouter(_thrusterRouter);
+        IThrusterPool pool = IThrusterPool(_thrusterPool);
+
+        // Get allowance
+        _checkApproval(tokenIn, _thrusterRouter, amountInput);
+
+        // Perform Swap
+        swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
-                tokenIn: _token0,
-                tokenOut: _token1,
-                fee: 3000,
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                fee: pool.fee(),
                 recipient: address(this),
                 deadline: block.timestamp,
-                amountIn: amount,
+                amountIn: amountInput,
                 amountOutMinimum: 0,
                 sqrtPriceLimitX96: 0 // TODO:- Check why we don't need to set this
             })
         );
+    }
+
+    function reCentreTicks(int24 _range) internal view returns (int24 tickLower, int24 tickUpper) {
+        // TODO:- We want to maintain range on price1 - so need to do some conversion
+        IThrusterPool pool = IThrusterPool(_thrusterPool);
+        int24 spacing = pool.tickSpacing();
+        (, int24 tick, , , , , ) = pool.slot0();
+        tick = (tick / spacing) * spacing;
+
+        // Calculate new tickLower and tickUpper
+        tickLower = tick - spacing * _range;
+        tickUpper = tick + spacing * _range;
     }
 
     //? I think this should approve the same amount - no need to expose leftover tba balance to the protocols
