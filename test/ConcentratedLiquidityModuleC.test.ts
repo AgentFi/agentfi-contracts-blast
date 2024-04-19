@@ -149,8 +149,8 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   it("View functions", async function () {
     const { module } = await loadFixture(fixtureDeployed);
-    expect(await module.weth()).to.equal(WETH_ADDRESS);
-    expect(await module.usdb()).to.equal(USDB_ADDRESS);
+    expect(await module.token0()).to.equal(USDB_ADDRESS);
+    expect(await module.token1()).to.equal(WETH_ADDRESS);
     expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
   });
 
@@ -364,7 +364,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await module.moduleC_rebalance().then((tx) => tx.wait());
+      await module.moduleC_rebalance(-6000, 6000).then((tx) => tx.wait());
 
       const tokenId = await module.tokenId();
       expect(tokenId).to.deep.equal(BN.from("54354"));

@@ -33,8 +33,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     // tokens
 
-    address internal constant _weth = 0x4300000000000000000000000000000000000004;
-    address internal constant _usdb = 0x4300000000000000000000000000000000000003;
+    address internal constant _token0 = 0x4300000000000000000000000000000000000003;
+    address internal constant _token1 = 0x4300000000000000000000000000000000000004;
 
     // thruster
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
@@ -75,11 +75,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
         type_ = "Concentrated Liquidity";
     }
 
-    function weth() external pure returns (address weth_) {
-        weth_ = _weth;
+    function token0() external pure returns (address) {
+        return _token0;
     }
-    function usdb() external pure returns (address usdb_) {
-        usdb_ = _usdb;
+    function token1() external pure returns (address) {
+        return _token1;
     }
 
     function thrusterManager() external pure returns (address thrusterManager_) {
@@ -102,11 +102,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _withdrawBalance();
     }
 
-    function moduleC_rebalance() external {
-        // TODO: take in tickUpper, tickLower, amount, tokenIn
+    function moduleC_rebalance(int24 tickLower, int24 tickUpper) external {
         _withdrawBalance();
         _swap();
-        _depositBalance(-6000, 6000);
+        _depositBalance(tickLower, tickUpper);
     }
 
     function moduleC_withdrawBalanceTo(address receiver) external payable {
@@ -114,10 +113,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _withdrawBalance();
         uint256 balance = address(this).balance;
         if (balance > 0) Calls.sendValue(receiver, balance);
-        balance = IERC20(_weth).balanceOf(address(this));
-        if (balance > 0) SafeERC20.safeTransfer(IERC20(_weth), receiver, balance);
-        balance = IERC20(_usdb).balanceOf(address(this));
-        if (balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
+
+        balance = IERC20(_token0).balanceOf(address(this));
+        if (balance > 0) SafeERC20.safeTransfer(IERC20(_token0), receiver, balance);
+
+        balance = IERC20(_token1).balanceOf(address(this));
+        if (balance > 0) SafeERC20.safeTransfer(IERC20(_token1), receiver, balance);
     }
 
     /***************************************
@@ -135,25 +136,25 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
         {
             uint256 ethAmount = address(this).balance;
-            if (ethAmount > 0) Calls.sendValue(_weth, ethAmount);
+            if (ethAmount > 0) Calls.sendValue(_token1, ethAmount);
         }
-        uint256 wethAmount = IERC20(_weth).balanceOf(address(this));
-        uint256 usdbAmount = IERC20(_usdb).balanceOf(address(this));
+        uint256 token0Amount = IERC20(_token0).balanceOf(address(this));
+        uint256 token1Amount = IERC20(_token1).balanceOf(address(this));
 
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
 
-        _checkApproval(_weth, _thrusterManager, wethAmount);
-        _checkApproval(_usdb, _thrusterManager, usdbAmount);
+        _checkApproval(_token0, _thrusterManager, token0Amount);
+        _checkApproval(_token1, _thrusterManager, token1Amount);
 
         (tokenId_, liquidity, amount0, amount1) = thruster.mint(
             INonfungiblePositionManager.MintParams({
-                token0: _usdb,
-                token1: _weth,
+                token0: _token0,
+                token1: _token1,
                 fee: fee,
                 tickLower: tickLower,
                 tickUpper: tickUpper,
-                amount0Desired: usdbAmount,
-                amount1Desired: wethAmount,
+                amount0Desired: token0Amount,
+                amount1Desired: token1Amount,
                 amount0Min: 0,
                 amount1Min: 0,
                 recipient: address(this),
@@ -200,13 +201,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ISwapRouter router = ISwapRouter(_thrusterRouter);
 
         // TODO:- Take in amount and token to swap, and slippage (either with amount minim or bps)
-        uint256 amount = IERC20(_usdb).balanceOf(address(this)) / 2;
-        _checkApproval(_usdb, _thrusterRouter, amount);
+        uint256 amount = IERC20(_token0).balanceOf(address(this)) / 2;
+        _checkApproval(_token0, _thrusterRouter, amount);
 
         router.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
-                tokenIn: _usdb,
-                tokenOut: _weth,
+                tokenIn: _token0,
+                tokenOut: _token1,
                 fee: 3000,
                 recipient: address(this),
                 deadline: block.timestamp,
