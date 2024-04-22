@@ -44,8 +44,7 @@ abstract contract NestedAccountExecutor is BaseExecutor {
      * @param value Value to send with operation
      * @param data Encoded calldata of operation
      * @param operation Operation type (0=CALL, 1=DELEGATECALL, 2=CREATE, 3=CREATE2)
-     * @param proof An array of ERC-6551 account information specifying the ownership path from this
-     * account to its parent
+     * @param proof An array of ERC-6551 account information specifying the ownership path from this account to its parent.
      */
     function executeNested(
         address to,
