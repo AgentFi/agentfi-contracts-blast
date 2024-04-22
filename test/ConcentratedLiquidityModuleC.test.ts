@@ -146,11 +146,36 @@ describe("ConcentratedLiquidityModuleC", function () {
     expect(price).to.equal(3236.9999999999995);
   });
 
-  it("View functions", async function () {
+  it("View initial state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
     expect(await module.token0()).to.equal(USDB_ADDRESS);
     expect(await module.token1()).to.equal(WETH_ADDRESS);
     expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
+
+    await expect(module.position()).to.be.revertedWith(
+      "No existing position to view",
+    );
+  });
+
+  it("Can view existing position ", async function () {
+    const { module } = await loadFixture(fixtureDeposited);
+    expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
+    expect(convertToStruct(await module.position())).to.deep.equal({
+      nonce: BN.from("0"),
+      operator: "0x0000000000000000000000000000000000000000",
+      token0: "0x4300000000000000000000000000000000000003",
+      token1: "0x4300000000000000000000000000000000000004",
+      fee: 3000,
+      tickLower: -82920,
+      tickUpper: -76020,
+      liquidity: BN.from("16983715425639545311351"),
+      feeGrowthInside0LastX128: BN.from(
+        "223062771100361370800904183975351004548",
+      ),
+      feeGrowthInside1LastX128: BN.from("63771321919466126002465612072408134"),
+      tokensOwed0: BN.from("0"),
+      tokensOwed1: BN.from("0"),
+    });
   });
 
   describe("Deposit flow", () => {
@@ -300,6 +325,100 @@ describe("ConcentratedLiquidityModuleC", function () {
     });
   });
 
+  describe("Partial Deposit flow", () => {
+    it("Rejects partial deposit when no position exists", async () => {
+      const { module, USDB, WETH, signer } = await loadFixture(fixtureDeployed);
+
+      // Wrap existing ETH to WETH, leaving some gas
+      await signer
+        .sendTransaction({
+          to: WETH_ADDRESS,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
+      await USDB.transfer(module.address, USDB.balanceOf(user));
+      await WETH.transfer(module.address, WETH.balanceOf(user));
+
+      await expect(module.moduleC_increaseLiquidity()).to.be.revertedWith(
+        "No existing position to increase",
+      );
+    });
+
+    it("Can do partial deposit", async () => {
+      const { module, USDB, WETH, signer, PositionManager } =
+        await loadFixture(fixtureDeposited);
+
+      // Wrap existing ETH to WETH, leaving some gas
+      await signer
+        .sendTransaction({
+          to: WETH_ADDRESS,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
+      await USDB.transfer(module.address, USDB.balanceOf(user));
+      await WETH.transfer(module.address, WETH.balanceOf(user));
+
+      const tokenId = await module.tokenId();
+
+      // Position to be minted
+      expect(
+        convertToStruct(await PositionManager.positions(tokenId)),
+      ).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("16983715425639545311351"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      await module.moduleC_increaseLiquidity().then((tx) => tx.wait());
+
+      // Position to be minted
+      expect(
+        convertToStruct(await PositionManager.positions(tokenId)),
+      ).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("10"), BN.from("1499013205828885328")]);
+    });
+  });
+
   describe("Withdrawal tests", () => {
     it("Can withdrawal to tba", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
@@ -341,6 +460,36 @@ describe("ConcentratedLiquidityModuleC", function () {
         BN.from("413026157656739951683271"),
         BN.from("50864638839453191712"),
       ]);
+    });
+  });
+
+  describe("Partial Withdrawal test suite", () => {
+    it("Can handle partial withdrawal", async () => {
+      const { module, USDB, WETH, PositionManager } =
+        await loadFixture(fixtureDeposited);
+
+      expect(await USDB.balanceOf(user)).to.equal(
+        BN.from("206513078828369975841636"),
+      );
+      expect(await WETH.balanceOf(user)).to.equal(BN.from("0"));
+
+      expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
+        BN.from("16983715425639545311351"),
+      );
+      await module.moduleC_decreaseLiquidityTo(
+        BN.from("16983715425639545311351").div(2),
+        user,
+      );
+      // Expect user balance to have increased, and liquidity decreased
+      expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
+        BN.from("8491857712819772655676"),
+      );
+      expect(await USDB.balanceOf(user)).to.equal(
+        BN.from("309769618242554963762453"),
+      );
+      expect(await WETH.balanceOf(user)).to.equal(
+        BN.from("36048265209303681774"),
+      );
     });
   });
 

@@ -16,18 +16,30 @@ import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.s
  *
  * Designed for use on Blast Mainnet only.
  */
-// ?? How do we handle multiple nft positions? We can assume one, but if we get sent one?
 // ! Need to be careful of signature collisions
 
-/*
-
- Deposit (mints with 100% from tba wallet -> needs to take in pa, pb)
- Increase liquidity
- Withdrawal
- Decrease liquidity
- Rebalance (withdrawal + swap + deposit)
-*/
 contract ConcentratedLiquidityModuleC is Blastable {
+    // details about the Thruster position
+    struct Position {
+        // the nonce for permits
+        uint96 nonce;
+        // the address that is approved for spending this token
+        address operator;
+        address token0;
+        address token1;
+        uint24 fee;
+        // the tick range of the position
+        int24 tickLower;
+        int24 tickUpper;
+        // the liquidity of the position
+        uint128 liquidity;
+        // the fee growth of the aggregate position as of the last action on the individual position
+        uint256 feeGrowthInside0LastX128;
+        uint256 feeGrowthInside1LastX128;
+        // how many uncollected tokens are owed to the position, as of the last computation
+        uint128 tokensOwed0;
+        uint128 tokensOwed1;
+    }
     /***************************************
     CONSTANTS
     ***************************************/
@@ -93,6 +105,41 @@ contract ConcentratedLiquidityModuleC is Blastable {
         tokenId_ = _tokenId;
     }
 
+    function position() external view returns (Position memory position) {
+        require(_tokenId != 0, "No existing position to view");
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+
+        (
+            uint96 nonce_,
+            address operator_,
+            address token0_,
+            address token1_,
+            uint24 fee_,
+            int24 tickLower_,
+            int24 tickUpper_,
+            uint128 liquidity_,
+            uint256 feeGrowthInside0LastX128_,
+            uint256 feeGrowthInside1LastX128_,
+            uint128 tokensOwed0_,
+            uint128 tokensOwed1_
+        ) = thruster.positions(_tokenId);
+
+        position = Position(
+            nonce_,
+            operator_,
+            token0_,
+            token1_,
+            fee_,
+            tickLower_,
+            tickUpper_,
+            liquidity_,
+            feeGrowthInside0LastX128_,
+            feeGrowthInside1LastX128_,
+            tokensOwed0_,
+            tokensOwed1_
+        );
+    }
+
     /***************************************
     MUTATOR FUNCTIONS
     ***************************************/
@@ -111,9 +158,90 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _depositBalance(tickLower, tickUpper);
     }
 
+    function moduleC_increaseLiquidity() external {
+        require(_tokenId != 0, "No existing position to increase");
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+
+        uint256 token0Amount = IERC20(_token0).balanceOf(address(this));
+        uint256 token1Amount = IERC20(_token1).balanceOf(address(this));
+
+        _checkApproval(_token0, _thrusterManager, token0Amount);
+        _checkApproval(_token1, _thrusterManager, token1Amount);
+
+        thruster.increaseLiquidity(
+            INonfungiblePositionManager.IncreaseLiquidityParams({
+                tokenId: _tokenId,
+                amount0Desired: token0Amount,
+                amount1Desired: token1Amount,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+    }
+
+    function moduleC_decreaseLiquidity(uint128 liquidity_) public {
+        require(_tokenId != 0, "No existing position to decrease");
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+        // Let position manager handle to large withdrawal
+
+        thruster.decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: _tokenId,
+                liquidity: liquidity_,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+
+        thruster.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: _tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+    }
+
+    function moduleC_decreaseLiquidityTo(uint128 liquidity_, address receiver) external {
+        moduleC_decreaseLiquidity(liquidity_);
+        _sendBalanceTo(receiver);
+    }
+
+    function _decreaseLiquidity(uint128 liquidity_) external {
+        require(_tokenId != 0, "No existing position to decrease");
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+        // Let position manager handle to large withdrawal
+
+        thruster.decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: _tokenId,
+                liquidity: liquidity_,
+                amount0Min: 0,
+                amount1Min: 0,
+                deadline: block.timestamp
+            })
+        );
+
+        thruster.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: _tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            })
+        );
+    }
+
     function moduleC_withdrawBalanceTo(address receiver) external payable {
-        // TODO:- unwrap WETH to ETH before sending back (if is weth)
         _withdrawBalance();
+        _sendBalanceTo(receiver);
+    }
+
+    function _sendBalanceTo(address receiver) internal {
+        // TODO:- unwrap WETH to ETH before sending back (if is weth)
         uint256 balance = address(this).balance;
         if (balance > 0) Calls.sendValue(receiver, balance);
 
