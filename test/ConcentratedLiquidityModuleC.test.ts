@@ -143,6 +143,7 @@ describe("ConcentratedLiquidityModuleC", function () {
     const [sqrtPriceX96, tick] = await pool.slot0();
     const price = sqrtPriceX96ToPriceInverse(BigInt(sqrtPriceX96.toString()));
 
+    expect(sqrtPriceX96).to.equal(BN.from("1392486909633467119786647344"));
     expect(tick).to.equal(BN.from("-80829"));
 
     expect(1 / tickToPrice(tick)).to.equal(3237.303088069362);
@@ -366,7 +367,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await module.moduleC_rebalance().then((tx) => tx.wait());
+      await module.moduleC_rebalance(-82020, -79620).then((tx) => tx.wait());
 
       const tokenId = await module.tokenId();
       expect(tokenId).to.deep.equal(BN.from("54354"));
@@ -381,12 +382,12 @@ describe("ConcentratedLiquidityModuleC", function () {
         fee: 3000,
         tickLower: -82020,
         tickUpper: -79620,
-        liquidity: BN.from("24686722006744888639176"),
+        liquidity: BN.from("55789561140592772627816"),
         feeGrowthInside0LastX128: BN.from(
-          "164493372584618343611740984398229833213",
+          "164500795801821406778118883407508699361",
         ),
         feeGrowthInside1LastX128: BN.from(
-          "47576493912879488100221262857572274",
+          "47566901442692672301425492992783708",
         ),
         tokensOwed0: BN.from("0"),
         tokensOwed1: BN.from("0"),
@@ -398,7 +399,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("207274944484380558129338"), BN.from("0")]);
+      ).to.deep.equal([BN.from("2"), BN.from("439329881056695054")]);
     });
   });
 });
