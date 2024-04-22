@@ -5,21 +5,17 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 import { BigNumber as BN, Contract, Signer } from "ethers";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect } = chai;
 
-import {
-  ConcentratedLiquidityModuleC,
-  INonfungiblePositionManager,
-} from "../typechain-types";
+import { ConcentratedLiquidityModuleC } from "../typechain-types";
 
 import { deployContract } from "../scripts/utils/deployContract";
 import {
-  priceInverseToTick,
-  sqrtPriceX96ToPriceInverse,
-  tickToPrice,
-} from "../scripts/utils/concetratedLiquidityPools";
+  price1ToTick,
+  sqrtPriceX96ToPrice1,
+  tickToPrice0,
+} from "../scripts/utils/v3";
 
 // Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
 function convertToStruct(res: any) {
@@ -141,12 +137,12 @@ describe("ConcentratedLiquidityModuleC", function () {
     const { pool } = await loadFixture(fixtureDeployed);
 
     const [sqrtPriceX96, tick] = await pool.slot0();
-    const price = sqrtPriceX96ToPriceInverse(BigInt(sqrtPriceX96.toString()));
+    const price = sqrtPriceX96ToPrice1(BigInt(sqrtPriceX96.toString()));
 
     expect(sqrtPriceX96).to.equal(BN.from("1392486909633467119786647344"));
     expect(tick).to.equal(BN.from("-80829"));
 
-    expect(1 / tickToPrice(tick)).to.equal(3237.303088069362);
+    expect(1 / tickToPrice0(tick)).to.equal(3237.303088069362);
     expect(price).to.equal(3236.9999999999995);
   });
 
@@ -177,10 +173,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
       await expect(
-        module.moduleC_depositBalance(
-          priceInverseToTick(4000),
-          priceInverseToTick(2000),
-        ),
+        module.moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000)),
       ).to.be.revertedWith("Cannot deposit with existing position");
     });
 
@@ -212,10 +205,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Trigger the deposit
       await module
-        .moduleC_depositBalance(
-          priceInverseToTick(4000),
-          priceInverseToTick(2000),
-        )
+        .moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000))
         .then((tx) => tx.wait());
 
       // Expect all Assets to be transferred to tba

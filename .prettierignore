@@ -13,9 +13,10 @@
 /scripts/*
 !/scripts/utils/
 /scripts/utils/*
-!/scripts/utils/V3Pools.ts
+!/scripts/utils/v3.ts
 
 # ====
 !/test/
 /test/*
 !/test/ConcentratedLiquidityModuleC.test.ts
+!/test/v3.test.ts

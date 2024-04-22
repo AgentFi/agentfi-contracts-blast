@@ -201,6 +201,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function _balanceTokens(int24 tickLower, int24 tickUpper) internal {
+        // TODO:- handle one side liquidity
         IThrusterPool pool = IThrusterPool(_thrusterPool);
         uint160 pa = getSqrtRatioAtTick(tickLower);
         uint160 pb = getSqrtRatioAtTick(tickUpper);
@@ -240,18 +241,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 sqrtPriceLimitX96: 0 // TODO:- Check why we don't need to set this
             })
         );
-    }
-
-    function reCentreTicks(int24 _range) internal view returns (int24 tickLower, int24 tickUpper) {
-        // TODO:- We want to maintain range on price1 - so need to do some conversion
-        IThrusterPool pool = IThrusterPool(_thrusterPool);
-        int24 spacing = pool.tickSpacing();
-        (, int24 tick, , , , , ) = pool.slot0();
-        tick = (tick / spacing) * spacing;
-
-        // Calculate new tickLower and tickUpper
-        tickLower = tick - spacing * _range;
-        tickUpper = tick + spacing * _range;
     }
 
     //? I think this should approve the same amount - no need to expose leftover tba balance to the protocols
