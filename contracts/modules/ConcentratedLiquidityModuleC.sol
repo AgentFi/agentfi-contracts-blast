@@ -12,17 +12,16 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
 
+// ! Need to be careful of signature collisions
+
+// TODO:- Add claim function (for fees)
 /**
  * @title ConcentratedLiquidityModuleC
  * @author AgentFi
  * @notice A module used in the Concentrated liquidity strategy.
+ * @dev Designed for use on Blast Mainnet only.
  *
- * Designed for use on Blast Mainnet only.
  */
-// ! Need to be careful of signature collisions
-
-// TODO:- Add doc strings
-// TODO:- Sort functions
 contract ConcentratedLiquidityModuleC is Blastable {
     // details about the Thruster position
     struct PositionStruct {
@@ -49,7 +48,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     CONSTANTS
     ***************************************/
     // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
-
     // State
     address _manager;
     uint256 _tokenId;
@@ -83,14 +81,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         type_ = "Concentrated Liquidity";
     }
 
+    /// @notice Address for the NonfungiblePositionManager
     function thrusterManager() external view returns (address thrusterManager_) {
         thrusterManager_ = _manager;
     }
 
+    /// @notice TokenId of NFT position (if exists)
     function tokenId() external view returns (uint256 tokenId_) {
         tokenId_ = _tokenId;
     }
 
+    /// @notice Derive the pool address
     function getPool(
         address factory_,
         address token0_,
@@ -100,6 +101,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         pool_ = IThrusterPool(PoolAddress.computeAddress(factory_, PoolAddress.getPoolKey(token0_, token1_, fee_)));
     }
 
+    /**
+     * @notice Get the underlying pool position
+     * @dev reverts if no position exists
+     */
     function position() public view returns (PositionStruct memory position_) {
         require(_tokenId != 0, "No existing position to view");
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
@@ -148,20 +153,54 @@ contract ConcentratedLiquidityModuleC is Blastable {
         int24 tickUpper;
     }
 
-    function moduleC_depositBalance(MintBalanceParams memory params) public payable virtual {
+    /// @notice Mints new position with all assets in this contract
+    function moduleC_mintBalance(MintBalanceParams memory params) public payable virtual {
         require(_tokenId == 0, "Cannot deposit with existing position");
         _mintBalance(params);
     }
 
+    /// @notice Withdrawals principal and fee, and burns position, returning the funds to this contract
+    function moduleC_withdrawBalance() external payable {
+        // ? Why do internal functions
+        _withdrawBalance();
+
+        // Reset State
+        _tokenId = 0;
+        _manager = address(0);
+    }
+
+    /// @notice Sends token balance to a specified receiver.
+    function moduleC_sendBalanceTo(address receiver, address[] memory tokens) public virtual {
+        for (uint256 i = 0; i < tokens.length; ++i) {
+            address token = tokens[i];
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            if (balance > 0) {
+                SafeERC20.safeTransfer(IERC20(token), receiver, balance);
+            }
+        }
+    }
+
+    /// @notice Sends funds to receiver after withdrawaling position
+    function moduleC_withdrawBalanceTo(address receiver) external payable {
+        PositionStruct memory pos = position();
+        address[] memory tokens = new address[](2);
+        tokens[0] = pos.token0;
+        tokens[1] = pos.token1;
+
+        _withdrawBalance();
+        moduleC_sendBalanceTo(receiver, tokens);
+    }
+
     struct RebalanceParams {
-        address router;
-        uint24 fee;
-        uint24 slippage;
+        address router; // Address of router contract
+        uint24 fee; // Fee pool to use
+        uint24 slippage; // Slippage to tolerate
         int24 tickLower;
         int24 tickUpper;
     }
 
     // TODO:- restrict who can call this
+    /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleC_rebalance(RebalanceParams memory params) external {
         PositionStruct memory pos = position();
 
@@ -180,15 +219,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    function moduleC_withdrawBalance() external payable {
-        // ? Why do internal functions
-        _withdrawBalance();
-
-        // Reset State
-        _tokenId = 0;
-        _manager = address(0);
-    }
-
+    /// @notice Deposit all assets in contract to existing position (does not change range)
     function moduleC_increaseLiquidity() public virtual {
         require(_tokenId != 0, "No existing position to increase");
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
@@ -212,6 +243,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
+    /// @notice Perform partial withdrawal, keeping funds in the this contract
     function moduleC_decreaseLiquidity(uint128 liquidity_) public {
         require(_tokenId != 0, "No existing position to decrease");
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
@@ -237,6 +269,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
+    /// @notice Perform partial withdrawal, sending funds to the receiver
     function moduleC_decreaseLiquidityTo(uint128 liquidity_, address receiver) external {
         PositionStruct memory pos = position();
         address[] memory tokens = new address[](2);
@@ -244,27 +277,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         tokens[1] = pos.token1;
 
         moduleC_decreaseLiquidity(liquidity_);
-        sendBalanceTo(receiver, tokens);
-    }
-
-    function moduleC_withdrawBalanceTo(address receiver) external payable {
-        PositionStruct memory pos = position();
-        address[] memory tokens = new address[](2);
-        tokens[0] = pos.token0;
-        tokens[1] = pos.token1;
-
-        _withdrawBalance();
-        sendBalanceTo(receiver, tokens);
-    }
-
-    function sendBalanceTo(address receiver, address[] memory tokens) public virtual {
-        for (uint256 i = 0; i < tokens.length; ++i) {
-            address token = tokens[i];
-            uint256 balance = IERC20(token).balanceOf(address(this));
-            if (balance > 0) {
-                SafeERC20.safeTransfer(IERC20(token), receiver, balance);
-            }
-        }
+        moduleC_sendBalanceTo(receiver, tokens);
     }
 
     /***************************************
@@ -272,7 +285,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     ***************************************/
 
     /**
-     * @notice Deposits this contracts balance into the dexes.
+     * @notice Mints position with all of tokens in the contract
      */
     function _mintBalance(
         MintBalanceParams memory params
@@ -312,6 +325,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     WITHDRAW FUNCTIONS
     ***************************************/
 
+    /// @notice Withdrawal everything and burn position
     function _withdrawBalance() internal {
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
 
@@ -337,9 +351,16 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
 
         thruster.burn(_tokenId);
-        // _tokenId = 0;
     }
 
+    /***************************************
+    REBALANCE FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Rebalances tokens in contract to optimal ratio for depositing into position
+     * @dev Not exact as it does not consider price impact of the swap
+     */
     function _balanceTokens(RebalanceParams memory params, PositionStruct memory pos) internal {
         require(params.tickLower < params.tickUpper, "Invalid tick range");
         uint160 pa = TickMath.getSqrtRatioAtTick(params.tickLower);
@@ -372,6 +393,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         }
     }
 
+    /// @notice Perform a swap of tokens
     function _performSwap(RebalanceParams memory params, address tokenIn, address tokenOut, uint256 amountIn) internal {
         ISwapRouter swapRouter = ISwapRouter(params.router);
         IThrusterPool pool_ = getPool(swapRouter.factory(), tokenIn, tokenOut, params.fee);
@@ -406,7 +428,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    //? I think this should approve the same amount - no need to expose leftover tba balance to the protocols
+    /***************************************
+    UTIL FUNCTIONS
+    ***************************************/
+
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         if (IERC20(token).allowance(address(this), recipient) < minAmount)
             IERC20(token).approve(recipient, type(uint256).max);

@@ -134,7 +134,7 @@ describe("ConcentratedLiquidityModuleC", function () {
     );
 
     await module
-      .moduleC_depositBalance({
+      .moduleC_mintBalance({
         manager: THRUSTER_ADDRESS,
         tickLower: -82920,
         tickUpper: -76020,
@@ -205,7 +205,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module } = await loadFixture(fixtureDeployed);
 
       await expect(
-        module.moduleC_depositBalance({
+        module.moduleC_mintBalance({
           manager: THRUSTER_ADDRESS,
           tickLower: -80880,
           tickUpper: -81480,
@@ -226,7 +226,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
       await expect(
-        module.moduleC_depositBalance({
+        module.moduleC_mintBalance({
           manager: THRUSTER_ADDRESS,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
@@ -255,7 +255,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Trigger the deposit
       await module
-        .moduleC_depositBalance({
+        .moduleC_mintBalance({
           manager: THRUSTER_ADDRESS,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),

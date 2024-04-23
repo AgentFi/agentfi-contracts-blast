@@ -129,7 +129,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
     await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
 
     await module
-      .moduleC_depositBalance({
+      .moduleC_mintBalance({
         manager: THRUSTER_ADDRESS,
         tickLower: -82920,
         tickUpper: -76020,
@@ -159,7 +159,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       await USDB.transfer(module.address, USDB.balanceOf(user));
 
       await module
-        .moduleC_depositBalance({
+        .moduleC_mintBalance({
           manager: THRUSTER_ADDRESS,
           tickLower: -120000,
           tickUpper: 120000,
