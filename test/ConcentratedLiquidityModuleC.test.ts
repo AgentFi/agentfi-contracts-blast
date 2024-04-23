@@ -162,7 +162,7 @@ describe("ConcentratedLiquidityModuleC", function () {
   });
 
   it("Can view existing position ", async function () {
-    const { module } = await loadFixture(fixtureDeposited);
+    const { module, pool } = await loadFixture(fixtureDeposited);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
     expect(convertToStruct(await module.position())).to.deep.equal({
       nonce: BN.from("0"),
@@ -180,9 +180,20 @@ describe("ConcentratedLiquidityModuleC", function () {
       tokensOwed0: BN.from("0"),
       tokensOwed1: BN.from("0"),
     });
+
+    const [, tick] = await pool.slot0();
+    expect(tick).to.equal(BN.from("-80829"));
   });
 
   describe("Deposit flow", () => {
+    it("Can reject invalid tick range", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_depositBalance(-80880, -81480),
+      ).to.be.revertedWith("Invalid tick range");
+    });
+
     it("Can reject deposit when position exists", async function () {
       const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
@@ -409,9 +420,79 @@ describe("ConcentratedLiquidityModuleC", function () {
   });
 
   describe("Rebalance tests", () => {
-    it("Can rebalance", async () => {
-      const { module, USDB, WETH, PositionManager } =
-        await loadFixture(fixtureDeposited);
+    it("Can reject invalid tick range", async () => {
+      const { module } = await loadFixture(fixtureDeposited);
+
+      await expect(module.moduleC_rebalance(-80880, -81480)).to.be.revertedWith(
+        "Invalid tick range",
+      );
+    });
+
+    it("Can rebalance with range below spot", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
+
+      await module.moduleC_rebalance(-81480, -80880).then((tx) => tx.wait());
+
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -81480,
+        tickUpper: -80880,
+        liquidity: BN.from("220501559037418155599415"),
+        feeGrowthInside0LastX128: BN.from(
+          "42513878182514160766987893019469054669",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "13023098774273606467765194624496836",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      // Only leftover on one side
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
+    });
+    it("Can rebalance with range above spot", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
+
+      await module.moduleC_rebalance(-80760, -80160).then((tx) => tx.wait());
+
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -80760,
+        tickUpper: -80160,
+        liquidity: BN.from("220861659615030936879201"),
+        feeGrowthInside0LastX128: BN.from(
+          "15587114568347021521255615515708401802",
+        ),
+        feeGrowthInside1LastX128: BN.from("5123521478022653752891070772181702"),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      // Only leftover on one side
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
+    });
+
+    it("Can rebalance equal", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
       expect(
         await Promise.all([
           USDB.balanceOf(module.address),
@@ -423,12 +504,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       await module.moduleC_rebalance(-82020, -79620).then((tx) => tx.wait());
 
-      const tokenId = await module.tokenId();
-      expect(tokenId).to.deep.equal(BN.from("54354"));
-
-      expect(
-        convertToStruct(await PositionManager.positions(tokenId)),
-      ).to.deep.equal({
+      expect(convertToStruct(await module.position())).to.deep.equal({
         nonce: BN.from("0"),
         operator: "0x0000000000000000000000000000000000000000",
         token0: "0x4300000000000000000000000000000000000003",

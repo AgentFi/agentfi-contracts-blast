@@ -52,10 +52,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
     // TODO: These should be initialised
     address internal constant _token0 = 0x4300000000000000000000000000000000000003;
     address internal constant _token1 = 0x4300000000000000000000000000000000000004;
+
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
     address internal constant _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
     address internal constant _thrusterPool = 0xf00DA13d2960Cf113edCef6e3f30D92E52906537;
-    uint24 fee = 3000;
 
     // Config
     // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
@@ -219,6 +219,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function _sendBalanceTo(address receiver) internal virtual {
+        // ! Can remove tokens by having it passed in and fetch from Position before withdrawaling balance
         uint256 balance = IERC20(_token0).balanceOf(address(this));
         if (balance > 0) SafeERC20.safeTransfer(IERC20(_token0), receiver, balance);
 
@@ -237,25 +238,26 @@ contract ConcentratedLiquidityModuleC is Blastable {
         int24 tickLower,
         int24 tickUpper
     ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+        require(tickLower < tickUpper, "Invalid tick range");
         require(_tokenId == 0, "Cannot deposit with existing position");
 
-        uint256 token0Amount = IERC20(_token0).balanceOf(address(this));
-        uint256 token1Amount = IERC20(_token1).balanceOf(address(this));
+        uint256 amount0Desired = IERC20(_token0).balanceOf(address(this));
+        uint256 amount1Desired = IERC20(_token1).balanceOf(address(this));
 
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
 
-        _checkApproval(_token0, _thrusterManager, token0Amount);
-        _checkApproval(_token1, _thrusterManager, token1Amount);
+        _checkApproval(_token0, _thrusterManager, amount0Desired);
+        _checkApproval(_token1, _thrusterManager, amount1Desired);
 
         (tokenId_, liquidity, amount0, amount1) = thruster.mint(
             INonfungiblePositionManager.MintParams({
                 token0: _token0,
                 token1: _token1,
-                fee: fee,
+                fee: 3000, // TODO:- Get this from state/pass it in
                 tickLower: tickLower,
                 tickUpper: tickUpper,
-                amount0Desired: token0Amount,
-                amount1Desired: token1Amount,
+                amount0Desired: amount0Desired,
+                amount1Desired: amount1Desired,
                 amount0Min: 0,
                 amount1Min: 0,
                 recipient: address(this),
@@ -298,23 +300,29 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function _balanceTokens(int24 tickLower, int24 tickUpper) internal {
-        // TODO:- handle one side liquidity
+        require(tickLower < tickUpper, "Invalid tick range");
         IThrusterPool pool = IThrusterPool(_thrusterPool);
         uint160 pa = getSqrtRatioAtTick(tickLower);
         uint160 pb = getSqrtRatioAtTick(tickUpper);
         (uint160 p, , , , , , ) = pool.slot0();
 
-        uint256 ratio = ((((uint256(p) * uint256(pb)) / uint256(pb - p)) * uint256(p - pa)) * 10 ** 18) / 2 ** 192;
+        uint256 amount0 = IERC20(_token0).balanceOf(address(this));
+        uint256 amount1 = IERC20(_token1).balanceOf(address(this));
 
-        uint256 token0Balance = IERC20(_token0).balanceOf(address(this));
-        uint256 token1Balance = IERC20(_token1).balanceOf(address(this));
-
-        if ((token0Balance * ratio) / 10 ** 18 > token1Balance) {
-            uint256 amountIn = (token0Balance - ((token1Balance * 10 ** 18) / ratio)) / 2;
-            _performSwap(_token0, _token1, amountIn);
+        if (pb <= p && amount0 > 0) {
+            _performSwap(_token0, _token1, amount0);
+        } else if (pa >= p && amount1 > 0) {
+            _performSwap(_token1, _token0, amount1);
         } else {
-            uint256 amountIn = (token1Balance - ((token0Balance * ratio) / 10 ** 18)) / 2;
-            _performSwap(_token1, _token0, amountIn);
+            uint256 ratio = ((((uint256(p) * uint256(pb)) / uint256(pb - p)) * uint256(p - pa)) * 10 ** 18) / 2 ** 192;
+
+            if ((amount0 * ratio) / 10 ** 18 > amount1) {
+                uint256 amountIn = (amount0 - ((amount1 * 10 ** 18) / ratio)) / 2;
+                _performSwap(_token0, _token1, amountIn);
+            } else {
+                uint256 amountIn = (amount1 - ((amount0 * ratio) / 10 ** 18)) / 2;
+                _performSwap(_token1, _token0, amountIn);
+            }
         }
     }
 
