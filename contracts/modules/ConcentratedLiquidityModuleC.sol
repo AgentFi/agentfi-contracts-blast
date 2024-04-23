@@ -5,6 +5,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
+import { PoolAddress } from "./../libraries/PoolAddress.sol";
+import { TickMath } from "./../libraries/TickMath.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
@@ -22,7 +24,7 @@ import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.s
 // TODO:- Sort functions
 contract ConcentratedLiquidityModuleC is Blastable {
     // details about the Thruster position
-    struct Position {
+    struct PositionStruct {
         // the nonce for permits
         uint96 nonce;
         // the address that is approved for spending this token
@@ -45,22 +47,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTANTS
     ***************************************/
-    uint256 private constant sqrt2 = 0x16a09e667f3bcc908b2fb1366ea93704;
-
-    // tokens
-
-    // TODO: These should be initialised
-    address internal constant _token0 = 0x4300000000000000000000000000000000000003;
-    address internal constant _token1 = 0x4300000000000000000000000000000000000004;
-
-    address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
-    address internal constant _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
-    address internal constant _thrusterPool = 0xf00DA13d2960Cf113edCef6e3f30D92E52906537;
+    address _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
+    // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
 
     // Config
-    // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
-    uint256 _tokenId = 0;
+    address _thrusterManager;
+    address _token0;
+    address _token1;
+    uint24 _fee;
 
+    // State
+    uint256 _tokenId = 0;
     /***************************************
     CONSTRUCTOR
     ***************************************/
@@ -91,14 +88,14 @@ contract ConcentratedLiquidityModuleC is Blastable {
         type_ = "Concentrated Liquidity";
     }
 
-    function token0() external pure returns (address) {
+    function token0() external view returns (address) {
         return _token0;
     }
-    function token1() external pure returns (address) {
+    function token1() external view returns (address) {
         return _token1;
     }
 
-    function thrusterManager() external pure returns (address thrusterManager_) {
+    function thrusterManager() external view returns (address thrusterManager_) {
         thrusterManager_ = _thrusterManager;
     }
 
@@ -106,7 +103,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         tokenId_ = _tokenId;
     }
 
-    function position() external view returns (Position memory position) {
+    function pool() public view returns (address pool_) {
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+        PoolAddress.PoolKey memory key = PoolAddress.getPoolKey(_token0, _token1, _fee);
+        pool_ = PoolAddress.computeAddress(thruster.factory(), key);
+    }
+
+    function position() public view returns (PositionStruct memory position_) {
         require(_tokenId != 0, "No existing position to view");
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
 
@@ -125,7 +128,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
             uint128 tokensOwed1_
         ) = thruster.positions(_tokenId);
 
-        position = Position(
+        position_ = PositionStruct(
             nonce_,
             operator_,
             token0_,
@@ -145,20 +148,45 @@ contract ConcentratedLiquidityModuleC is Blastable {
     MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleC_depositBalance(int24 tickLower, int24 tickUpper) public payable virtual {
-        _mintWithBalance(tickLower, tickUpper);
+    struct MintBalanceParams {
+        address manager;
+        address token0;
+        address token1;
+        uint24 fee;
+        int24 tickLower;
+        int24 tickUpper;
+    }
+
+    function moduleC_depositBalance(MintBalanceParams memory params) public payable virtual {
+        require(_tokenId == 0, "Cannot deposit with existing position");
+        _mintBalance(params);
     }
 
     // TODO:- restrict who can call this
     function moduleC_rebalance(int24 tickLower, int24 tickUpper) external {
+        PositionStruct memory pos = position();
         _withdrawBalance();
         _balanceTokens(tickLower, tickUpper);
-        _mintWithBalance(tickLower, tickUpper);
+        MintBalanceParams memory params = MintBalanceParams({
+            manager: _thrusterManager,
+            token0: pos.token0,
+            token1: pos.token1,
+            fee: pos.fee,
+            tickLower: tickLower,
+            tickUpper: tickUpper
+        });
+        _mintBalance(params);
     }
 
     function moduleC_withdrawBalance() external payable {
         // ? Why do internal functions
         _withdrawBalance();
+        // Reset State
+        _tokenId = 0;
+        _token0 = address(0);
+        _token1 = address(0);
+        _thrusterManager = address(0);
+        _fee = 0;
     }
 
     function moduleC_increaseLiquidity() public virtual {
@@ -219,7 +247,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function _sendBalanceTo(address receiver) internal virtual {
-        // ! Can remove tokens by having it passed in and fetch from Position before withdrawaling balance
         uint256 balance = IERC20(_token0).balanceOf(address(this));
         if (balance > 0) SafeERC20.safeTransfer(IERC20(_token0), receiver, balance);
 
@@ -234,28 +261,26 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /**
      * @notice Deposits this contracts balance into the dexes.
      */
-    function _mintWithBalance(
-        int24 tickLower,
-        int24 tickUpper
+    function _mintBalance(
+        MintBalanceParams memory params
     ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
-        require(tickLower < tickUpper, "Invalid tick range");
-        require(_tokenId == 0, "Cannot deposit with existing position");
+        require(params.tickLower < params.tickUpper, "Invalid tick range");
 
-        uint256 amount0Desired = IERC20(_token0).balanceOf(address(this));
-        uint256 amount1Desired = IERC20(_token1).balanceOf(address(this));
+        uint256 amount0Desired = IERC20(params.token0).balanceOf(address(this));
+        uint256 amount1Desired = IERC20(params.token1).balanceOf(address(this));
 
-        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
+        INonfungiblePositionManager thruster = INonfungiblePositionManager(params.manager);
 
-        _checkApproval(_token0, _thrusterManager, amount0Desired);
-        _checkApproval(_token1, _thrusterManager, amount1Desired);
+        _checkApproval(params.token0, params.manager, amount0Desired);
+        _checkApproval(params.token1, params.manager, amount1Desired);
 
         (tokenId_, liquidity, amount0, amount1) = thruster.mint(
             INonfungiblePositionManager.MintParams({
-                token0: _token0,
-                token1: _token1,
-                fee: 3000, // TODO:- Get this from state/pass it in
-                tickLower: tickLower,
-                tickUpper: tickUpper,
+                token0: params.token0,
+                token1: params.token1,
+                fee: params.fee,
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper,
                 amount0Desired: amount0Desired,
                 amount1Desired: amount1Desired,
                 amount0Min: 0,
@@ -264,6 +289,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 deadline: block.timestamp
             })
         );
+
+        // Set State
+        _token0 = params.token0;
+        _token1 = params.token1;
+        _thrusterManager = params.manager;
+        _fee = params.fee;
         _tokenId = tokenId_;
     }
 
@@ -296,15 +327,15 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
 
         thruster.burn(_tokenId);
-        _tokenId = 0;
+        // _tokenId = 0;
     }
 
     function _balanceTokens(int24 tickLower, int24 tickUpper) internal {
         require(tickLower < tickUpper, "Invalid tick range");
-        IThrusterPool pool = IThrusterPool(_thrusterPool);
-        uint160 pa = getSqrtRatioAtTick(tickLower);
-        uint160 pb = getSqrtRatioAtTick(tickUpper);
-        (uint160 p, , , , , , ) = pool.slot0();
+        IThrusterPool pool_ = IThrusterPool(pool());
+        uint160 pa = TickMath.getSqrtRatioAtTick(tickLower);
+        uint160 pb = TickMath.getSqrtRatioAtTick(tickUpper);
+        (uint160 p, , , , , , ) = pool_.slot0();
 
         uint256 amount0 = IERC20(_token0).balanceOf(address(this));
         uint256 amount1 = IERC20(_token1).balanceOf(address(this));
@@ -329,7 +360,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function _performSwap(address tokenIn, address tokenOut, uint256 amountInput) internal {
         //TODO:- Add slippage
         ISwapRouter swapRouter = ISwapRouter(_thrusterRouter);
-        IThrusterPool pool = IThrusterPool(_thrusterPool);
 
         // Get allowance
         _checkApproval(tokenIn, _thrusterRouter, amountInput);
@@ -339,12 +369,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
-                fee: pool.fee(),
+                fee: _fee,
                 recipient: address(this),
                 deadline: block.timestamp,
                 amountIn: amountInput,
                 amountOutMinimum: 0,
-                sqrtPriceLimitX96: 0 // TODO:- Check why we don't need to set this
+                sqrtPriceLimitX96: 0
             })
         );
     }
@@ -353,45 +383,5 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         if (IERC20(token).allowance(address(this), recipient) < minAmount)
             IERC20(token).approve(recipient, type(uint256).max);
-    }
-
-    /// TODO:- Move to seperate library/contract
-    /// Copied from https://github.com/Uniswap/v3-core/blob/main/contracts/libraries/TickMath.sol#L23
-    /// @notice Calculates sqrt(1.0001^tick) * 2^96
-    /// @dev Throws if |tick| > max tick
-    /// @param tick The input tick for the above formula
-    /// @return sqrtPriceX96 A Fixed point Q64.96 number representing the sqrt of the ratio of the two assets (token1/token0)
-    /// at the given tick
-    function getSqrtRatioAtTick(int24 tick) internal pure returns (uint160 sqrtPriceX96) {
-        uint256 absTick = tick < 0 ? uint256(-int256(tick)) : uint256(int256(tick));
-        require(absTick <= 887272, "T");
-
-        uint256 ratio = absTick & 0x1 != 0 ? 0xfffcb933bd6fad37aa2d162d1a594001 : 0x100000000000000000000000000000000;
-        if (absTick & 0x2 != 0) ratio = (ratio * 0xfff97272373d413259a46990580e213a) >> 128;
-        if (absTick & 0x4 != 0) ratio = (ratio * 0xfff2e50f5f656932ef12357cf3c7fdcc) >> 128;
-        if (absTick & 0x8 != 0) ratio = (ratio * 0xffe5caca7e10e4e61c3624eaa0941cd0) >> 128;
-        if (absTick & 0x10 != 0) ratio = (ratio * 0xffcb9843d60f6159c9db58835c926644) >> 128;
-        if (absTick & 0x20 != 0) ratio = (ratio * 0xff973b41fa98c081472e6896dfb254c0) >> 128;
-        if (absTick & 0x40 != 0) ratio = (ratio * 0xff2ea16466c96a3843ec78b326b52861) >> 128;
-        if (absTick & 0x80 != 0) ratio = (ratio * 0xfe5dee046a99a2a811c461f1969c3053) >> 128;
-        if (absTick & 0x100 != 0) ratio = (ratio * 0xfcbe86c7900a88aedcffc83b479aa3a4) >> 128;
-        if (absTick & 0x200 != 0) ratio = (ratio * 0xf987a7253ac413176f2b074cf7815e54) >> 128;
-        if (absTick & 0x400 != 0) ratio = (ratio * 0xf3392b0822b70005940c7a398e4b70f3) >> 128;
-        if (absTick & 0x800 != 0) ratio = (ratio * 0xe7159475a2c29b7443b29c7fa6e889d9) >> 128;
-        if (absTick & 0x1000 != 0) ratio = (ratio * 0xd097f3bdfd2022b8845ad8f792aa5825) >> 128;
-        if (absTick & 0x2000 != 0) ratio = (ratio * 0xa9f746462d870fdf8a65dc1f90e061e5) >> 128;
-        if (absTick & 0x4000 != 0) ratio = (ratio * 0x70d869a156d2a1b890bb3df62baf32f7) >> 128;
-        if (absTick & 0x8000 != 0) ratio = (ratio * 0x31be135f97d08fd981231505542fcfa6) >> 128;
-        if (absTick & 0x10000 != 0) ratio = (ratio * 0x9aa508b5b7a84e1c677de54f3e99bc9) >> 128;
-        if (absTick & 0x20000 != 0) ratio = (ratio * 0x5d6af8dedb81196699c329225ee604) >> 128;
-        if (absTick & 0x40000 != 0) ratio = (ratio * 0x2216e584f5fa1ea926041bedfe98) >> 128;
-        if (absTick & 0x80000 != 0) ratio = (ratio * 0x48a170391f7dc42444e8fa2) >> 128;
-
-        if (tick > 0) ratio = type(uint256).max / ratio;
-
-        // this divides by 1<<32 rounding up to go from a Q128.128 to a Q128.96.
-        // we then downcast because we know the result always fits within 160 bits due to our tick input constraint
-        // we round up in the division so getTickAtSqrtRatio of the output price is always consistent
-        sqrtPriceX96 = uint160((ratio >> 32) + (ratio % (1 << 32) == 0 ? 0 : 1));
     }
 }

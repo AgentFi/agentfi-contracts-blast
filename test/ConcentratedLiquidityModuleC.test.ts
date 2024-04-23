@@ -38,7 +38,7 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
-/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00da13d2960cf113edcef6e3f30d92e52906537";
+/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityModuleC", function () {
@@ -132,7 +132,16 @@ describe("ConcentratedLiquidityModuleC", function () {
       (await WETH.balanceOf(user)).sub(ethers.utils.parseEther("10")),
     );
 
-    await module.moduleC_depositBalance(-82920, -76020).then((tx) => tx.wait());
+    await module
+      .moduleC_depositBalance({
+        manager: THRUSTER_ADDRESS,
+        tickLower: -82920,
+        tickUpper: -76020,
+        fee: 3000,
+        token0: USDB_ADDRESS,
+        token1: WETH_ADDRESS,
+      })
+      .then((tx) => tx.wait());
 
     return fixture;
   }
@@ -152,9 +161,15 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   it("View initial state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
-    expect(await module.token0()).to.equal(USDB_ADDRESS);
-    expect(await module.token1()).to.equal(WETH_ADDRESS);
-    expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
+    expect(await module.token0()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
+    expect(await module.token1()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
+    expect(await module.thrusterManager()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
 
     await expect(module.position()).to.be.revertedWith(
       "No existing position to view",
@@ -163,7 +178,12 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   it("Can view existing position ", async function () {
     const { module, pool } = await loadFixture(fixtureDeposited);
+
+    expect(await module.token0()).to.equal(USDB_ADDRESS);
+    expect(await module.token1()).to.equal(WETH_ADDRESS);
+    expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
+
     expect(convertToStruct(await module.position())).to.deep.equal({
       nonce: BN.from("0"),
       operator: "0x0000000000000000000000000000000000000000",
@@ -183,6 +203,8 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const [, tick] = await pool.slot0();
     expect(tick).to.equal(BN.from("-80829"));
+
+    expect(await module.pool()).to.equal(POOL_ADDRESS);
   });
 
   describe("Deposit flow", () => {
@@ -190,7 +212,14 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module } = await loadFixture(fixtureDeployed);
 
       await expect(
-        module.moduleC_depositBalance(-80880, -81480),
+        module.moduleC_depositBalance({
+          manager: THRUSTER_ADDRESS,
+          tickLower: -80880,
+          tickUpper: -81480,
+          fee: 3000,
+          token0: USDB_ADDRESS,
+          token1: WETH_ADDRESS,
+        }),
       ).to.be.revertedWith("Invalid tick range");
     });
 
@@ -204,7 +233,14 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
       await expect(
-        module.moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000)),
+        module.moduleC_depositBalance({
+          manager: THRUSTER_ADDRESS,
+          tickLower: price1ToTick(4000),
+          tickUpper: price1ToTick(2000),
+          fee: 3000,
+          token0: USDB_ADDRESS,
+          token1: WETH_ADDRESS,
+        }),
       ).to.be.revertedWith("Cannot deposit with existing position");
     });
 
@@ -226,7 +262,14 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Trigger the deposit
       await module
-        .moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000))
+        .moduleC_depositBalance({
+          manager: THRUSTER_ADDRESS,
+          tickLower: price1ToTick(4000),
+          tickUpper: price1ToTick(2000),
+          fee: 3000,
+          token0: USDB_ADDRESS,
+          token1: WETH_ADDRESS,
+        })
         .then((tx) => tx.wait());
 
       // Expect all Assets to be transferred to tba

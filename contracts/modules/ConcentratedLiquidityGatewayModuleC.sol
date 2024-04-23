@@ -35,12 +35,12 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         address pointsOperator_
     ) ConcentratedLiquidityModuleC(blast_, gasCollector_, blastPoints_, pointsOperator_) {}
 
-    function moduleC_depositBalance(int24 tickLower, int24 tickUpper) public payable override {
+    function moduleC_depositBalance(MintBalanceParams memory params) public payable override {
         uint256 ethAmount = address(this).balance;
         if (ethAmount > 0) {
             Calls.sendValue(_weth, ethAmount);
         }
-        super.moduleC_depositBalance(tickLower, tickUpper);
+        super.moduleC_depositBalance(params);
     }
 
     function moduleC_increaseLiquidity() public override {

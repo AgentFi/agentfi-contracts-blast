@@ -128,4 +128,8 @@ interface INonfungiblePositionManager {
     function collect(CollectParams calldata params) external returns (uint256 amount0, uint256 amount1);
 
     function burn(uint256 tokenId) external;
+
+    /// @notice The contract that deployed the pool, which must adhere to the IThrusterPoolFactory interface
+    /// @return The contract address
+    function factory() external view returns (address);
 }
