@@ -39,6 +39,7 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
+/* prettier-ignore */ const ROUTER_ADDRESS                = "0x337827814155ECBf24D20231fCA4444F530C0555";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityModuleC", function () {
@@ -107,7 +108,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         WETH.balanceOf(user),
       ]),
     ).to.deep.equal([
-      BN.from("99909183979748032"),
+      BN.from("99909183979657216"),
       BN.from("413026157656739951683272"),
       BN.from("60764638839453191713"),
     ]);
@@ -466,15 +467,43 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can reject invalid tick range", async () => {
       const { module } = await loadFixture(fixtureDeposited);
 
-      await expect(module.moduleC_rebalance(-80880, -81480)).to.be.revertedWith(
-        "Invalid tick range",
-      );
+      await expect(
+        module.moduleC_rebalance({
+          fee: 3000,
+          router: ROUTER_ADDRESS,
+          slippage: 10000,
+          tickLower: -80880,
+          tickUpper: -81480,
+        }),
+      ).to.be.revertedWith("Invalid tick range");
+    });
+
+    it("Can handle slippage rejection", async () => {
+      const { module } = await loadFixture(fixtureDeposited);
+
+      await expect(
+        module.moduleC_rebalance({
+          fee: 3000,
+          router: ROUTER_ADDRESS,
+          slippage: 1000, // 0.1%
+          tickLower: -82020,
+          tickUpper: -79620,
+        }),
+      ).to.be.revertedWith("Too little received");
     });
 
     it("Can rebalance with range below spot", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
-      await module.moduleC_rebalance(-81480, -80880).then((tx) => tx.wait());
+      await module
+        .moduleC_rebalance({
+          fee: 3000,
+          router: ROUTER_ADDRESS,
+          slippage: 10000,
+          tickLower: -81480,
+          tickUpper: -80880,
+        })
+        .then((tx) => tx.wait());
 
       expect(convertToStruct(await module.position())).to.deep.equal({
         nonce: BN.from("0"),
@@ -506,7 +535,15 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can rebalance with range above spot", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
-      await module.moduleC_rebalance(-80760, -80160).then((tx) => tx.wait());
+      await module
+        .moduleC_rebalance({
+          fee: 3000,
+          router: ROUTER_ADDRESS,
+          slippage: 10000,
+          tickLower: -80760,
+          tickUpper: -80160,
+        })
+        .then((tx) => tx.wait());
 
       expect(convertToStruct(await module.position())).to.deep.equal({
         nonce: BN.from("0"),
@@ -545,7 +582,15 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await module.moduleC_rebalance(-82020, -79620).then((tx) => tx.wait());
+      await module
+        .moduleC_rebalance({
+          fee: 3000,
+          router: ROUTER_ADDRESS,
+          slippage: 10000,
+          tickLower: -82020,
+          tickUpper: -79620,
+        })
+        .then((tx) => tx.wait());
 
       expect(convertToStruct(await module.position())).to.deep.equal({
         nonce: BN.from("0"),

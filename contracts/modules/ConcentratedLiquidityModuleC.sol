@@ -3,6 +3,7 @@ pragma solidity 0.8.24;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { PoolAddress } from "./../libraries/PoolAddress.sol";
@@ -47,7 +48,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTANTS
     ***************************************/
-    address _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
     // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
 
     // Config
@@ -162,20 +162,31 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _mintBalance(params);
     }
 
+    struct RebalanceParams {
+        address router;
+        uint24 fee;
+        uint24 slippage;
+        int24 tickLower;
+        int24 tickUpper;
+    }
+
     // TODO:- restrict who can call this
-    function moduleC_rebalance(int24 tickLower, int24 tickUpper) external {
+    function moduleC_rebalance(RebalanceParams memory params) external {
         PositionStruct memory pos = position();
+
         _withdrawBalance();
-        _balanceTokens(tickLower, tickUpper);
-        MintBalanceParams memory params = MintBalanceParams({
-            manager: _thrusterManager,
-            token0: pos.token0,
-            token1: pos.token1,
-            fee: pos.fee,
-            tickLower: tickLower,
-            tickUpper: tickUpper
-        });
-        _mintBalance(params);
+        _balanceTokens(params);
+
+        _mintBalance(
+            MintBalanceParams({
+                manager: _thrusterManager,
+                token0: pos.token0,
+                token1: pos.token1,
+                fee: pos.fee,
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper
+            })
+        );
     }
 
     function moduleC_withdrawBalance() external payable {
@@ -330,50 +341,62 @@ contract ConcentratedLiquidityModuleC is Blastable {
         // _tokenId = 0;
     }
 
-    function _balanceTokens(int24 tickLower, int24 tickUpper) internal {
-        require(tickLower < tickUpper, "Invalid tick range");
+    function _balanceTokens(RebalanceParams memory params) internal {
+        require(params.tickLower < params.tickUpper, "Invalid tick range");
+        uint160 pa = TickMath.getSqrtRatioAtTick(params.tickLower);
+        uint160 pb = TickMath.getSqrtRatioAtTick(params.tickUpper);
         IThrusterPool pool_ = IThrusterPool(pool());
-        uint160 pa = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 pb = TickMath.getSqrtRatioAtTick(tickUpper);
         (uint160 p, , , , , , ) = pool_.slot0();
 
         uint256 amount0 = IERC20(_token0).balanceOf(address(this));
         uint256 amount1 = IERC20(_token1).balanceOf(address(this));
 
         if (pb <= p && amount0 > 0) {
-            _performSwap(_token0, _token1, amount0);
+            _performSwap(params, _token0, _token1, amount0);
         } else if (pa >= p && amount1 > 0) {
-            _performSwap(_token1, _token0, amount1);
+            _performSwap(params, _token1, _token0, amount1);
         } else {
             uint256 ratio = ((((uint256(p) * uint256(pb)) / uint256(pb - p)) * uint256(p - pa)) * 10 ** 18) / 2 ** 192;
 
             if ((amount0 * ratio) / 10 ** 18 > amount1) {
                 uint256 amountIn = (amount0 - ((amount1 * 10 ** 18) / ratio)) / 2;
-                _performSwap(_token0, _token1, amountIn);
+                _performSwap(params, _token0, _token1, amountIn);
             } else {
                 uint256 amountIn = (amount1 - ((amount0 * ratio) / 10 ** 18)) / 2;
-                _performSwap(_token1, _token0, amountIn);
+                _performSwap(params, _token1, _token0, amountIn);
             }
         }
     }
 
-    function _performSwap(address tokenIn, address tokenOut, uint256 amountInput) internal {
-        //TODO:- Add slippage
-        ISwapRouter swapRouter = ISwapRouter(_thrusterRouter);
+    function _performSwap(RebalanceParams memory params, address tokenIn, address tokenOut, uint256 amountIn) internal {
+        ISwapRouter swapRouter = ISwapRouter(params.router);
+        PoolAddress.PoolKey memory key = PoolAddress.getPoolKey(tokenIn, tokenOut, params.fee);
+        IThrusterPool pool_ = IThrusterPool(PoolAddress.computeAddress(swapRouter.factory(), key));
+
+        // Set a slippage
+        (uint160 sqrtPriceX96, , , , , , ) = pool_.slot0();
+        uint256 amountOutMinimum;
+        if (tokenIn < tokenOut) {
+            amountOutMinimum = Math.mulDiv(amountIn, uint256(sqrtPriceX96) ** 2, 2 ** 192);
+        } else {
+            amountOutMinimum = Math.mulDiv(amountIn, 2 ** 192, uint256(sqrtPriceX96) ** 2);
+        }
+
+        amountOutMinimum = Math.mulDiv(amountOutMinimum, 1_000_000 - params.slippage, 1_000_000);
 
         // Get allowance
-        _checkApproval(tokenIn, _thrusterRouter, amountInput);
+        _checkApproval(tokenIn, params.router, amountIn);
 
         // Perform Swap
         swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
-                fee: _fee,
+                fee: params.fee,
                 recipient: address(this),
                 deadline: block.timestamp,
-                amountIn: amountInput,
-                amountOutMinimum: 0,
+                amountIn: amountIn,
+                amountOutMinimum: amountOutMinimum,
                 sqrtPriceLimitX96: 0
             })
         );
