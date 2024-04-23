@@ -18,6 +18,8 @@ import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.s
  */
 // ! Need to be careful of signature collisions
 
+// TODO:- Add doc strings
+// TODO:- Sort functions
 contract ConcentratedLiquidityModuleC is Blastable {
     // details about the Thruster position
     struct Position {
@@ -43,22 +45,21 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTANTS
     ***************************************/
+    uint256 private constant sqrt2 = 0x16a09e667f3bcc908b2fb1366ea93704;
 
     // tokens
 
+    // TODO: These should be initialised
     address internal constant _token0 = 0x4300000000000000000000000000000000000003;
     address internal constant _token1 = 0x4300000000000000000000000000000000000004;
-    uint256 private constant sqrt2 = 0x16a09e667f3bcc908b2fb1366ea93704;
-
-    // thruster
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
     address internal constant _thrusterRouter = 0x337827814155ECBf24D20231fCA4444F530C0555;
     address internal constant _thrusterPool = 0xf00DA13d2960Cf113edCef6e3f30D92E52906537;
+    uint24 fee = 3000;
 
     // Config
     // TODO:- to move this to a diamond pattern storage (this doesn't work because its proxied)
     uint256 _tokenId = 0;
-    uint24 fee = 3000;
 
     /***************************************
     CONSTRUCTOR
@@ -144,35 +145,37 @@ contract ConcentratedLiquidityModuleC is Blastable {
     MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleC_depositBalance(int24 tickLower, int24 tickUpper) external payable {
-        _depositBalance(tickLower, tickUpper);
+    function moduleC_depositBalance(int24 tickLower, int24 tickUpper) public payable virtual {
+        _mintWithBalance(tickLower, tickUpper);
     }
 
-    function moduleC_withdrawBalance() external payable {
-        _withdrawBalance();
-    }
-
+    // TODO:- restrict who can call this
     function moduleC_rebalance(int24 tickLower, int24 tickUpper) external {
         _withdrawBalance();
         _balanceTokens(tickLower, tickUpper);
-        _depositBalance(tickLower, tickUpper);
+        _mintWithBalance(tickLower, tickUpper);
     }
 
-    function moduleC_increaseLiquidity() external {
+    function moduleC_withdrawBalance() external payable {
+        // ? Why do internal functions
+        _withdrawBalance();
+    }
+
+    function moduleC_increaseLiquidity() public virtual {
         require(_tokenId != 0, "No existing position to increase");
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
 
-        uint256 token0Amount = IERC20(_token0).balanceOf(address(this));
-        uint256 token1Amount = IERC20(_token1).balanceOf(address(this));
+        uint256 amount0 = IERC20(_token0).balanceOf(address(this));
+        uint256 amount1 = IERC20(_token1).balanceOf(address(this));
 
-        _checkApproval(_token0, _thrusterManager, token0Amount);
-        _checkApproval(_token1, _thrusterManager, token1Amount);
+        _checkApproval(_token0, _thrusterManager, amount0);
+        _checkApproval(_token1, _thrusterManager, amount1);
 
         thruster.increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
                 tokenId: _tokenId,
-                amount0Desired: token0Amount,
-                amount1Desired: token1Amount,
+                amount0Desired: amount0,
+                amount1Desired: amount1,
                 amount0Min: 0,
                 amount1Min: 0,
                 deadline: block.timestamp
@@ -210,42 +213,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         _sendBalanceTo(receiver);
     }
 
-    function _decreaseLiquidity(uint128 liquidity_) external {
-        require(_tokenId != 0, "No existing position to decrease");
-        INonfungiblePositionManager thruster = INonfungiblePositionManager(_thrusterManager);
-        // Let position manager handle to large withdrawal
-
-        thruster.decreaseLiquidity(
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: _tokenId,
-                liquidity: liquidity_,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            })
-        );
-
-        thruster.collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: _tokenId,
-                recipient: address(this),
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            })
-        );
-    }
-
     function moduleC_withdrawBalanceTo(address receiver) external payable {
         _withdrawBalance();
         _sendBalanceTo(receiver);
     }
 
-    function _sendBalanceTo(address receiver) internal {
-        // TODO:- unwrap WETH to ETH before sending back (if is weth)
-        uint256 balance = address(this).balance;
-        if (balance > 0) Calls.sendValue(receiver, balance);
-
-        balance = IERC20(_token0).balanceOf(address(this));
+    function _sendBalanceTo(address receiver) internal virtual {
+        uint256 balance = IERC20(_token0).balanceOf(address(this));
         if (balance > 0) SafeERC20.safeTransfer(IERC20(_token0), receiver, balance);
 
         balance = IERC20(_token1).balanceOf(address(this));
@@ -259,16 +233,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /**
      * @notice Deposits this contracts balance into the dexes.
      */
-    function _depositBalance(
+    function _mintWithBalance(
         int24 tickLower,
         int24 tickUpper
     ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
         require(_tokenId == 0, "Cannot deposit with existing position");
 
-        {
-            uint256 ethAmount = address(this).balance;
-            if (ethAmount > 0) Calls.sendValue(_token1, ethAmount);
-        }
         uint256 token0Amount = IERC20(_token0).balanceOf(address(this));
         uint256 token1Amount = IERC20(_token1).balanceOf(address(this));
 
@@ -293,7 +263,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
             })
         );
         _tokenId = tokenId_;
-        // ?? Should we send back any leftover assets
     }
 
     /***************************************
@@ -350,6 +319,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     function _performSwap(address tokenIn, address tokenOut, uint256 amountInput) internal {
+        //TODO:- Add slippage
         ISwapRouter swapRouter = ISwapRouter(_thrusterRouter);
         IThrusterPool pool = IThrusterPool(_thrusterPool);
 

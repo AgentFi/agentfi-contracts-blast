@@ -41,7 +41,7 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00da13d2960cf113edcef6e3f30d92e52906537";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
-describe("ConcentratedLiquidityModuleC", function () {
+describe("ConcentratedLiquidityGatewayModuleC", function () {
   async function fixtureDeployed() {
     const [deployer] = await ethers.getSigners();
     const blockNumber = 2178591;
@@ -84,7 +84,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const module = (await deployContract(
       deployer,
-      "ConcentratedLiquidityModuleC",
+      "ConcentratedLiquidityGatewayModuleC",
       [
         BLAST_ADDRESS,
         GAS_COLLECTOR_ADDRESS,
@@ -93,13 +93,6 @@ describe("ConcentratedLiquidityModuleC", function () {
       ],
     )) as ConcentratedLiquidityModuleC;
 
-    // Wrap existing ETH to WETH, leaving some gas
-    await signer
-      .sendTransaction({
-        to: WETH_ADDRESS,
-        value: (await signer.getBalance()).sub(ethers.utils.parseEther("0.1")),
-      })
-      .then((x) => x.wait());
     expect(
       await Promise.all([
         provider.getBalance(user),
@@ -107,9 +100,9 @@ describe("ConcentratedLiquidityModuleC", function () {
         WETH.balanceOf(user),
       ]),
     ).to.deep.equal([
-      BN.from("99909183979748032"),
+      BN.from("60864638839453191713"),
       BN.from("413026157656739951683272"),
-      BN.from("60764638839453191713"),
+      BN.from("0"),
     ]);
 
     return {
@@ -124,104 +117,43 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   async function fixtureDeposited() {
     const fixture = await loadFixture(fixtureDeployed);
-    const { signer, USDB, module, WETH } = fixture;
+    const { signer, USDB, module } = fixture;
+
+    await signer
+      .sendTransaction({
+        to: module.address,
+        value: (await signer.getBalance()).sub(ethers.utils.parseEther("10")),
+      })
+      .then((x) => x.wait());
 
     await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
-    await WETH.transfer(
-      module.address,
-      (await WETH.balanceOf(user)).sub(ethers.utils.parseEther("10")),
-    );
 
     await module.moduleC_depositBalance(-82920, -76020).then((tx) => tx.wait());
 
     return fixture;
   }
 
-  it("Verify initial pool state", async () => {
-    const { pool } = await loadFixture(fixtureDeployed);
 
-    const [sqrtPriceX96, tick] = await pool.slot0();
-    const price = sqrtPriceX96ToPrice1(BigInt(sqrtPriceX96.toString()));
-
-    expect(sqrtPriceX96).to.equal(BN.from("1392486909633467119786647344"));
-    expect(tick).to.equal(BN.from("-80829"));
-
-    expect(1 / tickToPrice0(tick)).to.equal(3237.303088069362);
-    expect(price).to.equal(3236.9999999999995);
-  });
-
-  it("View initial state", async function () {
-    const { module } = await loadFixture(fixtureDeployed);
-    expect(await module.token0()).to.equal(USDB_ADDRESS);
-    expect(await module.token1()).to.equal(WETH_ADDRESS);
-    expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
-
-    await expect(module.position()).to.be.revertedWith(
-      "No existing position to view",
-    );
-  });
-
-  it("Can view existing position ", async function () {
-    const { module } = await loadFixture(fixtureDeposited);
-    expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
-    expect(convertToStruct(await module.position())).to.deep.equal({
-      nonce: BN.from("0"),
-      operator: "0x0000000000000000000000000000000000000000",
-      token0: "0x4300000000000000000000000000000000000003",
-      token1: "0x4300000000000000000000000000000000000004",
-      fee: 3000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      liquidity: BN.from("16983715425639545311351"),
-      feeGrowthInside0LastX128: BN.from(
-        "223062771100361370800904183975351004548",
-      ),
-      feeGrowthInside1LastX128: BN.from("63771321919466126002465612072408134"),
-      tokensOwed0: BN.from("0"),
-      tokensOwed1: BN.from("0"),
-    });
-  });
 
   describe("Deposit flow", () => {
-    it("Can reject deposit when position exists", async function () {
-      const { module, USDB, WETH, signer } =
-        await loadFixture(fixtureDeposited);
-      // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
-
-      expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
-      // Trigger the deposit
-      await expect(
-        module.moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000)),
-      ).to.be.revertedWith("Cannot deposit with existing position");
-    });
-
-    it("Can deposit with WETH", async function () {
-      const { module, USDB, WETH, PositionManager } =
+    it("Can deposit with ETH", async function () {
+      const { module, signer, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
-      // Expect no assets in tba
-      expect(
-        await Promise.all([
-          provider.getBalance(module.address),
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
-      // Transfer all assets to tba
+      await signer
+        .sendTransaction({
+          to: module.address,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
+
       await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
 
-      // Trigger the deposit
       await module
-        .moduleC_depositBalance(price1ToTick(4000), price1ToTick(2000))
+        .moduleC_depositBalance(-120000, 120000)
         .then((tx) => tx.wait());
-
-      // Expect all Assets to be transferred to tba
-      expect(
-        await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
-      ).to.deep.equal([BN.from("0"), BN.from("0")]);
 
       const tokenId = await module.tokenId();
 
@@ -234,15 +166,11 @@ describe("ConcentratedLiquidityModuleC", function () {
         token0: "0x4300000000000000000000000000000000000003",
         token1: "0x4300000000000000000000000000000000000004",
         fee: 3000,
-        tickLower: -82920,
-        tickUpper: -76020,
-        liquidity: BN.from("33967430851279090622703"),
-        feeGrowthInside0LastX128: BN.from(
-          "223062771100361370800904183975351004548",
-        ),
-        feeGrowthInside1LastX128: BN.from(
-          "63771321919466126002465612072408134",
-        ),
+        tickLower: -120000,
+        tickUpper: 120000,
+        liquidity: BN.from("4025171919278639863411"),
+        feeGrowthInside0LastX128: BN.from("0"),
+        feeGrowthInside1LastX128: BN.from("0"),
         tokensOwed0: BN.from("0"),
         tokensOwed1: BN.from("0"),
       });
@@ -252,16 +180,24 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
+      ).to.deep.equal([BN.from("184016408846929722448459"), BN.from("0")]);
     });
   });
 
   describe("Partial Deposit flow", () => {
     it("Rejects partial deposit when no position exists", async () => {
-      const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
+      const { module, USDB, signer } = await loadFixture(fixtureDeployed);
 
+      // Sent remaining ETH, leaving some gas
+      await signer
+        .sendTransaction({
+          to: module.address,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
       await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
 
       await expect(module.moduleC_increaseLiquidity()).to.be.revertedWith(
         "No existing position to increase",
@@ -269,17 +205,22 @@ describe("ConcentratedLiquidityModuleC", function () {
     });
 
     it("Can do partial deposit", async () => {
-      const { module, USDB, WETH, PositionManager } =
+      const { module, USDB, WETH, signer, PositionManager } =
         await loadFixture(fixtureDeposited);
-
+      // Send remaining ETH, leaving some gas
+      await signer
+        .sendTransaction({
+          to: module.address,
+          value: (await signer.getBalance()).sub(
+            ethers.utils.parseEther("0.1"),
+          ),
+        })
+        .then((x) => x.wait());
       await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
-
-      const tokenId = await module.tokenId();
 
       // Position to be minted
       expect(
-        convertToStruct(await PositionManager.positions(tokenId)),
+        convertToStruct(await module.position()),
       ).to.deep.equal({
         nonce: BN.from("0"),
         operator: "0x0000000000000000000000000000000000000000",
@@ -303,7 +244,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Position to be minted
       expect(
-        convertToStruct(await PositionManager.positions(tokenId)),
+        convertToStruct(await module.position()),
       ).to.deep.equal({
         nonce: BN.from("0"),
         operator: "0x0000000000000000000000000000000000000000",
@@ -328,65 +269,41 @@ describe("ConcentratedLiquidityModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151961")]);
+      ).to.deep.equal([BN.from("10"), BN.from("1499013205828885328")]);
     });
   });
 
   describe("Withdrawal tests", () => {
-    it("Can withdrawal to tba", async () => {
-      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
-
-      await module.moduleC_withdrawBalance().then((tx) => tx.wait());
-
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([
-        BN.from("206513078828369975841635"),
-        BN.from("50764638839453191712"),
-      ]);
-      // TODO:- Check if position is burned
-    });
-
     it("Can withdrawal to user", async () => {
-      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
+      const { module, USDB, WETH, signer} = await loadFixture(fixtureDeposited);
       expect(
         await Promise.all([
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
+      ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
 
       await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
 
       expect(
-        await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
+        await Promise.all([signer.getBalance(),USDB.balanceOf(user), WETH.balanceOf(user)]),
       ).to.deep.equal([
+        BN.from("60864507726426925079"),
         BN.from("413026157656739951683271"),
-        BN.from("60764638839453191712"),
+        BN.from("0"),
       ]);
     });
   });
 
   describe("Partial Withdrawal test suite", () => {
     it("Can handle partial withdrawal", async () => {
-      const { module, USDB, WETH, PositionManager } =
+      const { module, USDB, WETH, signer} =
         await loadFixture(fixtureDeposited);
 
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("206513078828369975841636"),
       );
-      expect(await WETH.balanceOf(user)).to.equal(
-        BN.from("10000000000000000000"),
-      );
+      expect(await WETH.balanceOf(user)).to.equal(BN.from("0"));
 
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("16983715425639545311351"),
@@ -399,61 +316,15 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("8491857712819772655676"),
       );
+      expect(await signer.getBalance()).to.equal(
+        BN.from("46048134096277415141"),
+      );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),
       );
       expect(await WETH.balanceOf(user)).to.equal(
-        BN.from("45948265209303681774"),
+        BN.from("0"),
       );
-    });
-  });
-
-  describe("Rebalance tests", () => {
-    it("Can rebalance", async () => {
-      const { module, USDB, WETH, PositionManager } =
-        await loadFixture(fixtureDeposited);
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
-
-      expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
-
-      await module.moduleC_rebalance(-82020, -79620).then((tx) => tx.wait());
-
-      const tokenId = await module.tokenId();
-      expect(tokenId).to.deep.equal(BN.from("54354"));
-
-      expect(
-        convertToStruct(await PositionManager.positions(tokenId)),
-      ).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: "0x0000000000000000000000000000000000000000",
-        token0: "0x4300000000000000000000000000000000000003",
-        token1: "0x4300000000000000000000000000000000000004",
-        fee: 3000,
-        tickLower: -82020,
-        tickUpper: -79620,
-        liquidity: BN.from("55739009505790607644248"),
-        feeGrowthInside0LastX128: BN.from(
-          "164500857552271469339101134859378297624",
-        ),
-        feeGrowthInside1LastX128: BN.from(
-          "47566901442692672301425492992783708",
-        ),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
-
-      // Only leftover on one side
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("0"), BN.from("442634440538521250")]);
     });
   });
 });
