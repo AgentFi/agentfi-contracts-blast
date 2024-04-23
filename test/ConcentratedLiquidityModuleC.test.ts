@@ -162,12 +162,6 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   it("View initial state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
-    expect(await module.token0()).to.equal(
-      "0x0000000000000000000000000000000000000000",
-    );
-    expect(await module.token1()).to.equal(
-      "0x0000000000000000000000000000000000000000",
-    );
     expect(await module.thrusterManager()).to.equal(
       "0x0000000000000000000000000000000000000000",
     );
@@ -180,8 +174,8 @@ describe("ConcentratedLiquidityModuleC", function () {
   it("Can view existing position ", async function () {
     const { module, pool } = await loadFixture(fixtureDeposited);
 
-    expect(await module.token0()).to.equal(USDB_ADDRESS);
-    expect(await module.token1()).to.equal(WETH_ADDRESS);
+    // expect(await module.token0()).to.equal(USDB_ADDRESS);
+    // expect(await module.token1()).to.equal(WETH_ADDRESS);
     expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
@@ -204,8 +198,6 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const [, tick] = await pool.slot0();
     expect(tick).to.equal(BN.from("-80829"));
-
-    expect(await module.pool()).to.equal(POOL_ADDRESS);
   });
 
   describe("Deposit flow", () => {

@@ -51,13 +51,13 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         super.moduleC_increaseLiquidity();
     }
 
-    function _sendBalanceTo(address receiver) internal override {
+    function sendBalanceTo(address receiver, address[] memory tokens) public override {
         uint256 balance = IERC20(_weth).balanceOf(address(this));
         if (balance > 0) {
             IWETH(_weth).withdraw(balance);
             Calls.sendValue(receiver, balance);
         }
 
-        super._sendBalanceTo(receiver);
+        super.sendBalanceTo(receiver, tokens);
     }
 }
