@@ -147,6 +147,54 @@ describe("ConcentratedLiquidityModuleC", function () {
     return fixture;
   }
 
+  async function fixtureWithFees() {
+    const fixture = await loadFixture(fixtureDeposited);
+
+    const whale = "0xE7cbfb8c70d423202033aD4C51CE94ce9E21CfA2";
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [whale],
+    });
+
+    const signer = await provider.getSigner(whale);
+    const router = await ethers.getContractAt(
+      "ISwapRouter",
+      ROUTER_ADDRESS,
+      signer,
+    );
+
+    const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
+    const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
+
+    await USDB.approve(router.address, ethers.constants.MaxUint256);
+    await WETH.approve(router.address, ethers.constants.MaxUint256);
+
+    // Swap back and forth to generate fees on both sides
+    await router.exactInputSingle({
+      amountIn: await USDB.balanceOf(whale),
+      amountOutMinimum: 0,
+      deadline: (await provider.getBlock("latest")).timestamp + 1000,
+      fee: 3000,
+      recipient: whale,
+      sqrtPriceLimitX96: 0,
+      tokenIn: USDB_ADDRESS,
+      tokenOut: WETH_ADDRESS,
+    });
+
+    await router.exactInputSingle({
+      amountIn: await WETH.balanceOf(whale),
+      amountOutMinimum: 0,
+      deadline: (await provider.getBlock("latest")).timestamp + 1000,
+      fee: 3000,
+      recipient: whale,
+      sqrtPriceLimitX96: 0,
+      tokenIn: WETH_ADDRESS,
+      tokenOut: USDB_ADDRESS,
+    });
+
+    return fixture;
+  }
+
   it("Verify initial pool state", async () => {
     const { pool } = await loadFixture(fixtureDeployed);
 
@@ -420,6 +468,46 @@ describe("ConcentratedLiquidityModuleC", function () {
         BN.from("413026157656739951683271"),
         BN.from("60764638839453191712"),
       ]);
+    });
+  });
+
+  describe("Collect test suite", () => {
+    it("Can collect unclaimed tokens to contract", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureWithFees);
+
+      const usdb = await USDB.balanceOf(module.address);
+      const weth = await WETH.balanceOf(module.address);
+
+      // need to generate some fees
+      await module.moduleC_collect();
+
+      // Expect balances to have increased
+      expect(await USDB.balanceOf(module.address)).to.equal(
+        usdb.add("64580542070095326820"),
+      );
+
+      expect(await WETH.balanceOf(module.address)).to.equal(
+        weth.add("19414419086195386"),
+      );
+    });
+
+    it("Can collect unclaimed tokens to user", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureWithFees);
+
+      const usdb = await USDB.balanceOf(user);
+      const weth = await WETH.balanceOf(user);
+
+      // need to generate some fees
+      await module.moduleC_collectTo(user);
+
+      // Expect balances to have increased
+      expect(await USDB.balanceOf(user)).to.equal(
+        usdb.add("64580542070095326820"),
+      );
+
+      expect(await WETH.balanceOf(user)).to.equal(
+        weth.add("19414419086195386"),
+      );
     });
   });
 

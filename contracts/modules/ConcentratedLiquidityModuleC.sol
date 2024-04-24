@@ -14,7 +14,6 @@ import { IThrusterPool } from "./../interfaces/external/Thruster/IThrusterPool.s
 
 // ! Need to be careful of signature collisions
 
-// TODO:- Add claim function (for fees)
 /**
  * @title ConcentratedLiquidityModuleC
  * @author AgentFi
@@ -100,7 +99,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     ) internal pure returns (IThrusterPool pool_) {
         pool_ = IThrusterPool(PoolAddress.computeAddress(factory_, PoolAddress.getPoolKey(token0_, token1_, fee_)));
     }
-
     /**
      * @notice Get the underlying pool position
      * @dev reverts if no position exists
@@ -246,27 +244,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /// @notice Perform partial withdrawal, keeping funds in the this contract
     function moduleC_decreaseLiquidity(uint128 liquidity_) public {
         require(_tokenId != 0, "No existing position to decrease");
-        INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
-        // Let position manager handle to large withdrawal
-
-        thruster.decreaseLiquidity(
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: _tokenId,
-                liquidity: liquidity_,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            })
-        );
-
-        thruster.collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: _tokenId,
-                recipient: address(this),
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            })
-        );
+        _decreaseLiquidityAndCollect(liquidity_, address(this));
     }
 
     /// @notice Perform partial withdrawal, sending funds to the receiver
@@ -278,6 +256,16 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
         moduleC_decreaseLiquidity(liquidity_);
         moduleC_sendBalanceTo(receiver, tokens);
+    }
+
+    /// @notice Collect tokens owned in position, keeping funds in the this contract
+    function moduleC_collect() public {
+        _decreaseLiquidityAndCollect(0, address(this));
+    }
+
+    /// @notice Collect tokens owned in position, sending funds to the receiver
+    function moduleC_collectTo(address receiver) external virtual {
+        _decreaseLiquidityAndCollect(0, receiver);
     }
 
     /***************************************
@@ -324,33 +312,36 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     WITHDRAW FUNCTIONS
     ***************************************/
-
-    /// @notice Withdrawal everything and burn position
-    function _withdrawBalance() internal {
+    /// @notice Collects tokens owed to a position
+    function _decreaseLiquidityAndCollect(uint128 liquidity, address reciever) internal {
         INonfungiblePositionManager thruster = INonfungiblePositionManager(_manager);
-
-        (, , , , , , , uint128 liquidity, , , , ) = thruster.positions(_tokenId);
-
-        thruster.decreaseLiquidity(
-            INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: _tokenId,
-                liquidity: liquidity,
-                amount0Min: 0,
-                amount1Min: 0,
-                deadline: block.timestamp
-            })
-        );
+        if (liquidity > 0) {
+            thruster.decreaseLiquidity(
+                INonfungiblePositionManager.DecreaseLiquidityParams({
+                    tokenId: _tokenId,
+                    liquidity: liquidity,
+                    amount0Min: 0,
+                    amount1Min: 0,
+                    deadline: block.timestamp
+                })
+            );
+        }
 
         thruster.collect(
             INonfungiblePositionManager.CollectParams({
                 tokenId: _tokenId,
-                recipient: address(this),
+                recipient: reciever,
                 amount0Max: type(uint128).max,
                 amount1Max: type(uint128).max
             })
         );
+    }
 
-        thruster.burn(_tokenId);
+    /// @notice Withdrawal everything and burn position
+    function _withdrawBalance() internal {
+        _decreaseLiquidityAndCollect(position().liquidity, address(this));
+
+        INonfungiblePositionManager(_manager).burn(_tokenId);
     }
 
     /***************************************

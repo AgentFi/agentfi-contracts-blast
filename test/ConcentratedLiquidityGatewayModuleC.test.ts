@@ -39,6 +39,7 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00da13d2960cf113edcef6e3f30d92e52906537";
+/* prettier-ignore */ const ROUTER_ADDRESS                = "0x337827814155ECBf24D20231fCA4444F530C0555";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityGatewayModuleC", function () {
@@ -138,6 +139,54 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         token1: WETH_ADDRESS,
       })
       .then((tx) => tx.wait());
+
+    return fixture;
+  }
+
+  async function fixtureWithFees() {
+    const fixture = await loadFixture(fixtureDeposited);
+
+    const whale = "0xE7cbfb8c70d423202033aD4C51CE94ce9E21CfA2";
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [whale],
+    });
+
+    const signer = await provider.getSigner(whale);
+    const router = await ethers.getContractAt(
+      "ISwapRouter",
+      ROUTER_ADDRESS,
+      signer,
+    );
+
+    const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
+    const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
+
+    await USDB.approve(router.address, ethers.constants.MaxUint256);
+    await WETH.approve(router.address, ethers.constants.MaxUint256);
+
+    // Swap back and forth to generate fees on both sides
+    await router.exactInputSingle({
+      amountIn: await USDB.balanceOf(whale),
+      amountOutMinimum: 0,
+      deadline: (await provider.getBlock("latest")).timestamp + 1000,
+      fee: 3000,
+      recipient: whale,
+      sqrtPriceLimitX96: 0,
+      tokenIn: USDB_ADDRESS,
+      tokenOut: WETH_ADDRESS,
+    });
+
+    await router.exactInputSingle({
+      amountIn: await WETH.balanceOf(whale),
+      amountOutMinimum: 0,
+      deadline: (await provider.getBlock("latest")).timestamp + 1000,
+      fee: 3000,
+      recipient: whale,
+      sqrtPriceLimitX96: 0,
+      tokenIn: WETH_ADDRESS,
+      tokenOut: USDB_ADDRESS,
+    });
 
     return fixture;
   }
@@ -283,6 +332,26 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
     });
   });
 
+  describe("Collect test suite", () => {
+    it("Can collect unclaimed tokens to user", async () => {
+      const { module, USDB, signer } = await loadFixture(fixtureWithFees);
+
+      const usdb = await USDB.balanceOf(user);
+      const eth = await signer.getBalance();
+
+      // need to generate some fees
+      await module.moduleC_collectTo(user);
+
+      // Expect balances to have increased
+      expect(await USDB.balanceOf(user)).to.equal(
+        usdb.add("64580542070095326831"),
+      );
+
+      expect(await signer.getBalance()).to.equal(
+        eth.add("21251305998240367223"),
+      );
+    });
+  });
   describe("Withdrawal tests", () => {
     it("Can withdrawal to user", async () => {
       const { module, USDB, WETH, signer } =

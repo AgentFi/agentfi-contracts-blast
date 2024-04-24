@@ -51,6 +51,18 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         super.moduleC_increaseLiquidity();
     }
 
+    /// @notice Collect tokens owned in position, sending funds to the receiver
+    function moduleC_collectTo(address receiver) external override {
+        PositionStruct memory pos = position();
+        address[] memory tokens = new address[](2);
+        tokens[0] = pos.token0;
+        tokens[1] = pos.token1;
+
+        // Cannot send directly to receiver as we need to unwrap WETH to ETH
+        _decreaseLiquidityAndCollect(0, address(this));
+        moduleC_sendBalanceTo(receiver, tokens);
+    }
+
     function moduleC_sendBalanceTo(address receiver, address[] memory tokens) public override {
         uint256 balance = IERC20(_weth).balanceOf(address(this));
         if (balance > 0) {
