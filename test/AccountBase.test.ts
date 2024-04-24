@@ -1425,10 +1425,8 @@ describe("AccountBase", function () {
           // will likely silent noop then fail to decode result
         });
         it("fails if parent has no implementation", async function () {
-          console.log("attempting - fails if parent has no implementation")
           await expect(erc6551AccountNoImplChild.connect(user5).execute(user2.address, 0, "0x", 0)).to.be.revertedWithCustomError(erc6551Account1, "NotAuthorized")
           await expect(erc6551AccountNoImplChild.connect(user5).executeBatch([])).to.be.revertedWithCustomError(erc6551Account1, "NotAuthorized")
-          console.log("success - fails if parent has no implementation")
         });
       })
 
@@ -2296,9 +2294,65 @@ describe("AccountBase", function () {
               await expect(tx).to.emit(erc6551AccountNested2, "OverrideUpdated").withArgs(user1.address, selectors[i], implementations[i]);
             }
           })
+          it("set overrides 2", async function () {
+            let selectors = [testFunc1Sighash]
+            let implementations = [test1Callee.address]
+            await erc6551AccountNested1.connect(user1).setOverrides(selectors, implementations)
+            await erc6551AccountNested2.connect(user1).setOverrides(selectors, implementations)
+            //await erc6551AccountNested3.connect(user1).setOverrides(overrides)
+            let calldata = erc6551AccountNested3.interface.encodeFunctionData("setOverrides", [selectors, implementations])
+            await erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, calldata, 0)
+          })
+          // after override is set, there is no access control
+          // anyone can call any override
           it("can call overrides", async function () {
             await user1.sendTransaction({ to: erc6551Account1.address, data: testFunc1Sighash })
             let sandbox = await mockSandbox.sandbox(erc6551Account1.address)
+          })
+          it("can call overrides on a nested account pt 1", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested2.address, 0, testFunc1Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let receipt = await tx.wait()
+            let addr = receipt.logs[0].address // the sandbox?
+            let sandbox = await ethers.getContractAt("Test1Callee", addr)
+            await expect(tx).to.emit(sandbox, "Test1Event").withArgs(1)
+          })
+          it("can call overrides on a nested account pt 2", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, testFunc1Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let receipt = await tx.wait()
+            let addr = receipt.logs[0].address // the sandbox?
+            let sandbox = await ethers.getContractAt("Test1Callee", addr)
+            await expect(tx).to.emit(sandbox, "Test1Event").withArgs(1)
+          })
+          it("can call overrides on a nested account pt 3", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested1.address, data: testFunc1Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let receipt = await tx.wait()
+            let addr = receipt.logs[0].address // the sandbox?
+            let sandbox = await ethers.getContractAt("Test1Callee", addr)
+            await expect(tx).to.emit(sandbox, "Test1Event").withArgs(1)
+          })
+          it("can call overrides on a nested account pt 4", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested2.address, data: testFunc1Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let receipt = await tx.wait()
+            let addr = receipt.logs[0].address // the sandbox?
+            let sandbox = await ethers.getContractAt("Test1Callee", addr)
+            await expect(tx).to.emit(sandbox, "Test1Event").withArgs(1)
+          })
+          it("can call overrides on a nested account pt 5", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested3.address, data: testFunc1Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let receipt = await tx.wait()
+            let addr = receipt.logs[0].address // the sandbox?
+            let sandbox = await ethers.getContractAt("Test1Callee", addr)
+            await expect(tx).to.emit(sandbox, "Test1Event").withArgs(1)
           })
           it("can call overrides static", async function () {
             var res = await erc6551Account1.supportsInterface(dummy1Sighash)
@@ -2426,6 +2480,54 @@ describe("AccountBase", function () {
             let tx = await strategyManager.sendTransaction({ to: erc6551Account1.address, data: testFunc2Sighash })
             let moduleContract = await ethers.getContractAt("Test1Callee", erc6551Account1.address)
             await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("set overrides 2", async function () {
+            let overrides = [
+              {
+                implementation: test1Callee.address,
+                functionParams: [
+                  { selector: testFunc1Sighash, isProtected: false },
+                  { selector: testFunc2Sighash, isProtected: true },
+                ]
+              },
+            ]
+            await erc6551AccountNested1.connect(user1).setOverrides(overrides)
+            await erc6551AccountNested2.connect(user1).setOverrides(overrides)
+            //await erc6551AccountNested3.connect(user1).setOverrides(overrides)
+            let calldata = erc6551AccountNested3.interface.encodeFunctionData("setOverrides", [overrides])
+            await erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, calldata, 0)
+          })
+          it("can call overrides on a nested account pt 1", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested2.address, 0, testFunc2Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested2.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 2", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, testFunc2Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested3.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 3", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested1.address, data: testFunc2Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested1.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 4", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested2.address, data: testFunc2Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested2.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 5", async function () {
+            var p = user1.sendTransaction({ to: erc6551AccountNested3.address, data: testFunc2Sighash, gasLimit: 500_000 })
+            await expect(p).to.be.revertedWithCustomError(erc6551Account1, "NotAuthorized")
           })
           it("can call overrides static", async function () {
             var res = await erc6551Account1.supportsInterface(dummy1Sighash)
@@ -2588,6 +2690,57 @@ describe("AccountBase", function () {
             expect(await erc6551Account1.hasRole(toBytes32(2), user5.address)).eq(true)
             let tx = await user5.sendTransaction({ to: erc6551Account1.address, data: testFunc2Sighash })
             let moduleContract = await ethers.getContractAt("Test1Callee", erc6551Account1.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("set overrides 2", async function () {
+            let overrides = [
+              {
+                implementation: test1Callee.address,
+                functionParams: [
+                  { selector: testFunc1Sighash, requiredRole: toBytes32(5) },
+                  { selector: testFunc2Sighash, requiredRole: toBytes32(6) },
+                ]
+              },
+            ]
+            await erc6551AccountNested1.connect(user1).setOverrides(overrides)
+            await erc6551AccountNested2.connect(user1).setOverrides(overrides)
+            await erc6551AccountNested3.connect(user1).setOverrides(overrides)
+            //let calldata = erc6551AccountNested3.interface.encodeFunctionData("setOverrides", [overrides])
+            //await erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, calldata, 0)
+          })
+          it("can call overrides on a nested account pt 1", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested2.address, 0, testFunc2Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested2.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 2", async function () {
+            let p = erc6551AccountNested1.connect(user1).execute(erc6551AccountNested3.address, 0, testFunc2Sighash, 0)
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested3.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 3", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested1.address, data: testFunc2Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested1.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 4", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested2.address, data: testFunc2Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested2.address)
+            await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
+          })
+          it("can call overrides on a nested account pt 5", async function () {
+            var p = await user1.sendTransaction({ to: erc6551AccountNested3.address, data: testFunc2Sighash })
+            await expect(p).to.not.be.reverted
+            let tx = await p
+            let moduleContract = await ethers.getContractAt("Test1Callee", erc6551AccountNested3.address)
             await expect(tx).to.emit(moduleContract, "Test1Event").withArgs(2)
           })
           it("can call overrides static", async function () {
