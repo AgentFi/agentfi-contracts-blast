@@ -37,9 +37,9 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const GAS_COLLECTOR_ADDRESS         = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
-/* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
+/* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
-/* prettier-ignore */ const ROUTER_ADDRESS                = "0x337827814155ECBf24D20231fCA4444F530C0555";
+/* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityModuleC", function () {
@@ -79,7 +79,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const PositionManager = await ethers.getContractAt(
       "INonfungiblePositionManager",
-      THRUSTER_ADDRESS,
+      POSITION_MANAGER_ADDRESS,
       signer,
     );
 
@@ -135,7 +135,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     await module
       .moduleC_mintBalance({
-        manager: THRUSTER_ADDRESS,
+        manager: POSITION_MANAGER_ADDRESS,
         tickLower: -82920,
         tickUpper: -76020,
         fee: 3000,
@@ -159,7 +159,7 @@ describe("ConcentratedLiquidityModuleC", function () {
     const signer = await provider.getSigner(whale);
     const router = await ethers.getContractAt(
       "ISwapRouter",
-      ROUTER_ADDRESS,
+      SWAP_ROUTER_ADDRESS,
       signer,
     );
 
@@ -210,7 +210,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   it("View initial state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
-    expect(await module.thrusterManager()).to.equal(
+    expect(await module.manager()).to.equal(
       "0x0000000000000000000000000000000000000000",
     );
 
@@ -224,7 +224,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     // expect(await module.token0()).to.equal(USDB_ADDRESS);
     // expect(await module.token1()).to.equal(WETH_ADDRESS);
-    expect(await module.thrusterManager()).to.equal(THRUSTER_ADDRESS);
+    expect(await module.manager()).to.equal(POSITION_MANAGER_ADDRESS);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
     expect(convertToStruct(await module.position())).to.deep.equal({
@@ -254,7 +254,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       await expect(
         module.moduleC_mintBalance({
-          manager: THRUSTER_ADDRESS,
+          manager: POSITION_MANAGER_ADDRESS,
           tickLower: -80880,
           tickUpper: -81480,
           fee: 3000,
@@ -275,7 +275,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       // Trigger the deposit
       await expect(
         module.moduleC_mintBalance({
-          manager: THRUSTER_ADDRESS,
+          manager: POSITION_MANAGER_ADDRESS,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
           fee: 3000,
@@ -304,7 +304,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       // Trigger the deposit
       await module
         .moduleC_mintBalance({
-          manager: THRUSTER_ADDRESS,
+          manager: POSITION_MANAGER_ADDRESS,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
           fee: 3000,
@@ -550,7 +550,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await expect(
         module.moduleC_rebalance({
           fee: 3000,
-          router: ROUTER_ADDRESS,
+          router: SWAP_ROUTER_ADDRESS,
           slippage: 10000,
           tickLower: -80880,
           tickUpper: -81480,
@@ -564,7 +564,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await expect(
         module.moduleC_rebalance({
           fee: 3000,
-          router: ROUTER_ADDRESS,
+          router: SWAP_ROUTER_ADDRESS,
           slippage: 1000, // 0.1%
           tickLower: -82020,
           tickUpper: -79620,
@@ -578,7 +578,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await module
         .moduleC_rebalance({
           fee: 3000,
-          router: ROUTER_ADDRESS,
+          router: SWAP_ROUTER_ADDRESS,
           slippage: 10000,
           tickLower: -81480,
           tickUpper: -80880,
@@ -618,7 +618,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await module
         .moduleC_rebalance({
           fee: 3000,
-          router: ROUTER_ADDRESS,
+          router: SWAP_ROUTER_ADDRESS,
           slippage: 10000,
           tickLower: -80760,
           tickUpper: -80160,
@@ -665,7 +665,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await module
         .moduleC_rebalance({
           fee: 3000,
-          router: ROUTER_ADDRESS,
+          router: SWAP_ROUTER_ADDRESS,
           slippage: 10000,
           tickLower: -82020,
           tickUpper: -79620,
