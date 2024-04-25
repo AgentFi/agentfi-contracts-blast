@@ -16,6 +16,7 @@ import {
   sqrtPriceX96ToPrice1,
   tickToPrice0,
 } from "../scripts/utils/v3";
+import { toBytes32 } from "../scripts/utils/setStorage";
 
 // Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
 function convertToStruct(res: any) {
@@ -41,8 +42,18 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 
-const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
-describe("ConcentratedLiquidityModuleC", function () {
+/* prettier-ignore */ const USER_ADDRESS                  = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
+
+describe.only("ConcentratedLiquidityModuleC (Installed)", function () {
+  const OWNER_ADDRESS = "0xA214a4fc09C42202C404E2976c50373fE5F5B789";
+  const STRATEGY_COLLECTION_ADDRESS =
+    "0x73E75E837e4F3884ED474988c304dE8A437aCbEf"; // v1.0.1
+  const STRATEGY_FACTORY_ADDRESS = "0x09906C1eaC081AC4aF24D6F7e05f7566440b4601"; // v1.0.1
+  const ENTRY_POINT_ADDRESS = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+  const ERC6551_REGISTRY_ADDRESS = "0x000000006551c19487814612e58FE06813775758";
+  const MULTICALL_FORWARDER_ADDRESS =
+    "0xAD55F8b65d5738C6f63b54E651A09cC5d873e4d8"; // v1.0.1
+
   async function fixtureDeployed() {
     const [deployer] = await ethers.getSigners();
     const blockNumber = 2178591;
@@ -61,10 +72,245 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     await hre.network.provider.request({
       method: "hardhat_impersonateAccount",
-      params: [user],
+      params: [USER_ADDRESS],
+    });
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [OWNER_ADDRESS],
+    });
+    const signer = await provider.getSigner(USER_ADDRESS);
+    const owner = await provider.getSigner(OWNER_ADDRESS);
+    // Wrap existing ETH to WETH, leaving some gas
+    await signer
+      .sendTransaction({
+        to: WETH_ADDRESS,
+        value: (await signer.getBalance()).sub(ethers.utils.parseEther("0.1")),
+      })
+      .then((x) => x.wait());
+
+    // ===== Load already deployed contracts
+    const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
+    const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
+    const pool = new ethers.Contract(
+      POOL_ADDRESS,
+      new ethers.utils.Interface([
+        "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+      ]),
+      deployer,
+    );
+    const PositionManager = await ethers.getContractAt(
+      "INonfungiblePositionManager",
+      POSITION_MANAGER_ADDRESS,
+      signer,
+    );
+
+    const strategyCollection = await ethers.getContractAt(
+      "BlastooorStrategyAgents",
+      STRATEGY_COLLECTION_ADDRESS,
+    );
+    const strategyFactory = await ethers.getContractAt(
+      "BlastooorStrategyFactory",
+      STRATEGY_FACTORY_ADDRESS,
+      owner,
+    );
+
+    // This is the tba of genesis agent 5
+    let genesisAgentAddress = "0xf93D295e760f05549451ae68A392F774428040B4";
+    const genesisAgent = await ethers.getContractAt(
+      "BlastooorGenesisAgentAccount",
+      genesisAgentAddress,
+      owner,
+    );
+
+    // ==== Deploy new contracts
+    const module = (await deployContract(
+      deployer,
+      "ConcentratedLiquidityModuleC",
+      [
+        BLAST_ADDRESS,
+        GAS_COLLECTOR_ADDRESS,
+        BLAST_POINTS_ADDRESS,
+        BLAST_POINTS_OPERATOR_ADDRESS,
+      ],
+    )) as ConcentratedLiquidityModuleC;
+
+    const strategyAccountImplementation = await deployContract(
+      deployer,
+      "BlastooorStrategyAgentAccountV2",
+      [
+        BLAST_ADDRESS,
+        GAS_COLLECTOR_ADDRESS,
+        BLAST_POINTS_ADDRESS,
+        BLAST_POINTS_OPERATOR_ADDRESS,
+        ENTRY_POINT_ADDRESS,
+        MULTICALL_FORWARDER_ADDRESS,
+        ERC6551_REGISTRY_ADDRESS,
+        ethers.constants.AddressZero,
+      ],
+    );
+    // const strategyAccountImplementation: BlastooorStrategyAgentAccount; // the base implementation for token bound accounts
+    const strategyConfigID = 7;
+
+    // ======= Create Agent Creation Settings
+    let overrides = [
+      {
+        implementation: module.address,
+        functionParams: [
+          { selector: "0x93f0899a", requiredRole: toBytes32(0) }, // moduleName()
+          { selector: "0x82ccd330", requiredRole: toBytes32(0) }, // strategyType()
+        ],
+      },
+    ];
+
+    await strategyFactory.connect(owner).postAgentCreationSettings({
+      agentImplementation: strategyAccountImplementation.address,
+      initializationCalls: [
+        strategyAccountImplementation.interface.encodeFunctionData(
+          "blastConfigure",
+        ),
+        strategyAccountImplementation.interface.encodeFunctionData(
+          "setOverrides",
+          [overrides],
+        ),
+        // Deposit? moduleC deposit
+        // User approval is to factory, factory its to TBA
+      ],
+      isActive: true,
     });
 
-    const signer = await provider.getSigner(user);
+    // ======= Create the agent
+    console.log("before: ", await strategyCollection.totalSupply());
+
+    const genesisCallBatch = [
+      {
+        to: strategyFactory.address,
+        value: 0,
+        data: strategyFactory.interface.encodeFunctionData(
+          "createAgent(uint256)",
+          [3],
+        ),
+        operation: 0,
+      },
+    ];
+    let { to, value, data, operation } = genesisCallBatch[0];
+    const genesisAgentCalldata = genesisAgent.interface.encodeFunctionData(
+      "execute",
+      [to, value, data, operation],
+    );
+
+    await owner.sendTransaction({
+      to: genesisAgentAddress,
+      data: genesisAgentCalldata,
+      value: 0,
+      gasLimit: 3_000_000,
+    });
+    console.log("after: ", await strategyCollection.totalSupply());
+
+    console.log(await strategyCollection.totalSupply());
+
+    return {
+      PositionManager,
+      USDB,
+      WETH,
+      module,
+      pool,
+      signer,
+    };
+  }
+
+  describe("Deposit flow", () => {
+    it("Can deposit with WETH", async function () {
+      const { module, USDB, WETH, PositionManager } =
+        await loadFixture(fixtureDeployed);
+      // Expect no assets in tba
+      expect(
+        await Promise.all([
+          provider.getBalance(module.address),
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
+
+      // Transfer all assets to tba
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+
+      // Trigger the deposit
+      await module
+        .moduleC_mintBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          tickLower: price1ToTick(4000),
+          tickUpper: price1ToTick(2000),
+          fee: 3000,
+          token0: USDB_ADDRESS,
+          token1: WETH_ADDRESS,
+        })
+        .then((tx) => tx.wait());
+
+      // Expect all Assets to be transferred to tba
+      expect(
+        await Promise.all([
+          USDB.balanceOf(USER_ADDRESS),
+          WETH.balanceOf(USER_ADDRESS),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
+
+      const tokenId = await module.tokenId();
+
+      // Position to be minted
+      expect(
+        convertToStruct(await PositionManager.positions(tokenId)),
+      ).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+      // Only leftover on one side
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
+    });
+  });
+});
+describe("ConcentratedLiquidityModuleC (Isolated)", function () {
+  async function fixtureDeployed() {
+    const [deployer] = await ethers.getSigners();
+    const blockNumber = 2178591;
+    // Run tests against forked network
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.BLAST_URL,
+            blockNumber,
+          },
+        },
+      ],
+    });
+
+    await hre.network.provider.request({
+      method: "hardhat_impersonateAccount",
+      params: [USER_ADDRESS],
+    });
+
+    const signer = await provider.getSigner(USER_ADDRESS);
 
     // Get ecosystem contracts
     const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
@@ -103,9 +349,9 @@ describe("ConcentratedLiquidityModuleC", function () {
       .then((x) => x.wait());
     expect(
       await Promise.all([
-        provider.getBalance(user),
-        USDB.balanceOf(user),
-        WETH.balanceOf(user),
+        provider.getBalance(USER_ADDRESS),
+        USDB.balanceOf(USER_ADDRESS),
+        WETH.balanceOf(USER_ADDRESS),
       ]),
     ).to.deep.equal([
       BN.from("99909183979657216"),
@@ -127,10 +373,13 @@ describe("ConcentratedLiquidityModuleC", function () {
     const fixture = await loadFixture(fixtureDeployed);
     const { signer, USDB, module, WETH } = fixture;
 
-    await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
+    await USDB.transfer(
+      module.address,
+      (await USDB.balanceOf(USER_ADDRESS)).div(2),
+    );
     await WETH.transfer(
       module.address,
-      (await WETH.balanceOf(user)).sub(ethers.utils.parseEther("10")),
+      (await WETH.balanceOf(USER_ADDRESS)).sub(ethers.utils.parseEther("10")),
     );
 
     await module
@@ -268,8 +517,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
@@ -298,8 +547,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await module
@@ -315,7 +564,10 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Expect all Assets to be transferred to tba
       expect(
-        await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
+        await Promise.all([
+          USDB.balanceOf(USER_ADDRESS),
+          WETH.balanceOf(USER_ADDRESS),
+        ]),
       ).to.deep.equal([BN.from("0"), BN.from("0")]);
 
       const tokenId = await module.tokenId();
@@ -355,8 +607,8 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Rejects partial deposit when no position exists", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
 
-      await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       await expect(module.moduleC_increaseLiquidity()).to.be.revertedWith(
         "No existing position to increase",
@@ -367,8 +619,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      await USDB.transfer(module.address, USDB.balanceOf(user));
-      await WETH.transfer(module.address, WETH.balanceOf(user));
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       const tokenId = await module.tokenId();
 
@@ -460,10 +712,15 @@ describe("ConcentratedLiquidityModuleC", function () {
         ]),
       ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
 
-      await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
+      await module
+        .moduleC_withdrawBalanceTo(USER_ADDRESS)
+        .then((tx) => tx.wait());
 
       expect(
-        await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
+        await Promise.all([
+          USDB.balanceOf(USER_ADDRESS),
+          WETH.balanceOf(USER_ADDRESS),
+        ]),
       ).to.deep.equal([
         BN.from("413026157656739951683271"),
         BN.from("60764638839453191712"),
@@ -494,18 +751,18 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can collect unclaimed tokens to user", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureWithFees);
 
-      const usdb = await USDB.balanceOf(user);
-      const weth = await WETH.balanceOf(user);
+      const usdb = await USDB.balanceOf(USER_ADDRESS);
+      const weth = await WETH.balanceOf(USER_ADDRESS);
 
       // need to generate some fees
-      await module.moduleC_collectTo(user);
+      await module.moduleC_collectTo(USER_ADDRESS);
 
       // Expect balances to have increased
-      expect(await USDB.balanceOf(user)).to.equal(
+      expect(await USDB.balanceOf(USER_ADDRESS)).to.equal(
         usdb.add("64580542070095326820"),
       );
 
-      expect(await WETH.balanceOf(user)).to.equal(
+      expect(await WETH.balanceOf(USER_ADDRESS)).to.equal(
         weth.add("19414419086195386"),
       );
     });
@@ -516,10 +773,10 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      expect(await USDB.balanceOf(user)).to.equal(
+      expect(await USDB.balanceOf(USER_ADDRESS)).to.equal(
         BN.from("206513078828369975841636"),
       );
-      expect(await WETH.balanceOf(user)).to.equal(
+      expect(await WETH.balanceOf(USER_ADDRESS)).to.equal(
         BN.from("10000000000000000000"),
       );
 
@@ -528,16 +785,16 @@ describe("ConcentratedLiquidityModuleC", function () {
       );
       await module.moduleC_decreaseLiquidityTo(
         BN.from("16983715425639545311351").div(2),
-        user,
+        USER_ADDRESS,
       );
       // Expect user balance to have increased, and liquidity decreased
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("8491857712819772655676"),
       );
-      expect(await USDB.balanceOf(user)).to.equal(
+      expect(await USDB.balanceOf(USER_ADDRESS)).to.equal(
         BN.from("309769618242554963762453"),
       );
-      expect(await WETH.balanceOf(user)).to.equal(
+      expect(await WETH.balanceOf(USER_ADDRESS)).to.equal(
         BN.from("45948265209303681774"),
       );
     });
