@@ -66,6 +66,24 @@ interface IBlastooorAccountFactory {
     CREATE AGENT FUNCTIONS
     ***************************************/
 
+    /**
+     * @notice Creates a new account for an agent.
+     * Can only be called by the owner of the agent.
+     * @param agentID The ID of the agent to create an account for.
+     * @param creationSettingsID The creation settings to use.
+     * @return account The address of the newly created account.
+     */
+    function createAccount(uint256 agentID, uint256 creationSettingsID) external payable returns (address account);
+
+    /**
+     * @notice Creates a new account for an agent.
+     * Can only be called by the owner of the agent.
+     * @param agentID The ID of the agent to create an account for.
+     * @param creationSettingsID The creation settings to use.
+     * @param callDatas Extra data to pass to the agent after it is created.
+     * @return account The address of the newly created account.
+     */
+    function createAccount(uint256 agentID, uint256 creationSettingsID, bytes[] calldata callDatas) external payable returns (address account);
 
     /***************************************
     OWNER FUNCTIONS
