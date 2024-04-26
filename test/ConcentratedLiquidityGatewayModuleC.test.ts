@@ -1,21 +1,17 @@
 /* global describe it before ethers */
 
 import hre from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import {
+  loadFixture,
+  setBalance,
+} from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
-import { BigNumber as BN, Contract, Signer } from "ethers";
+import { BigNumber as BN } from "ethers";
 import chai from "chai";
 const { expect } = chai;
 
-import { ConcentratedLiquidityModuleC } from "../typechain-types";
-
-import { deployContract } from "../scripts/utils/deployContract";
-import {
-  price1ToTick,
-  sqrtPriceX96ToPrice1,
-  tickToPrice0,
-} from "../scripts/utils/v3";
+import { fixtureSetup } from "./ConcentratedLiquidityModuleC.test";
 
 // Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
 function convertToStruct(res: any) {
@@ -30,69 +26,20 @@ function convertToStruct(res: any) {
     );
 }
 
-// TODO: remove ignore before merging and not autoformating
-/* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
-/* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
-/* prettier-ignore */ const BLAST_POINTS_OPERATOR_ADDRESS = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
-/* prettier-ignore */ const GAS_COLLECTOR_ADDRESS         = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
-/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00da13d2960cf113edcef6e3f30d92e52906537";
 /* prettier-ignore */ const ROUTER_ADDRESS                = "0x337827814155ECBf24D20231fCA4444F530C0555";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityGatewayModuleC", function () {
   async function fixtureDeployed() {
-    const [deployer] = await ethers.getSigners();
-    const blockNumber = 2178591;
-    // Run tests against forked network
-    await hre.network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.BLAST_URL,
-            blockNumber,
-          },
-        },
-      ],
-    });
+    const fixture = await fixtureSetup("ConcentratedLiquidityGatewayModuleC");
 
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [user],
-    });
+    const { USDB, WETH } = fixture;
 
-    const signer = await provider.getSigner(user);
-
-    // Get ecosystem contracts
-    const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
-    const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
-    const pool = new ethers.Contract(
-      POOL_ADDRESS,
-      new ethers.utils.Interface([
-        "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
-      ]),
-      deployer,
-    );
-
-    const PositionManager = await ethers.getContractAt(
-      "INonfungiblePositionManager",
-      THRUSTER_ADDRESS,
-      signer,
-    );
-
-    const module = (await deployContract(
-      deployer,
-      "ConcentratedLiquidityGatewayModuleC",
-      [
-        BLAST_ADDRESS,
-        GAS_COLLECTOR_ADDRESS,
-        BLAST_POINTS_ADDRESS,
-        BLAST_POINTS_OPERATOR_ADDRESS,
-      ],
-    )) as ConcentratedLiquidityModuleC;
+    // Set ETH balance for consistency. Number set to not break previous tests
+    await setBalance(user, BN.from("60864638839453191713"));
 
     expect(
       await Promise.all([
@@ -106,14 +53,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       BN.from("0"),
     ]);
 
-    return {
-      PositionManager,
-      USDB,
-      WETH,
-      module,
-      pool,
-      signer,
-    };
+    return fixture;
   }
 
   async function fixtureDeposited() {
@@ -328,7 +268,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("10"), BN.from("1499013205828754215")]);
+      ).to.deep.equal([BN.from("10"), BN.from("1498283515758773276")]);
     });
   });
 
@@ -343,12 +283,12 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       await module.moduleC_collectTo(user);
 
       // Expect balances to have increased
-      expect(await USDB.balanceOf(user)).to.equal(
-        usdb.add("64580542070095326831"),
+      expect((await USDB.balanceOf(user)).sub(usdb)).to.equal(
+        BN.from("64580542070095326831"),
       );
 
-      expect(await signer.getBalance()).to.equal(
-        eth.add("21251305998240367223"),
+      expect((await signer.getBalance()).sub(eth)).to.equal(
+        BN.from("21250989142221672719"),
       );
     });
   });
@@ -372,7 +312,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
           WETH.balanceOf(user),
         ]),
       ).to.deep.equal([
-        BN.from("60864507726426793966"),
+        BN.from("60863382736318468927"),
         BN.from("413026157656739951683271"),
         BN.from("0"),
       ]);
@@ -401,7 +341,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       expect(await signer.getBalance()).to.equal(
-        BN.from("46048134096277284028"),
+        BN.from("46047031086171091049"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),
