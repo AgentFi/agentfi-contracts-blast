@@ -151,6 +151,9 @@ contract DexBalancerModuleA is Blastable {
 
     /**
      * @notice Deposits tokens into Thruster.
+     * Deposits the tokens into the liquidity pool and stakes the LP token into Hyperlock.
+     * @param wethAmount The amount of WETH to deposit.
+     * @param usdbAmount The amount of USDB to deposit.
      */
     function _depositThruster(uint256 wethAmount, uint256 usdbAmount) internal {
         // approve weth and usdb to router
@@ -169,7 +172,8 @@ contract DexBalancerModuleA is Blastable {
     /**
      * @notice Deposits tokens into Ring Protocol.
      * Deposits the tokens into the liquidity pool and stakes the LP token.
-     * Will attempt to deposit this TBA's entire balance of each token.
+     * @param wethAmount The amount of WETH to deposit.
+     * @param usdbAmount The amount of USDB to deposit.
      */
     function _depositRingProtocol(uint256 wethAmount, uint256 usdbAmount) internal {
         // approve weth and usdb to router
@@ -187,6 +191,9 @@ contract DexBalancerModuleA is Blastable {
 
     /**
      * @notice Deposits tokens into Blasterswap.
+     * Deposits the tokens into the liquidity pool.
+     * @param wethAmount The amount of WETH to deposit.
+     * @param usdbAmount The amount of USDB to deposit.
      */
     function _depositBlasterswap(uint256 wethAmount, uint256 usdbAmount) internal {
         // approve weth and usdb to router
@@ -201,12 +208,20 @@ contract DexBalancerModuleA is Blastable {
     WITHDRAW FUNCTIONS
     ***************************************/
 
+    /**
+     * @notice Deposits tokens from all pools.
+     * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
+     */
     function _withdrawBalance() internal {
         _withdrawThruster();
         _withdrawRingProtocol();
         _withdrawBlasterswap();
     }
 
+    /**
+     * @notice Deposits tokens from Hyperlock staking and Thruster liquidity pool.
+     * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
+     */
     function _withdrawThruster() internal {
         // withdraw from hyperlock
         uint256 balance = IHyperlockStaking(_hyperlockStaking).staked(address(this), _thrusterLpToken);
@@ -221,6 +236,10 @@ contract DexBalancerModuleA is Blastable {
         }
     }
 
+    /**
+     * @notice Deposits tokens from Ring staking and liquidity pool.
+     * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
+     */
     function _withdrawRingProtocol() internal {
         // unstake lp token
         uint256 balance = IFixedStakingRewards(_ringStakingRewards).balanceOf(_ringStakingIndex, address(this));
@@ -242,6 +261,10 @@ contract DexBalancerModuleA is Blastable {
         }
     }
 
+    /**
+     * @notice Deposits tokens from Blasterswap liquidity pool.
+     * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
+     */
     function _withdrawBlasterswap() internal {
       // withdraw from pool
       uint256 balance = IERC20(_blasterswapLpToken).balanceOf(address(this));
@@ -251,8 +274,20 @@ contract DexBalancerModuleA is Blastable {
       }
     }
 
+    /***************************************
+    HELPER FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Checks the approval of an ERC20 token from this contract to another address.
+     * @param token The token to check allowance.
+     * @param recipient The address to give allowance to.
+     * @param minAmount The minimum amount of the allowance.
+     */
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
+        // if current allowance is insufficient
         if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            // set allowance to max
             SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
         }
     }

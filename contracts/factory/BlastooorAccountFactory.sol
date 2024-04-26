@@ -127,7 +127,7 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Blastable, Ownable
      * @param creationSettingsID The creation settings to use.
      * @return account The address of the newly created account.
      */
-    function createAccount(uint256 agentID, uint256 creationSettingsID) external payable returns (address account) {
+    function createAccount(uint256 agentID, uint256 creationSettingsID) external payable override returns (address account) {
         account = _createAccount(agentID, creationSettingsID);
     }
 
@@ -139,7 +139,7 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Blastable, Ownable
      * @param callDatas Extra data to pass to the agent after it is created.
      * @return account The address of the newly created account.
      */
-    function createAccount(uint256 agentID, uint256 creationSettingsID, bytes[] calldata callDatas) external payable returns (address account) {
+    function createAccount(uint256 agentID, uint256 creationSettingsID, bytes[] calldata callDatas) external payable override returns (address account) {
         account = _createAccount(agentID, creationSettingsID);
         // initialize account
         for(uint256 i = 0; i < callDatas.length; ++i) {

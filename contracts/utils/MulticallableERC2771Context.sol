@@ -37,12 +37,12 @@ abstract contract MulticallableERC2771Context is ERC2771Context, IMulticallableE
      * @return results The results of each function call.
      */
     function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
-    		results = new bytes[](data.length);
-    		address sender = _msgSender();
-    		bool isForwarder = msg.sender != sender;
+        results = new bytes[](data.length);
+        address sender = _msgSender();
+        bool isForwarder = msg.sender != sender;
         for(uint256 i = 0; i < data.length; ++i) {
-    				if(isForwarder) {
-    						results[i] = Calls.functionDelegateCall(address(this), abi.encodePacked(data[i], sender));
+            if(isForwarder) {
+                results[i] = Calls.functionDelegateCall(address(this), abi.encodePacked(data[i], sender));
             } else {
                 results[i] = Calls.functionDelegateCall(address(this), data[i]);
             }
