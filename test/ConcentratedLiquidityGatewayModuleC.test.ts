@@ -202,9 +202,9 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         .then((x) => x.wait());
       await USDB.transfer(module.address, USDB.balanceOf(user));
 
-      await expect(module.moduleC_increaseLiquidity()).to.be.revertedWith(
-        "No existing position to increase",
-      );
+      await expect(
+        module.moduleC_increaseLiquidityWithBalance(),
+      ).to.be.revertedWith("No existing position to view");
     });
 
     it("Can do partial deposit", async () => {
@@ -241,7 +241,9 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         tokensOwed1: BN.from("0"),
       });
 
-      await module.moduleC_increaseLiquidity().then((tx) => tx.wait());
+      await module
+        .moduleC_increaseLiquidityWithBalance()
+        .then((tx) => tx.wait());
 
       // Position to be minted
       expect(convertToStruct(await module.position())).to.deep.equal({
@@ -268,7 +270,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("10"), BN.from("1498283515758773276")]);
+      ).to.deep.equal([BN.from("10"), BN.from("1498283203757878153")]);
     });
   });
 
@@ -288,7 +290,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       );
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("21250989142221672719"),
+        BN.from("21250989393221687528"),
       );
     });
   });
@@ -312,7 +314,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
           WETH.balanceOf(user),
         ]),
       ).to.deep.equal([
-        BN.from("60863382736318468927"),
+        BN.from("60863382671317597763"),
         BN.from("413026157656739951683271"),
         BN.from("0"),
       ]);
@@ -341,7 +343,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       expect(await signer.getBalance()).to.equal(
-        BN.from("46047031086171091049"),
+        BN.from("46047030489170168281"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),

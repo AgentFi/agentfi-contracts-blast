@@ -86,6 +86,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Derive the pool address
+    // TODO:- Save pool, use factory to get address
     function getPool(
         address factory_,
         address token0_,
@@ -95,69 +96,189 @@ contract ConcentratedLiquidityModuleC is Blastable {
         pool_ = IV3Pool(PoolAddress.computeAddress(factory_, PoolAddress.getPoolKey(token0_, token1_, fee_)));
     }
 
-    // details about the Thruster position
-    struct PositionStruct {
-        // the nonce for permits
-        uint96 nonce;
-        // the address that is approved for spending this token
-        address operator;
-        address token0;
-        address token1;
-        uint24 fee;
-        // the tick range of the position
-        int24 tickLower;
-        int24 tickUpper;
-        // the liquidity of the position
-        uint128 liquidity;
-        // the fee growth of the aggregate position as of the last action on the individual position
-        uint256 feeGrowthInside0LastX128;
-        uint256 feeGrowthInside1LastX128;
-        // how many uncollected tokens are owed to the position, as of the last computation
-        uint128 tokensOwed0;
-        uint128 tokensOwed1;
-    }
+    /***************************************
+    Wrapper functions around NonfungiblePositionManager
+    ***************************************/
     /**
      * @notice Get the underlying pool position
      * @dev reverts if no position exists
      */
-    function position() public view returns (PositionStruct memory position_) {
+    function position()
+        public
+        view
+        returns (
+            uint96 nonce,
+            address operator,
+            address token0,
+            address token1,
+            uint24 fee,
+            int24 tickLower,
+            int24 tickUpper,
+            uint128 liquidity,
+            uint256 feeGrowthInside0LastX128,
+            uint256 feeGrowthInside1LastX128,
+            uint128 tokensOwed0,
+            uint128 tokensOwed1
+        )
+    {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         require(state.tokenId != 0, "No existing position to view");
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+        return manager_.positions(state.tokenId);
+    }
 
-        (
-            uint96 nonce_,
-            address operator_,
-            address token0_,
-            address token1_,
-            uint24 fee_,
-            int24 tickLower_,
-            int24 tickUpper_,
-            uint128 liquidity_,
-            uint256 feeGrowthInside0LastX128_,
-            uint256 feeGrowthInside1LastX128_,
-            uint128 tokensOwed0_,
-            uint128 tokensOwed1_
-        ) = manager_.positions(state.tokenId);
+    /// @notice Creates a new position wrapped in a NFT
+    /// @dev Call this when the pool does exist and is initialized. Note that if the pool is created but not initialized
+    /// a method does not exist, i.e. the pool is assumed to be initialized.
+    /// @param params The params necessary to mint a position, encoded as `MintParams` in calldata
+    /// @return tokenId_ The ID of the token that represents the minted position
+    /// @return liquidity The amount of liquidity for this position
+    /// @return amount0 The amount of token0
+    /// @return amount1 The amount of token1
+    function moduleC_mint(
+        INonfungiblePositionManager.MintParams memory params
+    ) public payable returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
 
-        position_ = PositionStruct(
-            nonce_,
-            operator_,
-            token0_,
-            token1_,
-            fee_,
-            tickLower_,
-            tickUpper_,
-            liquidity_,
-            feeGrowthInside0LastX128_,
-            feeGrowthInside1LastX128_,
-            tokensOwed0_,
-            tokensOwed1_
+        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+
+        _setApproval(params.token0, state.manager, params.amount0Desired);
+        _setApproval(params.token1, state.manager, params.amount1Desired);
+
+        (tokenId_, liquidity, amount0, amount1) = manager_.mint(params);
+    }
+
+    struct IncreaseLiquidityParams {
+        uint256 amount0Desired;
+        uint256 amount1Desired;
+        uint256 amount0Min;
+        uint256 amount1Min;
+        uint256 deadline;
+    }
+
+    /// @notice Increases the amount of liquidity in a position, with tokens paid by the `msg.sender`
+    /// amount0Desired The desired amount of token0 to be spent,
+    /// amount1Desired The desired amount of token1 to be spent,
+    /// amount0Min The minimum amount of token0 to spend, which serves as a slippage check,
+    /// amount1Min The minimum amount of token1 to spend, which serves as a slippage check,
+    /// deadline The time by which the transaction must be included to effect the change
+    /// @return liquidity The new liquidity amount as a result of the increase
+    /// @return amount0 The amount of token0 to acheive resulting liquidity
+    /// @return amount1 The amount of token1 to acheive resulting liquidity
+    function moduleC_increaseLiquidity(
+        IncreaseLiquidityParams memory params
+    ) public payable returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+        (, , address token0, address token1, , , , , , , , ) = position();
+
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+
+        require(state.tokenId != 0, "No existing position to increase");
+
+        _setApproval(token0, state.manager, params.amount0Desired);
+        _setApproval(token1, state.manager, params.amount1Desired);
+
+        (liquidity, amount0, amount1) = manager_.increaseLiquidity(
+            INonfungiblePositionManager.IncreaseLiquidityParams({
+                tokenId: state.tokenId,
+                amount0Desired: params.amount0Desired,
+                amount1Desired: params.amount1Desired,
+                amount0Min: params.amount0Min,
+                amount1Min: params.amount1Min,
+                deadline: params.deadline
+            })
+        );
+    }
+
+    struct DecreaseLiquidityParams {
+        uint128 liquidity;
+        uint256 amount0Min;
+        uint256 amount1Min;
+        uint256 deadline;
+    }
+    function moduleC_decreaseLiquidity(
+        DecreaseLiquidityParams memory params
+    ) public returns (uint256 amount0, uint256 amount1) {
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+        require(state.tokenId != 0, "No existing position to increase");
+
+        (amount0, amount1) = manager_.decreaseLiquidity(
+            INonfungiblePositionManager.DecreaseLiquidityParams({
+                tokenId: state.tokenId,
+                liquidity: params.liquidity,
+                amount0Min: params.amount0Min,
+                amount1Min: params.amount1Min,
+                deadline: params.deadline
+            })
+        );
+    }
+
+    struct CollectParams {
+        uint128 amount0Max;
+        uint128 amount1Max;
+    }
+    function moduleC_collect(CollectParams memory params) public returns (uint256 amount0, uint256 amount1) {
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+        require(state.tokenId != 0, "No existing position exists");
+
+        (amount0, amount1) = manager_.collect(
+            INonfungiblePositionManager.CollectParams({
+                tokenId: state.tokenId,
+                recipient: address(this),
+                amount0Max: params.amount0Max,
+                amount1Max: params.amount1Max
+            })
+        );
+    }
+
+    function moduleC_burn() public {
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+        require(state.tokenId != 0, "No existing position exists");
+
+        manager_.burn(state.tokenId);
+    }
+
+    struct ExactInputSingleParams {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        uint256 deadline;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    /// @notice Swaps `amountIn` of one token for as much as possible of another token
+    /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata
+    /// @return amountOut The amount of the received token
+    function moduleC_exactInputSingle(
+        address router,
+        ExactInputSingleParams memory params
+    ) public payable returns (uint256 amountOut) {
+        ISwapRouter swapRouter = ISwapRouter(router);
+
+        // Set allowance
+        _setApproval(params.tokenIn, router, params.amountItn);
+
+        amountOut = swapRouter.exactInputSingle(
+            ISwapRouter.ExactInputSingleParams({
+                tokenIn: params.tokenIn,
+                tokenOut: params.tokenOut,
+                fee: params.fee,
+                recipient: address(this),
+                deadline: params.deadline,
+                amountIn: params.amountIn,
+                amountOutMinimum: params.amountOutMinimum,
+                sqrtPriceLimitX96: params.sqrtPriceLimitX96
+            })
         );
     }
 
     /***************************************
-    MUTATOR FUNCTIONS
+    AGENT HIGH LEVEL FUNCTIONS
     ***************************************/
 
     struct MintBalanceParams {
@@ -198,10 +319,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     /// @notice Sends funds to receiver after withdrawaling position
     function moduleC_withdrawBalanceTo(address receiver) external payable {
-        PositionStruct memory pos = position();
+        (, , address token0, address token1, , , , , , , , ) = position();
         address[] memory tokens = new address[](2);
-        tokens[0] = pos.token0;
-        tokens[1] = pos.token1;
+        tokens[0] = token0;
+        tokens[1] = token1;
 
         _withdrawBalance();
         moduleC_sendBalanceTo(receiver, tokens);
@@ -218,18 +339,18 @@ contract ConcentratedLiquidityModuleC is Blastable {
     // TODO:- restrict who can call this
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleC_rebalance(RebalanceParams memory params) external {
-        PositionStruct memory pos = position();
+        (, , address token0, address token1, uint24 fee, , , , , , , ) = position();
         address _manager = concentratedLiquidityModuleCStorage().manager;
 
         _withdrawBalance();
-        _balanceTokens(params, pos);
+        _balanceTokens(params, token0, token1, fee);
 
         _mintBalance(
             MintBalanceParams({
                 manager: _manager,
-                token0: pos.token0,
-                token1: pos.token1,
-                fee: pos.fee,
+                token0: token0,
+                token1: token1,
+                fee: fee,
                 tickLower: params.tickLower,
                 tickUpper: params.tickUpper
             })
@@ -237,23 +358,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Deposit all assets in contract to existing position (does not change range)
-    function moduleC_increaseLiquidity() public virtual {
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        require(state.tokenId != 0, "No existing position to increase");
-        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
+    function moduleC_increaseLiquidityWithBalance()
+        public
+        virtual
+        returns (uint128 liquidity, uint256 amount0, uint256 amount1)
+    {
+        (, , address token0, address token1, , , , , , , , ) = position();
 
-        PositionStruct memory pos = position();
-        uint256 amount0 = IERC20(pos.token0).balanceOf(address(this));
-        uint256 amount1 = IERC20(pos.token1).balanceOf(address(this));
-
-        _setApproval(pos.token0, state.manager, amount0);
-        _setApproval(pos.token1, state.manager, amount1);
-
-        manager_.increaseLiquidity(
-            INonfungiblePositionManager.IncreaseLiquidityParams({
-                tokenId: state.tokenId,
-                amount0Desired: amount0,
-                amount1Desired: amount1,
+        (liquidity, amount0, amount1) = moduleC_increaseLiquidity(
+            IncreaseLiquidityParams({
+                amount0Desired: IERC20(token0).balanceOf(address(this)),
+                amount1Desired: IERC20(token1).balanceOf(address(this)),
                 amount0Min: 0,
                 amount1Min: 0,
                 deadline: block.timestamp
@@ -262,34 +377,40 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Perform partial withdrawal, keeping funds in the this contract
-    function moduleC_decreaseLiquidity(uint128 liquidity_) public {
+    function moduleC_decreaseLiquidityToSelf(uint128 liquidity_) public {
         require(tokenId() != 0, "No existing position to decrease");
-        _decreaseLiquidityAndCollect(liquidity_, address(this));
+        _decreaseLiquidityAndCollect(liquidity_);
     }
 
     /// @notice Perform partial withdrawal, sending funds to the receiver
     function moduleC_decreaseLiquidityTo(uint128 liquidity_, address receiver) external {
-        PositionStruct memory pos = position();
-        address[] memory tokens = new address[](2);
-        tokens[0] = pos.token0;
-        tokens[1] = pos.token1;
+        moduleC_decreaseLiquidityToSelf(liquidity_);
 
-        moduleC_decreaseLiquidity(liquidity_);
+        (, , address token0, address token1, , , , , , , , ) = position();
+        address[] memory tokens = new address[](2);
+        tokens[0] = token0;
+        tokens[1] = token1;
         moduleC_sendBalanceTo(receiver, tokens);
     }
 
     /// @notice Collect tokens owned in position, keeping funds in the this contract
-    function moduleC_collect() public {
-        _decreaseLiquidityAndCollect(0, address(this));
+    function moduleC_collectToSelf() public {
+        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
     function moduleC_collectTo(address receiver) external virtual {
-        _decreaseLiquidityAndCollect(0, receiver);
+        _decreaseLiquidityAndCollect(0);
+
+        (, , address token0, address token1, , , , , , , , ) = position();
+        address[] memory tokens = new address[](2);
+        tokens[0] = token0;
+        tokens[1] = token1;
+        moduleC_sendBalanceTo(receiver, tokens);
     }
 
     /***************************************
-    DEPOSIT FUNCTIONS
+    INTERNAL FUNCTIONS
     ***************************************/
 
     /**
@@ -298,25 +419,18 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function _mintBalance(
         MintBalanceParams memory params
     ) internal returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
-        require(params.tickLower < params.tickUpper, "Invalid tick range");
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        state.manager = params.manager;
 
-        uint256 amount0Desired = IERC20(params.token0).balanceOf(address(this));
-        uint256 amount1Desired = IERC20(params.token1).balanceOf(address(this));
-
-        INonfungiblePositionManager manager_ = INonfungiblePositionManager(params.manager);
-
-        _setApproval(params.token0, params.manager, amount0Desired);
-        _setApproval(params.token1, params.manager, amount1Desired);
-
-        (tokenId_, liquidity, amount0, amount1) = manager_.mint(
+        (tokenId_, liquidity, amount0, amount1) = moduleC_mint(
             INonfungiblePositionManager.MintParams({
                 token0: params.token0,
                 token1: params.token1,
                 fee: params.fee,
                 tickLower: params.tickLower,
                 tickUpper: params.tickUpper,
-                amount0Desired: amount0Desired,
-                amount1Desired: amount1Desired,
+                amount0Desired: IERC20(params.token0).balanceOf(address(this)),
+                amount1Desired: IERC20(params.token1).balanceOf(address(this)),
                 amount0Min: 0,
                 amount1Min: 0,
                 recipient: address(this),
@@ -324,25 +438,16 @@ contract ConcentratedLiquidityModuleC is Blastable {
             })
         );
 
-        // Set New State
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        state.manager = params.manager;
         state.tokenId = tokenId_;
-        // TODO:- Take in and save pool (to better work across protocols)
     }
 
-    /***************************************
-    WITHDRAW FUNCTIONS
-    ***************************************/
     /// @notice Collects tokens owed to a position
-    function _decreaseLiquidityAndCollect(uint128 liquidity, address reciever) internal {
+    function _decreaseLiquidityAndCollect(uint128 liquidity) internal {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
         if (liquidity > 0) {
-            manager_.decreaseLiquidity(
-                INonfungiblePositionManager.DecreaseLiquidityParams({
-                    tokenId: state.tokenId,
+            moduleC_decreaseLiquidity(
+                DecreaseLiquidityParams({
                     liquidity: liquidity,
                     amount0Min: 0,
                     amount1Min: 0,
@@ -351,44 +456,31 @@ contract ConcentratedLiquidityModuleC is Blastable {
             );
         }
 
-        manager_.collect(
-            INonfungiblePositionManager.CollectParams({
-                tokenId: state.tokenId,
-                recipient: reciever,
-                amount0Max: type(uint128).max,
-                amount1Max: type(uint128).max
-            })
-        );
+        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
     /// @notice Withdrawal everything and burn position
     function _withdrawBalance() internal {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
 
-        _decreaseLiquidityAndCollect(position().liquidity, address(this));
+        (, , , , , , , uint128 liquidity, , , , ) = position();
+        _decreaseLiquidityAndCollect(liquidity);
         INonfungiblePositionManager(state.manager).burn(state.tokenId);
     }
-
-    /***************************************
-    REBALANCE FUNCTIONS
-    ***************************************/
 
     /**
      * @notice Rebalances tokens in contract to optimal ratio for depositing into position
      * @dev Not exact as it does not consider price impact of the swap
      */
-    function _balanceTokens(RebalanceParams memory params, PositionStruct memory pos) internal {
+    function _balanceTokens(RebalanceParams memory params, address token0, address token1, uint24 fee) internal {
         require(params.tickLower < params.tickUpper, "Invalid tick range");
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
 
         uint160 pa = TickMath.getSqrtRatioAtTick(params.tickLower);
         uint160 pb = TickMath.getSqrtRatioAtTick(params.tickUpper);
 
-        address token0 = pos.token0;
-        address token1 = pos.token1;
-
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        IV3Pool pool_ = getPool(manager_.factory(), token0, token1, pos.fee);
+        IV3Pool pool_ = getPool(manager_.factory(), token0, token1, fee);
         (uint160 p, , , , , , ) = pool_.slot0();
 
         uint256 amount0 = IERC20(token0).balanceOf(address(this));
@@ -429,16 +521,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
         amountOutMinimum = Math.mulDiv(amountOutMinimum, 1_000_000 - params.slippage, 1_000_000);
 
-        // Set allowance
-        _setApproval(tokenIn, params.router, amountIn);
-
         // Perform Swap
-        swapRouter.exactInputSingle(
-            ISwapRouter.ExactInputSingleParams({
+        moduleC_exactInputSingle(
+            params.router,
+            ExactInputSingleParams({
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
                 fee: params.fee,
-                recipient: address(this),
                 deadline: block.timestamp,
                 amountIn: amountIn,
                 amountOutMinimum: amountOutMinimum,

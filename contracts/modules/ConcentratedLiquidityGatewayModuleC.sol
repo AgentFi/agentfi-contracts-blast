@@ -43,23 +43,23 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         super.moduleC_mintBalance(params);
     }
 
-    function moduleC_increaseLiquidity() public override {
+    function moduleC_increaseLiquidityWithBalance() public override returns (uint128, uint256, uint256) {
         uint256 ethAmount = address(this).balance;
         if (ethAmount > 0) {
             Calls.sendValue(_weth, ethAmount);
         }
-        super.moduleC_increaseLiquidity();
+        return super.moduleC_increaseLiquidityWithBalance();
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
     function moduleC_collectTo(address receiver) external override {
-        PositionStruct memory pos = position();
+        (, , address token0, address token1, , , , , , , , ) = position();
         address[] memory tokens = new address[](2);
-        tokens[0] = pos.token0;
-        tokens[1] = pos.token1;
+        tokens[0] = token0;
+        tokens[1] = token1;
 
         // Cannot send directly to receiver as we need to unwrap WETH to ETH
-        _decreaseLiquidityAndCollect(0, address(this));
+        _decreaseLiquidityAndCollect(0);
         moduleC_sendBalanceTo(receiver, tokens);
     }
 
