@@ -252,6 +252,8 @@ contract DexBalancerModuleA is Blastable {
     }
 
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
-        if(IERC20(token).allowance(address(this), recipient) < minAmount) IERC20(token).approve(recipient, type(uint256).max);
+        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
+        }
     }
 }
