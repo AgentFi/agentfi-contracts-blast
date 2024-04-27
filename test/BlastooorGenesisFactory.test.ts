@@ -11,7 +11,7 @@ const { expect, assert } = chai;
 import { IERC6551Registry, BlastooorGenesisAgents, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
-import { toBytes32 } from "./../scripts/utils/setStorage";
+import { toBytes32, setStorageAt } from "./../scripts/utils/setStorage";
 import { getNetworkSettings } from "../scripts/utils/getNetworkSettings";
 import { decimalsToAmount } from "../scripts/utils/price";
 import { deployContract } from "../scripts/utils/deployContract";
@@ -88,6 +88,7 @@ describe("BlastooorGenesisFactory", function () {
   let erc20c: MockERC20;
 
   let mockERC1271: MockERC1271;
+  let test1Callee: Test1Callee;
 
   let chainID: number;
   let networkSettings: any;
@@ -167,6 +168,19 @@ describe("BlastooorGenesisFactory", function () {
       await expectDeployed(mockERC1271.address);
       l1DataFeeAnalyzer.register("deploy MockERC1271", mockERC1271.deployTransaction);
     });
+    it("can deploy Test1Callee", async function () {
+      test1Callee = await deployContract(deployer, "Test1Callee", []) as Test1Callee;
+      await expectDeployed(test1Callee.address);
+      l1DataFeeAnalyzer.register("deploy Test1Callee", test1Callee.deployTransaction);
+    });
+    it("initializes properly", async function () {
+      expect(await factory.allowlistMintedTotal()).eq(0)
+      expect(await factory.allowlistMintedByAccount(user1.address)).eq(0)
+      expect(await factory.isAuthorizedSigner(user1.address)).eq(false)
+      expect(await factory.isAuthorizedSigner(owner.address)).eq(false)
+      expect(await factory.isAuthorizedTreasuryMinter(user1.address)).eq(false)
+      expect(await factory.isAuthorizedTreasuryMinter(owner.address)).eq(false)
+    })
   });
 
   describe("agent creation via factory eoa", function () {
@@ -662,6 +676,28 @@ describe("BlastooorGenesisFactory", function () {
     }
   })
 
+  describe("signers", function () {
+    it("owner can add signers", async function () {
+      let tx = await factory.connect(owner).addSigner(allowlistSignerAddress)
+      expect(await factory.isAuthorizedSigner(allowlistSignerAddress)).eq(true)
+      await expect(tx).to.emit(factory, "SignerAdded").withArgs(allowlistSignerAddress)
+    })
+    it("non owner cannot add signers", async function () {
+      await expect(factory.connect(user1).addSigner(user1.address)).to.be.revertedWithCustomError(factory, "NotContractOwner")
+    })
+    it("cannot add zero address", async function () {
+      await expect(factory.connect(owner).addSigner(AddressZero)).to.be.revertedWithCustomError(factory, "AddressZero")
+    })
+    it("owner can remove signers", async function () {
+      let tx = await factory.connect(owner).removeSigner(allowlistSignerAddress)
+      expect(await factory.isAuthorizedSigner(allowlistSignerAddress)).eq(false)
+      await expect(tx).to.emit(factory, "SignerRemoved").withArgs(allowlistSignerAddress)
+    })
+    it("non owner cannot add signers", async function () {
+      await expect(factory.connect(user1).removeSigner(user1.address)).to.be.revertedWithCustomError(factory, "NotContractOwner")
+    })
+  })
+
   describe("blastooorMintWithAllowlist", function () {
     it("owner can postAgentCreationSettings", async function () {
       let params = {
@@ -692,27 +728,390 @@ describe("BlastooorGenesisFactory", function () {
     it("can mint with allowlist", async function () {
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       let tx = await factory.connect(user2).blastooorMintWithAllowlist(1, signature, {value:WeiPerEther.div(100)})
+      expect(await factory.allowlistMintedTotal()).eq(1)
+      expect(await factory.allowlistMintedByAccount(user2.address)).eq(1)
     })
     it("can mint with allowlist and public", async function () {
       let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       let tx = await factory.connect(user3).blastooorMintWithAllowlistAndPublic(2, 8, signature, {value:WeiPerEther.div(100).mul(10)})
+      expect(await factory.allowlistMintedTotal()).eq(3)
+      expect(await factory.allowlistMintedByAccount(user3.address)).eq(2)
     })
     it("cannot mint more pt 1", async function () {
-      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       await expect(factory.connect(user3).blastooorMintWithAllowlist(1, signature, {value:WeiPerEther.div(100)})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintPerAccount")
     })
     it("cannot mint 0 pt 1", async function () {
       await expect(factory.connect(user3).blastooorPublicMint(0, {value:0})).to.be.revertedWithCustomError(factory, "AmountZero")
     })
     it("cannot mint more pt 2", async function () {
-      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       await expect(factory.connect(user3).blastooorMintWithAllowlistAndPublic(1, 0, signature, {value:WeiPerEther.div(100)})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintPerAccount")
     })
     it("cannot mint more pt 3", async function () {
-      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user2.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
       await expect(factory.connect(user3).blastooorPublicMint(11, {value:WeiPerEther.div(100).mul(11)})).to.be.revertedWithCustomError(factory, "OverMaxMintPerTx")
     })
+    it("cannot mint with insufficent payment", async function () {
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      await expect(factory.connect(user3).blastooorPublicMint(1, {value:0})).to.be.revertedWithCustomError(factory, "InsufficientPayment")
+      await expect(factory.connect(user3).blastooorPublicMint(1, {value:valueRequired.sub(1)})).to.be.revertedWithCustomError(factory, "InsufficientPayment")
+    })
+    it("cannot mint agents if paused", async function () {
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: false,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: 0,
+        timestampAllowlistMintEnd: MaxUint256,
+        timestampPublicMintStart: 0,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      await expect(factory.connect(user3).blastooorPublicMint(1, {value:valueRequired})).to.be.revertedWithCustomError(factory, "CreationSettingsPaused")
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      await expect(factory.connect(user3).blastooorMintWithAllowlistAndPublic(1, 0, signature, {value:valueRequired})).to.be.revertedWithCustomError(factory, "CreationSettingsPaused")
+    })
+    it("cannot mint agents if mint not started", async function () {
+      let block = await provider.getBlock("latest")
+      //let timestamp0 = block.timestamp - 200
+      let timestamp0 = block.timestamp + 100 // note: the public mint also uses this
+      let timestamp1 = MaxUint256
+      let timestamp2 = block.timestamp + 100 // it should've used this
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      await expect(factory.connect(user3).blastooorPublicMint(1, {value:valueRequired})).to.be.revertedWithCustomError(factory, "MintNotStarted")
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      await expect(factory.connect(user3).blastooorMintWithAllowlistAndPublic(1, 0, signature, {value:valueRequired})).to.be.revertedWithCustomError(factory, "MintNotStarted")
+    })
+    it("cannot allowlist mint agents if allowlist mint ended", async function () {
+      let block = await provider.getBlock("latest")
+      let timestamp0 = block.timestamp - 200
+      let timestamp1 = block.timestamp - 100
+      let timestamp2 = block.timestamp + 100
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      //await expect(factory.connect(user3).blastooorPublicMint(1, {value:valueRequired})).to.be.revertedWithCustomError(factory, "MintNotStarted")
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user3.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      await expect(factory.connect(user3).blastooorMintWithAllowlistAndPublic(1, 0, signature, {value:valueRequired})).to.be.revertedWithCustomError(factory, "AllowlistMintEnded")
+    })
+    it("can mint and make calls pt 1", async function () {
+      let block = await provider.getBlock("latest")
+      let timestamp0 = block.timestamp - 100
+      let timestamp1 = block.timestamp + 1000
+      let timestamp2 = block.timestamp - 100
+      let calldata0 = test1Callee.interface.encodeFunctionData("testFunc1")
+      let calldata1 = blastAccountImplementation.interface.encodeFunctionData("blastConfigure", [])
+      let calldata2 = blastAccountImplementation.interface.encodeFunctionData("execute", [test1Callee.address, 0, calldata0, 0])
+      let initializationCalls = [calldata1, calldata2]
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: initializationCalls,
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      let tx0 = await factory.connect(user3).blastooorPublicMint(1, {value:valueRequired})
+      await expect(tx0).to.emit(test1Callee, "Test1Event").withArgs(1)
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, user4.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      let tx1 = await factory.connect(user4).blastooorMintWithAllowlistAndPublic(1, 1, signature, {value:valueRequired.mul(2)})
+      await expect(tx1).to.emit(test1Callee, "Test1Event").withArgs(1)
+    })
+    it("can mint out the allowlist", async function () {
+      let timestamp0 = 0
+      let timestamp1 = MaxUint256
+      let timestamp2 = 0
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+
+      let totalMinted = (await factory.allowlistMintedTotal()).toNumber()
+      // if you want to test actually minting all of them. takes a long time
+      /*
+      let eoaAccountIndex = 0
+      while(totalMinted < 1500) {
+        let amountToCreate = 1500 - totalMinted
+        if(amountToCreate > 2) amountToCreate = 2
+        console.log(`creating allowlist accounts ${totalMinted+1}-${totalMinted+amountToCreate} / 1500`)
+        totalMinted += amountToCreate
+
+        let valueRequired = WeiPerEther.div(100).mul(amountToCreate+4)
+        let mnemonic = "awesome base child decorate capital earth acoustic ridge frown duty hover grow castle ramp cancel" // do not reuse
+        let path = `m/44'/60'/0'/0/${eoaAccountIndex}`
+        eoaAccountIndex++
+        let acc = ethers.Wallet.fromMnemonic(mnemonic, path).connect(provider)
+        await user5.sendTransaction({to: acc.address, value: WeiPerEther})
+        let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, acc.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+        await factory.connect(acc).blastooorMintWithAllowlistAndPublic(amountToCreate, 4, signature, {value:valueRequired})
+      }
+      */
+      if(totalMinted < 1500) {
+        // to find the slotNum
+        /*
+        const snapshot0 = await ethers.provider.send("evm_snapshot", []);
+        let found = false
+        for(let slotNum = 0; slotNum < 100; ++slotNum) {
+          console.log(`changing slot num ${slotNum}`)
+          let storageIndex = toBytes32(slotNum)
+          await setStorageAt(factory.address, toBytes32(storageIndex), toBytes32(1500))
+          totalMinted = (await factory.allowlistMintedTotal()).toNumber()
+          if(totalMinted == 1500) {
+            console.log(`found`)
+            found = true
+            await ethers.provider.send("evm_revert", [snapshot0]);
+            break
+          }
+        }
+        */
+        let slotNum = 13
+        let storageIndex = toBytes32(slotNum)
+        await setStorageAt(factory.address, toBytes32(storageIndex), toBytes32(1500))
+
+        totalMinted = (await factory.allowlistMintedTotal()).toNumber()
+        expect(totalMinted).eq(1500)
+      }
+
+    })
+    it("cannot mint allowlist over max total", async function () {
+      let eoaAccountIndex = 0
+      let mnemonic = "hello shine sting swap wood fetch panther entry fame weather ripple crowd cancel hen neglect" // do not reuse
+      let path = `m/44'/60'/0'/0/${eoaAccountIndex}`
+      let acc = ethers.Wallet.fromMnemonic(mnemonic, path).connect(provider)
+      await user5.sendTransaction({to: acc.address, value: WeiPerEther})
+      let signature = getMintFromAllowlistSignature(DOMAIN_NAME, factory.address, chainId, acc.address, MINT_FROM_ALLOWLIST_TYPEHASH, allowlistSignerKey);
+      let valueRequired = WeiPerEther.div(100).mul(1)
+      await expect(factory.connect(acc).blastooorMintWithAllowlist(1, signature, {value:valueRequired, gasLimit: 1_000_000})).to.be.revertedWithCustomError(factory, "OverMaxAllowlistMintTotal")
+    })
   })
+
+  describe("treasury minters", function () {
+    it("owner can add treasury minters", async function () {
+      let tx = await factory.connect(owner).addTreasuryMinter(user5.address)
+      expect(await factory.isAuthorizedTreasuryMinter(user5.address)).eq(true)
+      await expect(tx).to.emit(factory, "TreasuryMinterAdded").withArgs(user5.address)
+    })
+    it("non owner cannot add treasury minters", async function () {
+      await expect(factory.connect(user1).addTreasuryMinter(user1.address)).to.be.revertedWithCustomError(factory, "NotContractOwner")
+    })
+    it("cannot add zero address", async function () {
+      await expect(factory.connect(owner).addTreasuryMinter(AddressZero)).to.be.revertedWithCustomError(factory, "AddressZero")
+    })
+    it("owner can remove treasury minters", async function () {
+      let tx = await factory.connect(owner).removeTreasuryMinter(user5.address)
+      expect(await factory.isAuthorizedTreasuryMinter(user5.address)).eq(false)
+      await expect(tx).to.emit(factory, "TreasuryMinterRemoved").withArgs(user5.address)
+    })
+    it("non owner cannot add treasury minters", async function () {
+      await expect(factory.connect(user1).removeTreasuryMinter(user1.address)).to.be.revertedWithCustomError(factory, "NotContractOwner")
+    })
+  })
+
+  describe("blastooorMintForTreasury", function () {
+    it("cannot mint if not treasury minter", async function () {
+      await expect(factory.connect(user5).blastooorMintForTreasury(1)).to.be.revertedWithCustomError(factory, "NotTreasuryMinter")
+    })
+    it("add treasury minter", async function () {
+      await factory.connect(owner).addTreasuryMinter(user5.address)
+    })
+    it("cannot mint zero", async function () {
+      await expect(factory.connect(user5).blastooorMintForTreasury(0)).to.be.revertedWithCustomError(factory, "AmountZero")
+    })
+    it("cannot mint over max per tx", async function () {
+      await expect(factory.connect(user5).blastooorMintForTreasury(11)).to.be.revertedWithCustomError(factory, "OverMaxMintPerTx")
+    })
+    it("cannot mint if inactive", async function () {
+      let timestamp0 = 0
+      let timestamp1 = MaxUint256
+      let timestamp2 = 0
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: false,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+
+      await expect(factory.connect(user5).blastooorMintForTreasury(1)).to.be.revertedWithCustomError(factory, "CreationSettingsPaused")
+    })
+    it("cannot mint if public mint not started", async function () {
+      let timestamp0 = MaxUint256
+      let timestamp1 = MaxUint256
+      let timestamp2 = MaxUint256
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+
+      await expect(factory.connect(user5).blastooorMintForTreasury(1)).to.be.revertedWithCustomError(factory, "MintNotStarted")
+    })
+    it("cannot mint if treasury mint not started", async function () {
+      let timestamp0 = 0
+      let timestamp1 = MaxUint256
+      let timestamp2 = 0
+      let params = {
+        agentImplementation: blastAccountImplementation.address,
+        initializationCalls: [],
+        isActive: true,
+        paymentToken: AddressZero,
+        paymentAmount: WeiPerEther.mul(1).div(100),
+        paymentReceiver: owner.address,
+        timestampAllowlistMintStart: timestamp0,
+        timestampAllowlistMintEnd: timestamp1,
+        timestampPublicMintStart: timestamp2,
+      }
+      await factory.connect(owner).postAgentCreationSettings(params)
+
+      await expect(factory.connect(user5).blastooorMintForTreasury(1)).to.be.revertedWithCustomError(factory, "TreasuryMintNotStarted")
+    })
+    it("can mint more from public mint", async function () {
+      let totalSupply = (await agentNft.totalSupply()).toNumber()
+      if(totalSupply < 6401) {
+        // to find the slotNum
+
+        let slotNum = 8
+        /*
+        if(slotNum < 0) {
+          const snapshot0 = await ethers.provider.send("evm_snapshot", []);
+          let found = false
+          for(slotNum = 0; slotNum < 100; ++slotNum) {
+            console.log(`changing slot num ${slotNum}`)
+            let storageIndex = toBytes32(slotNum)
+            await setStorageAt(agentNft.address, toBytes32(storageIndex), toBytes32(6401))
+            totalSupply = (await agentNft.totalSupply()).toNumber()
+            if(totalSupply == 6401) {
+              console.log(`found`)
+              found = true
+              await ethers.provider.send("evm_revert", [snapshot0]);
+              break
+            }
+          }
+        }
+        */
+        //let slotNum = 13
+        let storageIndex = toBytes32(slotNum)
+        await setStorageAt(agentNft.address, toBytes32(storageIndex), toBytes32(6401))
+
+        totalSupply = (await agentNft.totalSupply()).toNumber()
+        expect(totalSupply).eq(6401)
+      }
+    })
+    it("cannot mint more for public mint", async function () {
+      await expect(factory.connect(user5).blastooorPublicMint(1, {value:WeiPerEther.div(100)})).to.be.revertedWithCustomError(factory, "OverMaxPublicMint")
+    })
+    it("can mint for treasury", async function () {
+      let ts = await agentNft.totalSupply();
+      let bal = await agentNft.balanceOf(user5.address);
+      let agentID = ts.add(1);
+      //console.log('here 1')
+      let agentRes = await factory.connect(user5).callStatic.blastooorMintForTreasury(1, {value:WeiPerEther.div(100)});
+
+      var p = factory.connect(user5).blastooorMintForTreasury(1, {value:WeiPerEther.div(100)})
+      await expect(p).to.not.be.reverted
+      var tx = await p
+
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(AddressZero, factory.address, agentRes[0].agentID);
+      await expect(tx).to.emit(agentNft, "Transfer").withArgs(factory.address, user5.address, agentRes[0].agentID);
+      expect(await agentNft.totalSupply()).eq(ts.add(1));
+      expect(await agentNft.balanceOf(user5.address)).eq(bal.add(1));
+      expect(await agentNft.exists(agentID)).eq(true);
+      expect(await agentNft.ownerOf(agentRes[0].agentID)).eq(user5.address);
+      let agentInfo = await agentNft.getAgentInfo(agentID);
+      //expect(agentInfo.agentAddress).eq(agentRes[0].agentAddress); // may change
+      expect(await agentNft.getAgentID(agentInfo.agentAddress)).eq(agentID);
+      expect(await agentNft.isAddressAgent(agentInfo.agentAddress)).eq(true);
+      let isDeployed2 = await isDeployed(agentInfo.agentAddress)
+      expect(isDeployed2).to.be.true;
+      expect(agentInfo.implementationAddress).eq(blastAccountImplementation.address);
+    })
+    it("can complete treasury mint", async function () {
+      let totalSupply = (await agentNft.totalSupply()).toNumber()
+      if(totalSupply < 6551) {
+        // to find the slotNum
+
+        let slotNum = 8
+        /*
+        if(slotNum < 0) {
+          const snapshot0 = await ethers.provider.send("evm_snapshot", []);
+          let found = false
+          for(slotNum = 0; slotNum < 100; ++slotNum) {
+            console.log(`changing slot num ${slotNum}`)
+            let storageIndex = toBytes32(slotNum)
+            await setStorageAt(agentNft.address, toBytes32(storageIndex), toBytes32(6551))
+            totalSupply = (await agentNft.totalSupply()).toNumber()
+            if(totalSupply == 6551) {
+              console.log(`found`)
+              found = true
+              await ethers.provider.send("evm_revert", [snapshot0]);
+              break
+            }
+          }
+        }
+        */
+        //let slotNum = 13
+        let storageIndex = toBytes32(slotNum)
+        await setStorageAt(agentNft.address, toBytes32(storageIndex), toBytes32(6551))
+
+        totalSupply = (await agentNft.totalSupply()).toNumber()
+        expect(totalSupply).eq(6551)
+      }
+    })
+    it("cannot mint over max supply", async function () {
+      await expect(factory.connect(user5).blastooorMintForTreasury(1, {value:WeiPerEther.div(100)})).to.be.revertedWithCustomError(factory, "OverMaxSupply")
+    })
+  })
+
 
   describe("L1 gas fees", function () {
     it("calculate", async function () {
