@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: none
 pragma solidity 0.8.24;
 
-import { ERC2771Context } from "@openzeppelin/contracts/metatx/ERC2771Context.sol";
-import { Multicall } from "./../utils/Multicall.sol";
+import { MulticallableERC2771Context } from "./../utils/MulticallableERC2771Context.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IAgents } from "./../interfaces/tokens/IAgents.sol";
@@ -18,7 +17,7 @@ import { Ownable2Step } from "./../utils/Ownable2Step.sol";
  * @author AgentFi
  * @notice A factory for Agent accounts.
  */
-contract BlastooorAccountFactory is IBlastooorAccountFactory, Multicall, Blastable, Ownable2Step, ERC2771Context {
+contract BlastooorAccountFactory is IBlastooorAccountFactory, Blastable, Ownable2Step, MulticallableERC2771Context {
 
     /***************************************
     STATE VARIABLES
@@ -61,7 +60,7 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Multicall, Blastab
         address agentNft_,
         address agentRegistry_,
         address erc6551Registry_
-    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) ERC2771Context(multicallForwarder_) {
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) MulticallableERC2771Context(multicallForwarder_) {
         _transferOwnership(owner_);
         _agentNft = agentNft_;
         _agentRegistry = agentRegistry_;
@@ -128,7 +127,7 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Multicall, Blastab
      * @param creationSettingsID The creation settings to use.
      * @return account The address of the newly created account.
      */
-    function createAccount(uint256 agentID, uint256 creationSettingsID) external payable returns (address account) {
+    function createAccount(uint256 agentID, uint256 creationSettingsID) external payable override returns (address account) {
         account = _createAccount(agentID, creationSettingsID);
     }
 
@@ -140,7 +139,7 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Multicall, Blastab
      * @param callDatas Extra data to pass to the agent after it is created.
      * @return account The address of the newly created account.
      */
-    function createAccount(uint256 agentID, uint256 creationSettingsID, bytes[] calldata callDatas) external payable returns (address account) {
+    function createAccount(uint256 agentID, uint256 creationSettingsID, bytes[] calldata callDatas) external payable override returns (address account) {
         account = _createAccount(agentID, creationSettingsID);
         // initialize account
         for(uint256 i = 0; i < callDatas.length; ++i) {

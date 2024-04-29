@@ -514,7 +514,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(0)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(false)
       let calldatas = ["0x"]
-      let tx = await genesisAccountFactory.connect(user1)['createAccount(uint256,uint256,bytes[])'](1, 1, calldatas)
+      let tx = await genesisAccountFactory.connect(user1)['createAccount(uint256,uint256,bytes[])'](agentID, configID, calldatas)
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
@@ -599,7 +599,7 @@ describe("BlastooorStrategyAgents", function () {
         //genesisAccountImplementation.interface.encodeFunctionData("execute", [user1.address, 0, "0x", 0])
       ]
       let initialBalance = WeiPerEther.div(1000)
-      let tx = await genesisAccountFactory.connect(user1)['createAccount(uint256,uint256,bytes[])'](1, 1, calldatas, {value: initialBalance})
+      let tx = await genesisAccountFactory.connect(user1)['createAccount(uint256,uint256,bytes[])'](agentID, configID, calldatas, {value: initialBalance})
       await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex), chainID, genesisAgentNft.address, agentID)
       await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
       expect(await isDeployed(res1)).eq(true)
@@ -1765,6 +1765,319 @@ describe("BlastooorStrategyAgents", function () {
       //console.log(res)
     })
   })
+
+  describe("new genesis accounts pt 2", function () {
+    it("can create accounts with multicall", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID0 = 3
+      let configID1 = 3
+      let createCount0 = (await genesisAccountFactory.getCreateCount(agentID)).toNumber()
+      let creationIndex0 = createCount0 + 1
+      let creationIndex1 = createCount0 + 2
+      let res0 = await erc6551Registry.connect(user1).account(genesisAccountImplementation.address, toBytes32(creationIndex0), chainID, genesisAgentNft.address, agentID)
+      let res1 = await erc6551Registry.connect(user1).account(genesisAccountImplementation.address, toBytes32(creationIndex1), chainID, genesisAgentNft.address, agentID)
+      expect(await isDeployed(res0)).eq(false)
+      expect(await isDeployed(res1)).eq(false)
+      let agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
+      expect(agentInfo.length).eq(createCount0)
+      var nftInfo = await agentRegistry.getNftOfTba(res0)
+      expect(nftInfo.collection).eq(AddressZero)
+      expect(nftInfo.agentID).eq(0)
+      var nftInfo = await agentRegistry.getNftOfTba(res1)
+      expect(nftInfo.collection).eq(AddressZero)
+      expect(nftInfo.agentID).eq(0)
+      expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(false)
+      expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(false)
+      let txdata0 = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID0])
+      let txdata1 = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID1])
+      let txdatas = [txdata0, txdata1]
+
+      let tx = await genesisAccountFactory.connect(user1).multicall(txdatas)
+
+      await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res0, genesisAccountImplementation.address, toBytes32(creationIndex0), chainID, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res0, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex1), chainID, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
+      expect(await isDeployed(res0)).eq(true)
+      expect(await isDeployed(res1)).eq(true)
+
+      expect(await genesisAccountFactory.getCreateCount(agentID)).eq(createCount0 + 2)
+      agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
+      expect(agentInfo.length).eq(createCount0+2)
+      expect(agentInfo[createCount0+0].agentAddress).eq(res0)
+      expect(agentInfo[createCount0+0].implementationAddress).eq(genesisAccountImplementation.address)
+      expect(agentInfo[createCount0+1].agentAddress).eq(res1)
+      expect(agentInfo[createCount0+1].implementationAddress).eq(genesisAccountImplementation.address)
+      nftInfo = await agentRegistry.getNftOfTba(res0)
+      expect(nftInfo.collection).eq(genesisAgentNft.address)
+      expect(nftInfo.agentID).eq(agentID)
+      nftInfo = await agentRegistry.getNftOfTba(res1)
+      expect(nftInfo.collection).eq(genesisAgentNft.address)
+      expect(nftInfo.agentID).eq(agentID)
+      expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(true)
+      expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
+      let receipt = await tx.wait()
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      l1DataFeeAnalyzer.register("createGenesisAccount pt 2 [0]", tx);
+    })
+    it("can create accounts with multicall forwarder and multicall", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID0 = 3
+      let configID1 = 3
+      let createCount0 = (await genesisAccountFactory.getCreateCount(agentID)).toNumber()
+      let creationIndex0 = createCount0 + 1
+      let creationIndex1 = createCount0 + 2
+      let res0 = await erc6551Registry.connect(user1).account(genesisAccountImplementation.address, toBytes32(creationIndex0), chainID, genesisAgentNft.address, agentID)
+      let res1 = await erc6551Registry.connect(user1).account(genesisAccountImplementation.address, toBytes32(creationIndex1), chainID, genesisAgentNft.address, agentID)
+      expect(await isDeployed(res0)).eq(false)
+      expect(await isDeployed(res1)).eq(false)
+      let agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
+      expect(agentInfo.length).eq(createCount0)
+      var nftInfo = await agentRegistry.getNftOfTba(res0)
+      expect(nftInfo.collection).eq(AddressZero)
+      expect(nftInfo.agentID).eq(0)
+      var nftInfo = await agentRegistry.getNftOfTba(res1)
+      expect(nftInfo.collection).eq(AddressZero)
+      expect(nftInfo.agentID).eq(0)
+      expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(false)
+      expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(false)
+      let txdata0 = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID0])
+      let txdata1 = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID1])
+
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata0,
+        },
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata1,
+        },
+      ]
+      let tx = await multicallForwarder.connect(user1).aggregate(calls)
+
+      await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res0, genesisAccountImplementation.address, toBytes32(creationIndex0), chainID, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res0, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(erc6551Registry, "ERC6551AccountCreated").withArgs(res1, genesisAccountImplementation.address, toBytes32(creationIndex1), chainID, genesisAgentNft.address, agentID)
+      await expect(tx).to.emit(agentRegistry, "AgentRegistered").withArgs(res1, genesisAgentNft.address, agentID)
+      expect(await isDeployed(res0)).eq(true)
+      expect(await isDeployed(res1)).eq(true)
+
+      expect(await genesisAccountFactory.getCreateCount(agentID)).eq(createCount0 + 2)
+      agentInfo = await agentRegistry.getTbasOfNft(genesisAgentNft.address, agentID)
+      expect(agentInfo.length).eq(createCount0+2)
+      expect(agentInfo[createCount0+0].agentAddress).eq(res0)
+      expect(agentInfo[createCount0+0].implementationAddress).eq(genesisAccountImplementation.address)
+      expect(agentInfo[createCount0+1].agentAddress).eq(res1)
+      expect(agentInfo[createCount0+1].implementationAddress).eq(genesisAccountImplementation.address)
+      nftInfo = await agentRegistry.getNftOfTba(res0)
+      expect(nftInfo.collection).eq(genesisAgentNft.address)
+      expect(nftInfo.agentID).eq(agentID)
+      nftInfo = await agentRegistry.getNftOfTba(res1)
+      expect(nftInfo.collection).eq(genesisAgentNft.address)
+      expect(nftInfo.agentID).eq(agentID)
+      expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(true)
+      expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
+      let receipt = await tx.wait()
+      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      l1DataFeeAnalyzer.register("createGenesisAccount pt 2 [1]", tx);
+    })
+    it("cannot spoof address", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      await expect(user2.sendTransaction({
+        to: genesisAccountFactory.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWithCustomError(genesisAccountFactory, "NotOwnerOfAgent")
+    })
+    it("cannot spoof address using multicall pt 1", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      await expect(user2.sendTransaction({
+        to: genesisAccountFactory.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWithCustomError(genesisAccountFactory, "NotOwnerOfAgent")
+    })
+    it("cannot spoof address using multicall pt 2", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      txdata += userBytes
+      await expect(user2.sendTransaction({
+        to: genesisAccountFactory.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWithCustomError(genesisAccountFactory, "NotOwnerOfAgent")
+    })
+    it("cannot spoof address using multicall forwarder pt 1", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder pt 2", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder pt 3", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      txdata += userBytes
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder and multicall pt 1", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder and multicall pt 2", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder and multicall pt 3", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      txdata += userBytes
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+    it("cannot spoof address using multicall forwarder and multicall pt 4", async function () {
+      let agentID = 1
+      expect(await genesisAgentNft.ownerOf(agentID)).eq(user1.address)
+      let configID = 3
+      let userBytes = user1.address.substring(2).toLowerCase()
+      let txdata = genesisAccountFactory.interface.encodeFunctionData("createAccount(uint256,uint256)", [agentID, configID])
+      txdata += userBytes
+      let txdatas = [txdata]
+      txdata = genesisAccountFactory.interface.encodeFunctionData("multicall", [txdatas])
+      txdata += userBytes
+      let calls = [
+        {
+          target: genesisAccountFactory.address,
+          callData: txdata
+        }
+      ]
+      txdata = multicallForwarder.interface.encodeFunctionData("aggregate", [calls])
+      txdata += userBytes
+      await expect(user2.sendTransaction({
+        to: multicallForwarder.address,
+        data: txdata,
+        gasLimit: 1_000_000,
+      })).to.be.revertedWith("Multicall3: call failed")
+    })
+  });
 
   async function getBalances(account:string, log=false) {
     let res = {
