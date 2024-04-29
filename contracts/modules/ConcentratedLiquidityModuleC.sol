@@ -261,7 +261,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ISwapRouter swapRouter = ISwapRouter(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountItn);
+        _setApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
