@@ -8,7 +8,7 @@
 !/contracts/modules/
 /contracts/modules/*
 !/contracts/modules/ConcentratedLiquidityModuleC.sol
-!/contracts/ConcentratedLiquidityGatewayModuleC.sol
+!/contracts/modules/ConcentratedLiquidityGatewayModuleC.sol
 
 !/scripts/
 /scripts/*

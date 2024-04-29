@@ -30,9 +30,11 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
 /* prettier-ignore */ const THRUSTER_ADDRESS              = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const ROUTER_ADDRESS                = "0x337827814155ECBf24D20231fCA4444F530C0555";
+/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityGatewayModuleC", function () {
+  const sqrtPriceX96 = BN.from("1392486909633467119786647344");
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("ConcentratedLiquidityGatewayModuleC");
 
@@ -70,14 +72,13 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
     await USDB.transfer(module.address, (await USDB.balanceOf(user)).div(2));
 
     await module
-      .moduleC_mintBalance({
+      .moduleC_mintWithBalance({
         manager: THRUSTER_ADDRESS,
+        pool: POOL_ADDRESS,
+        slippageMint: 1_000_000,
+        sqrtPriceX96,
         tickLower: -82920,
         tickUpper: -76020,
-        fee: 3000,
-        slippageMint: 1_000_000,
-        token0: USDB_ADDRESS,
-        token1: WETH_ADDRESS,
       })
       .then((tx) => tx.wait());
 
@@ -147,14 +148,13 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       await USDB.transfer(module.address, USDB.balanceOf(user));
 
       await module
-        .moduleC_mintBalance({
+        .moduleC_mintWithBalance({
           manager: THRUSTER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageMint: 1_000_000,
+          sqrtPriceX96,
           tickLower: -120000,
           tickUpper: 120000,
-          fee: 3000,
-          slippageMint: 1_000_000,
-          token0: USDB_ADDRESS,
-          token1: WETH_ADDRESS,
         })
         .then((tx) => tx.wait());
 
@@ -201,12 +201,12 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       await USDB.transfer(module.address, USDB.balanceOf(user));
 
       await expect(
-        module.moduleC_increaseLiquidityWithBalance(1_000_000),
+        module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000),
       ).to.be.revertedWith("No existing position to view");
     });
 
     it("Can do partial deposit", async () => {
-      const { module, USDB, WETH, signer, PositionManager } =
+      const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
       // Send remaining ETH, leaving some gas
       await signer
@@ -238,7 +238,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       });
 
       await module
-        .moduleC_increaseLiquidityWithBalance(1_000_000)
+        .moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000)
         .then((tx) => tx.wait());
 
       // Position to be minted
@@ -286,7 +286,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       );
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("21250989423221689298"),
+        BN.from("21250993373221609723"),
       );
     });
   });
@@ -304,10 +304,12 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         ]),
       ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
 
-      await module.moduleC_withdrawBalanceTo(user).then((tx) => tx.wait());
+      await module
+        .moduleC_fullWithdrawTo(user, sqrtPriceX96, 1_000)
+        .then((tx) => tx.wait());
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("50864241358414636055"),
+        BN.from("50864233863413099088"),
       );
 
       expect(
@@ -332,9 +334,11 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("16983715425639545311351"),
       );
 
-      await module.moduleC_decreaseLiquidityTo(
-        BN.from("16983715425639545311351").div(2),
+      await module.moduleC_partialWithdrawTo(
         user,
+        BN.from("16983715425639545311351").div(2),
+        sqrtPriceX96,
+        1_000,
       );
 
       // Expect user balance to have increased, and liquidity decreased
@@ -342,7 +346,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("36047891686267450043"),
+        BN.from("36047882270265770813"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),

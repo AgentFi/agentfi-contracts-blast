@@ -51,77 +51,171 @@ function convertToStruct(res: any) {
 /* prettier-ignore */ const OWNER_ADDRESS                 = "0xA214a4fc09C42202C404E2976c50373fE5F5B789";
 /* prettier-ignore */ const USER_ADDRESS                  = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 
-const functionParams: Record<
-  string,
-  { selector: string; requiredRole: string }
-> = {
-  // Public Functions
-  "moduleName()": { selector: "0x93f0899a", requiredRole: toBytes32(0) },
-  "strategyType()": { selector: "0x82ccd330", requiredRole: toBytes32(0) },
+const permissions = Object.entries({
+  // Public
+  [toBytes32(0)]: [
+    "manager()",
+    "moduleName()",
+    "pool()",
+    "position()",
+    "strategyType()",
+    "tokenId()",
+  ],
+  // AgentFi + Owner
+  [toBytes32(9)]: [
+    "moduleC_burn()",
+    "moduleC_collect((uint128,uint128))",
+    "moduleC_collectToSelf()",
+    "moduleC_decreaseLiquidity((uint128,uint256,uint256,uint256))",
+    "moduleC_decreaseLiquidityWithSlippage(uint128,uint160,uint24)",
+    "moduleC_exactInputSingle(address,(address,address,uint24,uint256,uint256,uint256,uint160))",
+    "moduleC_fullWithdrawToSelf(uint160,uint24)",
+    "moduleC_increaseLiquidity((uint256,uint256,uint256,uint256,uint256))",
+    "moduleC_increaseLiquidityWithBalance(uint160,uint24)",
+    "moduleC_mint((address,address,address,address,uint24,int24,int24,uint256,uint256,uint256,uint256,uint256))",
+    "moduleC_mintWithBalance((address,address,uint24,int24,int24,uint160))",
+    "moduleC_partialWithdrawalToSelf(uint128,uint160,uint24)",
+    "moduleC_rebalance((address,uint24,uint24,uint24,int24,int24,uint160))",
+    "moduleC_wrap()",
+  ],
 
-  "manager()": { selector: "0x481c6a75", requiredRole: toBytes32(0) },
-  "tokenId()": { selector: "0x17d70f7c", requiredRole: toBytes32(0) },
-  "position()": { selector: "0x09218e91", requiredRole: toBytes32(0) },
+  // Owner Only:
+  [toBytes32(1)]: [
+    "moduleC_fullWithdrawTo(address,uint160,uint24)",
+    "moduleC_partialWithdrawTo(address,uint128,uint160,uint24)",
+    "moduleC_sendBalanceTo(address)",
+    "moduleC_collectTo(address)",
+  ],
+}).reduce(
+  (acc, [requiredRole, functions]) => {
+    functions.forEach((func) => {
+      acc.push({ selector: calcSighash(func), requiredRole });
+    });
 
-  "moduleC_position()": {
-    selector: "0x0f52dd57",
-    requiredRole: toBytes32(0),
+    return acc;
   },
+  [] as { selector: string; requiredRole: string }[],
+);
 
-  // Admin Role
-  // TODO:- Support admin rebalancing
-  "moduleC_rebalance((address,uint24,uint24,uint24,int24,int24))": {
-    selector: "0x9b13ce3e",
-    requiredRole: toBytes32(1),
+const functionParams = [
+  {
+    selector: "0x481c6a75",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
-  "moduleC_increaseLiquidityWithBalance(uint24)": {
-    selector: "0x1aef8c4a",
-    requiredRole: toBytes32(1),
+  {
+    selector: "0x93f0899a",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
-  "moduleC_collectToSelf()": {
+  {
+    selector: "0x16f0115b",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x09218e91",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x82ccd330",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x17d70f7c",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x7004cd10",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x23a1c099",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
     selector: "0x76223cbe",
-    requiredRole: toBytes32(1),
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
   },
-  "moduleC_collect()": {
-    selector: "0xcd0307d7",
-    requiredRole: toBytes32(1),
+  {
+    selector: "0x089b0539",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
   },
-  // function moduleC_exactInputSingle( address router, ExactInputSingleParams memory params) public payable returns (uint256 amountOut) {
-
-  // Owner only
-  "moduleC_collectTo(address)": {
+  {
+    selector: "0x91b8dcf4",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0xe0ad98b9",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x18ac4325",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0xdc307439",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x52d1c175",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0xbdb7336b",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0xaeb0ea21",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x4921fc42",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x66f0beb2",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
+    selector: "0x13bf4fdb",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
+    selector: "0x6807b478",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
+    selector: "0x96cbb0db",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
     selector: "0x7e551aee",
-    requiredRole: toBytes32(1),
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
-  "moduleC_decreaseLiquidity(uint128)": {
-    selector: "0x324f2989",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_decreaseLiquidityTo(uint128,address)": {
-    selector: "0x89f8aacc",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_increaseLiquidity()": {
-    selector: "0xc7507548",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_mintBalance((address,address,address,uint24,uint24,int24,int24))": {
-    selector: "0x5183e362",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_sendBalanceTo(address,address[])": {
-    selector: "0x06f55b43",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_withdrawBalance()": {
-    selector: "0xae13d660",
-    requiredRole: toBytes32(1),
-  },
-  "moduleC_withdrawBalanceTo(address)": {
-    selector: "0xf992c894",
-    requiredRole: toBytes32(1),
-  },
-};
+];
+
+expect(functionParams).to.deep.equal(permissions);
 
 export async function fixtureSetup(
   moduleName:
@@ -188,7 +282,7 @@ export async function fixtureSetup(
   const overrides = [
     {
       implementation: module.address,
-      functionParams: Object.values(functionParams),
+      functionParams: functionParams,
     },
   ];
 
@@ -277,11 +371,11 @@ export async function fixtureSetup(
       .then((r) => r[0][0]),
   ).to.equal(strategyAgentAddress);
 
-  const agent = await ethers.getContractAt(
+  const agent = (await ethers.getContractAt(
     moduleName,
     strategyAgentAddress,
     signer,
-  );
+  )) as ConcentratedLiquidityModuleC;
 
   const strategyAgent = await ethers.getContractAt(
     "BlastooorStrategyAgentAccountV2",
@@ -324,6 +418,8 @@ export async function fixtureSetup(
 }
 
 describe("ConcentratedLiquidityModuleC", function () {
+  const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("ConcentratedLiquidityModuleC");
     // Wrap existing ETH to WETH, leaving some gas
@@ -334,11 +430,16 @@ describe("ConcentratedLiquidityModuleC", function () {
       })
       .then((x) => x.wait());
 
+    console.log(
+      Object.keys(fixture.module.interface.functions).filter((x) =>
+        x.includes("("),
+      ),
+    );
     return fixture;
   }
   async function fixtureDeposited() {
     const fixture = await loadFixture(fixtureDeployed);
-    const { signer, USDB, module, WETH } = fixture;
+    const { USDB, module, WETH } = fixture;
 
     await USDB.transfer(
       module.address,
@@ -350,14 +451,13 @@ describe("ConcentratedLiquidityModuleC", function () {
     );
 
     await module
-      .moduleC_mintBalance({
+      .moduleC_mintWithBalance({
         manager: POSITION_MANAGER_ADDRESS,
+        pool: POOL_ADDRESS,
+        slippageMint: 1_000_000,
+        sqrtPriceX96,
         tickLower: -82920,
         tickUpper: -76020,
-        fee: 3000,
-        slippageMint: 1_000_000,
-        token0: USDB_ADDRESS,
-        token1: WETH_ADDRESS,
       })
       .then((tx) => tx.wait());
 
@@ -411,20 +511,6 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     return fixture;
   }
-  it("Has correct function selectors", () => {
-    const expected = Object.entries(functionParams).reduce(
-      (acc, [key, v]) => {
-        acc[key] = {
-          ...v,
-          selector: calcSighash(key),
-        };
-
-        return acc;
-      },
-      {} as typeof functionParams,
-    );
-    expect(expected).to.deep.equal(functionParams);
-  });
 
   it("Verify initial pool state", async () => {
     const { pool } = await loadFixture(fixtureDeployed);
@@ -445,6 +531,12 @@ describe("ConcentratedLiquidityModuleC", function () {
       "0x0000000000000000000000000000000000000000",
     );
 
+    expect(await module.pool()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
+
+    expect(await module.tokenId()).to.equal("0");
+
     await expect(module.position()).to.be.revertedWith(
       "No existing position to view",
     );
@@ -453,9 +545,8 @@ describe("ConcentratedLiquidityModuleC", function () {
   it("Can view existing position ", async function () {
     const { module, pool } = await loadFixture(fixtureDeposited);
 
-    // expect(await module.token0()).to.equal(USDB_ADDRESS);
-    // expect(await module.token1()).to.equal(WETH_ADDRESS);
     expect(await module.manager()).to.equal(POSITION_MANAGER_ADDRESS);
+    expect(await module.pool()).to.equal(POOL_ADDRESS);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
     expect(convertToStruct(await module.position())).to.deep.equal({
@@ -480,18 +571,17 @@ describe("ConcentratedLiquidityModuleC", function () {
   });
 
   describe("Deposit flow", () => {
-    it.skip("Can reject invalid tick range", async () => {
+    it("Can reject invalid tick range", async () => {
       const { module } = await loadFixture(fixtureDeployed);
 
       await expect(
-        module.moduleC_mintBalance({
+        module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
           tickLower: -80880,
           tickUpper: -81480,
-          fee: 3000,
           slippageMint: 1_000_000,
-          token0: USDB_ADDRESS,
-          token1: WETH_ADDRESS,
+          sqrtPriceX96,
         }),
       ).to.be.revertedWith("Invalid tick range");
     });
@@ -504,14 +594,13 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Trigger the deposit
       await expect(
-        module.moduleC_mintBalance({
+        module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageMint: 100, /// 0.01%
+          sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
-          fee: 3000,
-          slippageMint: 1_000, /// 0.1%
-          token0: USDB_ADDRESS,
-          token1: WETH_ADDRESS,
         }),
       ).to.be.revertedWith("Price slippage check");
     });
@@ -526,18 +615,83 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
       await expect(
-        module.moduleC_mintBalance({
+        module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageMint: BN.from(1_000_000 - 1),
+          sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
-          fee: 3000,
-          slippageMint: 1_000_000,
-          token0: USDB_ADDRESS,
-          token1: WETH_ADDRESS,
         }),
       ).to.be.revertedWith("Cannot deposit with existing position");
     });
 
+    // it.skip("Can deposit with mint function", async function () {
+    //   const { module, USDB, WETH, PositionManager } =
+    //     await loadFixture(fixtureDeployed);
+    //   // Expect no assets in tba
+    //   expect(
+    //     await Promise.all([
+    //       provider.getBalance(module.address),
+    //       USDB.balanceOf(module.address),
+    //       WETH.balanceOf(module.address),
+    //     ]),
+    //   ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
+
+    //   // Transfer all assets to tba
+    //   await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+    //   await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+
+    //   // Trigger the deposit
+    //   await module
+    //     .moduleC_mint({
+    //       manager: POSITION_MANAGER_ADDRESS,
+    //       pool: POOL_ADDRESS,
+    //       sqrtPriceX96,
+    //       tickLower: price1ToTick(4000),
+    //       tickUpper: price1ToTick(2000),
+    //     })
+    //     .then((tx) => tx.wait());
+
+    //   // Expect all Assets to be transferred to tba
+    //   expect(
+    //     await Promise.all([
+    //       USDB.balanceOf(USER_ADDRESS),
+    //       WETH.balanceOf(USER_ADDRESS),
+    //     ]),
+    //   ).to.deep.equal([BN.from("0"), BN.from("0")]);
+
+    //   const tokenId = await module.tokenId();
+
+    //   // Position to be minted
+    //   expect(
+    //     convertToStruct(await PositionManager.positions(tokenId)),
+    //   ).to.deep.equal({
+    //     nonce: BN.from("0"),
+    //     operator: "0x0000000000000000000000000000000000000000",
+    //     token0: "0x4300000000000000000000000000000000000003",
+    //     token1: "0x4300000000000000000000000000000000000004",
+    //     fee: 3000,
+    //     tickLower: -82920,
+    //     tickUpper: -76020,
+    //     liquidity: BN.from("33967430851279090622703"),
+    //     feeGrowthInside0LastX128: BN.from(
+    //       "223062771100361370800904183975351004548",
+    //     ),
+    //     feeGrowthInside1LastX128: BN.from(
+    //       "63771321919466126002465612072408134",
+    //     ),
+    //     tokensOwed0: BN.from("0"),
+    //     tokensOwed1: BN.from("0"),
+    //   });
+    //   // Only leftover on one side
+    //   expect(
+    //     await Promise.all([
+    //       USDB.balanceOf(module.address),
+    //       WETH.balanceOf(module.address),
+    //     ]),
+    //   ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
+    // });
     it("Can deposit with WETH", async function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
@@ -556,14 +710,13 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       // Trigger the deposit
       await module
-        .moduleC_mintBalance({
+        .moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageMint: 1_000_000,
+          sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
-          fee: 3000,
-          slippageMint: 1_000_000,
-          token0: USDB_ADDRESS,
-          token1: WETH_ADDRESS,
         })
         .then((tx) => tx.wait());
 
@@ -616,7 +769,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       await expect(
-        module.moduleC_increaseLiquidityWithBalance(1_000_000),
+        module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000),
       ).to.be.revertedWith("No existing position to view");
     });
 
@@ -627,7 +780,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       await expect(
-        module.moduleC_increaseLiquidityWithBalance(1_000),
+        module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000),
       ).to.be.revertedWith("Price slippage check");
     });
 
@@ -663,7 +816,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       });
 
       await module
-        .moduleC_increaseLiquidityWithBalance(1_000_000)
+        .moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000)
         .then((tx) => tx.wait());
 
       // Position to be minted
@@ -707,7 +860,9 @@ describe("ConcentratedLiquidityModuleC", function () {
         ]),
       ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
 
-      await module.moduleC_withdrawBalance().then((tx) => tx.wait());
+      await module
+        .moduleC_fullWithdrawToSelf(sqrtPriceX96, 1_000)
+        .then((tx) => tx.wait());
 
       expect(
         await Promise.all([
@@ -731,7 +886,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("11"), BN.from("21131891579154171837")]);
 
       await module
-        .moduleC_withdrawBalanceTo(USER_ADDRESS)
+        .moduleC_fullWithdrawTo(USER_ADDRESS, sqrtPriceX96, 1_000)
         .then((tx) => tx.wait());
 
       expect(
@@ -788,8 +943,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
   describe("Partial Withdrawal test suite", () => {
     it("Can handle partial withdrawal", async () => {
-      const { module, USDB, WETH, PositionManager } =
-        await loadFixture(fixtureDeposited);
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
       expect(await USDB.balanceOf(USER_ADDRESS)).to.equal(
         BN.from("206513078828369975841636"),
@@ -801,9 +955,11 @@ describe("ConcentratedLiquidityModuleC", function () {
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("16983715425639545311351"),
       );
-      await module.moduleC_decreaseLiquidityTo(
-        BN.from("16983715425639545311351").div(2),
+      await module.moduleC_partialWithdrawTo(
         USER_ADDRESS,
+        BN.from("16983715425639545311351").div(2),
+        sqrtPriceX96,
+        100,
       );
       // Expect user balance to have increased, and liquidity decreased
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
@@ -830,6 +986,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           slippageMint: 1_000_000,
           tickLower: -80880,
           tickUpper: -81480,
+          sqrtPriceX96,
         }),
       ).to.be.revertedWith("Invalid tick range");
     });
@@ -845,6 +1002,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           slippageMint: 1_000_000,
           tickLower: -82020,
           tickUpper: -79620,
+          sqrtPriceX96,
         }),
       ).to.be.revertedWith("Too little received");
     });
@@ -860,6 +1018,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           slippageMint: 1_000_000,
           tickLower: -81480,
           tickUpper: -80880,
+          sqrtPriceX96,
         })
         .then((tx) => tx.wait());
 
@@ -901,6 +1060,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           slippageMint: 1_000_000,
           tickLower: -80760,
           tickUpper: -80160,
+          sqrtPriceX96,
         })
         .then((tx) => tx.wait());
 
@@ -949,6 +1109,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           slippageMint: 1_000_000,
           tickLower: -82020,
           tickUpper: -79620,
+          sqrtPriceX96,
         })
         .then((tx) => tx.wait());
 
