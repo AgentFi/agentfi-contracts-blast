@@ -353,7 +353,6 @@ describe("AccountBase", function () {
           l1DataFeeAnalyzer.register("registry.createAccount", tx);
         });
         it("account begins with state", async function () {
-          // asdf
           expect(await erc6551Account1.owner()).eq(user1.address);
           let tokenRes = await erc6551Account1.token();
           expect(tokenRes.chainId).eq(chainID);
