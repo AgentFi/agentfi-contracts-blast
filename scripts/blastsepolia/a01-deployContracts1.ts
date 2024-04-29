@@ -9,7 +9,7 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { BlastooorGenesisAgentAccount, BlastooorGenesisFactory, IBlast, ContractFactory, GasCollector, BalanceFetcher, MulticallForwarder, BlastooorGenesisAgents, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher, AgentRegistry } from "../../typechain-types";
+import { BlastooorGenesisAgentAccount, BlastooorGenesisFactory, IBlast, ContractFactory, GasCollector, BalanceFetcher, MulticallForwarder, BlastooorGenesisAgents, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, BlastooorStrategyAgentAccountV2, Dispatcher, AgentRegistry } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -45,7 +45,8 @@ const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCf
 
 const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
 const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_V1_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x220668Aa522074E93A64a74f40Aff5fce198720f"; // v1.0.2
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
@@ -67,7 +68,8 @@ let agentRegistry: AgentRegistry;
 
 let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
-let strategyAccountImpl: BlastooorStrategyAgentAccount;
+let strategyAccountImplV1: BlastooorStrategyAgentAccount;
+let strategyAccountImplV2: BlastooorStrategyAgentAccountV2;
 
 let dispatcher: Dispatcher;
 
@@ -103,7 +105,8 @@ async function main() {
 
   await deployStrategyCollection();
   await deployBlastooorStrategyFactory();
-  await deployBlastooorStrategyAgentAccount();
+  await deployBlastooorStrategyAgentAccountV1();
+  await deployBlastooorStrategyAgentAccountV2();
 
   await deployDispatcher();
   await deployBalanceFetcher();
@@ -257,16 +260,28 @@ async function deployBlastooorStrategyFactory() {
   }
 }
 
-async function deployBlastooorStrategyAgentAccount() {
-  if(await isDeployed(STRATEGY_ACCOUNT_IMPL_ADDRESS)) {
-    strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
+async function deployBlastooorStrategyAgentAccountV1() {
+  if(await isDeployed(STRATEGY_ACCOUNT_IMPL_V1_ADDRESS)) {
+    strategyAccountImplV1 = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_V1_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   } else {
     console.log("Deploying BlastooorStrategyAgentAccount");
     let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
-    strategyAccountImpl = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccount;
-    console.log(`Deployed BlastooorStrategyAgentAccount to ${strategyAccountImpl.address}`);
-    contractsToVerify.push({ address: strategyAccountImpl.address, args })
-    if(!!STRATEGY_ACCOUNT_IMPL_ADDRESS && strategyAccountImpl.address != STRATEGY_ACCOUNT_IMPL_ADDRESS) throw new Error(`Deployed BlastooorStrategyAgentAccount to ${strategyAccountImpl.address}, expected ${STRATEGY_ACCOUNT_IMPL_ADDRESS}`)
+    strategyAccountImplV1 = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccount;
+    console.log(`Deployed BlastooorStrategyAgentAccount to ${strategyAccountImplV1.address}`);
+    contractsToVerify.push({ address: strategyAccountImplV1.address, args })
+    if(!!STRATEGY_ACCOUNT_IMPL_V1_ADDRESS && strategyAccountImplV1.address != STRATEGY_ACCOUNT_IMPL_V1_ADDRESS) throw new Error(`Deployed BlastooorStrategyAgentAccount to ${strategyAccountImplV1.address}, expected ${STRATEGY_ACCOUNT_IMPL_V1_ADDRESS}`)
+  }
+}
+async function deployBlastooorStrategyAgentAccountV2() {
+  if(await isDeployed(STRATEGY_ACCOUNT_IMPL_V2_ADDRESS)) {
+    strategyAccountImplV2 = await ethers.getContractAt("BlastooorStrategyAgentAccountV2", STRATEGY_ACCOUNT_IMPL_V2_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccountV2;
+  } else {
+    console.log("Deploying BlastooorStrategyAgentAccountV2");
+    let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
+    strategyAccountImplV2 = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccountV2", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccountV2;
+    console.log(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}`);
+    contractsToVerify.push({ address: strategyAccountImplV2.address, args })
+    if(!!STRATEGY_ACCOUNT_IMPL_V2_ADDRESS && strategyAccountImplV2.address != STRATEGY_ACCOUNT_IMPL_V2_ADDRESS) throw new Error(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}, expected ${STRATEGY_ACCOUNT_IMPL_V2_ADDRESS}`)
   }
 }
 
@@ -322,7 +337,8 @@ function logAddresses() {
   logContractAddress("BlastooorGenesisAccountFactory", genesisAccountFactory.address);
   logContractAddress("BlastooorStrategyAgents", strategyCollection.address);
   logContractAddress("BlastooorStrategyFactory", strategyFactory.address);
-  logContractAddress("BlastooorStrategyAgentAccount", strategyAccountImpl.address);
+  logContractAddress("BlastooorStrategyAgentAccount", strategyAccountImplV1.address);
+  logContractAddress("BlastooorStrategyAgentAccountV2", strategyAccountImplV2.address);
   logContractAddress("AgentRegistry", agentRegistry.address);
   logContractAddress("Dispatcher", dispatcher.address);
 }
