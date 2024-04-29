@@ -12,13 +12,11 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 import { IThrusterPool as IV3Pool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
 
-// ! Need to be careful of signature collisions
-
 /**
  * @title ConcentratedLiquidityModuleC
  * @author AgentFi
  * @notice A module used in the Concentrated liquidity strategy.
- * @dev Designed for use on Blast Mainnet only.
+ * @dev Designed for use on Blast Mainnet only. Be careful of signature collisions
  *
  */
 contract ConcentratedLiquidityModuleC is Blastable {
@@ -155,7 +153,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint256 amount1Min;
         uint256 deadline;
     }
-
     /// @notice Increases the amount of liquidity in a position, with tokens paid by the `msg.sender`
     /// amount0Desired The desired amount of token0 to be spent,
     /// amount1Desired The desired amount of token1 to be spent,
@@ -280,32 +277,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     AGENT HIGH LEVEL FUNCTIONS
     ***************************************/
-
-    struct MintBalanceParams {
-        address manager;
-        address token0;
-        address token1;
-        uint24 fee;
-        int24 tickLower;
-        int24 tickUpper;
-    }
-
-    /// @notice Mints new position with all assets in this contract
-    function moduleC_mintBalance(MintBalanceParams memory params) public payable virtual {
-        require(tokenId() == 0, "Cannot deposit with existing position");
-        _mintBalance(params);
-    }
-
-    /// @notice Withdrawals principal and fee, and burns position, returning the funds to this contract
-    function moduleC_withdrawBalance() external payable {
-        _withdrawBalance();
-
-        // Reset State
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        state.tokenId = 0;
-        state.manager = address(0);
-    }
-
     /// @notice Sends token balance to a specified receiver.
     function moduleC_sendBalanceTo(address receiver, address[] memory tokens) public virtual {
         for (uint256 i = 0; i < tokens.length; ++i) {
@@ -317,6 +288,34 @@ contract ConcentratedLiquidityModuleC is Blastable {
         }
     }
 
+    struct MintBalanceParams {
+        address manager;
+        address token0;
+        address token1;
+        uint24 fee;
+        uint24 slippageMint;
+        int24 tickLower;
+        int24 tickUpper;
+    }
+
+    /// @notice Mints new position with all assets in this contract
+    function moduleC_mintBalance(MintBalanceParams memory params) public payable virtual {
+        require(tokenId() == 0, "Cannot deposit with existing position");
+        _mintBalance(params);
+    }
+
+    /// @notice Withdrawals principal and fee, and burns position, returning the funds to this contract
+    function moduleC_withdrawBalance() public payable {
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+
+        (, , , , , , , uint128 liquidity, , , , ) = position();
+        moduleC_decreaseLiquidityToSelf(liquidity);
+        INonfungiblePositionManager(state.manager).burn(state.tokenId);
+
+        // Reset State
+        state.tokenId = 0;
+    }
+
     /// @notice Sends funds to receiver after withdrawaling position
     function moduleC_withdrawBalanceTo(address receiver) external payable {
         (, , address token0, address token1, , , , , , , , ) = position();
@@ -324,7 +323,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         tokens[0] = token0;
         tokens[1] = token1;
 
-        _withdrawBalance();
+        moduleC_withdrawBalance();
         moduleC_sendBalanceTo(receiver, tokens);
     }
 
@@ -332,17 +331,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         address router; // Address of router contract
         uint24 fee; // Fee pool to use
         uint24 slippage; // Slippage to tolerate
+        uint24 slippageMint; // Slippage to tolerate
         int24 tickLower;
         int24 tickUpper;
     }
 
-    // TODO:- restrict who can call this
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleC_rebalance(RebalanceParams memory params) external {
         (, , address token0, address token1, uint24 fee, , , , , , , ) = position();
         address _manager = concentratedLiquidityModuleCStorage().manager;
 
-        _withdrawBalance();
+        moduleC_withdrawBalance();
         _balanceTokens(params, token0, token1, fee);
 
         _mintBalance(
@@ -351,35 +350,55 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 token0: token0,
                 token1: token1,
                 fee: fee,
+                slippageMint: params.slippageMint,
                 tickLower: params.tickLower,
                 tickUpper: params.tickUpper
             })
         );
     }
 
+    // Remove this - just use v3 interface (calculate amount0 and amount1)
     /// @notice Deposit all assets in contract to existing position (does not change range)
-    function moduleC_increaseLiquidityWithBalance()
-        public
-        virtual
-        returns (uint128 liquidity, uint256 amount0, uint256 amount1)
-    {
+    function moduleC_increaseLiquidityWithBalance(
+        uint24 slippage
+    ) public virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         (, , address token0, address token1, , , , , , , , ) = position();
+
+        uint256 amount0Desired = IERC20(token0).balanceOf(address(this));
+        uint256 amount1Desired = IERC20(token1).balanceOf(address(this));
+
+        uint256 amount0Min = Math.mulDiv(amount0Desired, 1_000_000 - slippage, 1_000_000);
+        uint256 amount1Min = Math.mulDiv(amount1Desired, 1_000_000 - slippage, 1_000_000);
 
         (liquidity, amount0, amount1) = moduleC_increaseLiquidity(
             IncreaseLiquidityParams({
-                amount0Desired: IERC20(token0).balanceOf(address(this)),
-                amount1Desired: IERC20(token1).balanceOf(address(this)),
-                amount0Min: 0,
-                amount1Min: 0,
+                amount0Desired: amount0Desired,
+                amount1Desired: amount1Desired,
+                amount0Min: amount0Min,
+                amount1Min: amount1Min,
                 deadline: block.timestamp
             })
         );
     }
 
     /// @notice Perform partial withdrawal, keeping funds in the this contract
-    function moduleC_decreaseLiquidityToSelf(uint128 liquidity_) public {
+    function moduleC_decreaseLiquidityToSelf(uint128 liquidity) public {
         require(tokenId() != 0, "No existing position to decrease");
-        _decreaseLiquidityAndCollect(liquidity_);
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+
+        // TODO:- Add slippage here
+        uint256 amount0Min = 0;
+        uint256 amount1Min = 0;
+        moduleC_decreaseLiquidity(
+            DecreaseLiquidityParams({
+                liquidity: liquidity,
+                amount0Min: amount0Min,
+                amount1Min: amount1Min,
+                deadline: block.timestamp
+            })
+        );
+
+        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
     /// @notice Perform partial withdrawal, sending funds to the receiver
@@ -400,7 +419,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
     function moduleC_collectTo(address receiver) external virtual {
-        _decreaseLiquidityAndCollect(0);
+        moduleC_collectToSelf();
 
         (, , address token0, address token1, , , , , , , , ) = position();
         address[] memory tokens = new address[](2);
@@ -422,6 +441,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         state.manager = params.manager;
 
+        uint256 amount0Desired = IERC20(params.token0).balanceOf(address(this));
+        uint256 amount1Desired = IERC20(params.token1).balanceOf(address(this));
+
+        uint256 amount0Min = Math.mulDiv(amount0Desired, 1_000_000 - params.slippageMint, 1_000_000);
+        uint256 amount1Min = Math.mulDiv(amount1Desired, 1_000_000 - params.slippageMint, 1_000_000);
+
         (tokenId_, liquidity, amount0, amount1) = moduleC_mint(
             INonfungiblePositionManager.MintParams({
                 token0: params.token0,
@@ -429,43 +454,16 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 fee: params.fee,
                 tickLower: params.tickLower,
                 tickUpper: params.tickUpper,
-                amount0Desired: IERC20(params.token0).balanceOf(address(this)),
-                amount1Desired: IERC20(params.token1).balanceOf(address(this)),
-                amount0Min: 0,
-                amount1Min: 0,
+                amount0Desired: amount0Desired,
+                amount1Desired: amount1Desired,
+                amount0Min: amount0Min,
+                amount1Min: amount1Min,
                 recipient: address(this),
                 deadline: block.timestamp
             })
         );
 
         state.tokenId = tokenId_;
-    }
-
-    /// @notice Collects tokens owed to a position
-    function _decreaseLiquidityAndCollect(uint128 liquidity) internal {
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-
-        if (liquidity > 0) {
-            moduleC_decreaseLiquidity(
-                DecreaseLiquidityParams({
-                    liquidity: liquidity,
-                    amount0Min: 0,
-                    amount1Min: 0,
-                    deadline: block.timestamp
-                })
-            );
-        }
-
-        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
-    }
-
-    /// @notice Withdrawal everything and burn position
-    function _withdrawBalance() internal {
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-
-        (, , , , , , , uint128 liquidity, , , , ) = position();
-        _decreaseLiquidityAndCollect(liquidity);
-        INonfungiblePositionManager(state.manager).burn(state.tokenId);
     }
 
     /**

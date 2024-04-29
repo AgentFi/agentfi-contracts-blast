@@ -43,12 +43,12 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         super.moduleC_mintBalance(params);
     }
 
-    function moduleC_increaseLiquidityWithBalance() public override returns (uint128, uint256, uint256) {
+    function moduleC_increaseLiquidityWithBalance(uint24 slippage) public override returns (uint128, uint256, uint256) {
         uint256 ethAmount = address(this).balance;
         if (ethAmount > 0) {
             Calls.sendValue(_weth, ethAmount);
         }
-        return super.moduleC_increaseLiquidityWithBalance();
+        return super.moduleC_increaseLiquidityWithBalance(slippage);
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
@@ -59,7 +59,7 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         tokens[1] = token1;
 
         // Cannot send directly to receiver as we need to unwrap WETH to ETH
-        _decreaseLiquidityAndCollect(0);
+        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
         moduleC_sendBalanceTo(receiver, tokens);
     }
 
