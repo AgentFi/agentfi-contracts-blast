@@ -194,6 +194,11 @@ const functionParams = [
       "0x0000000000000000000000000000000000000000000000000000000000000009",
   },
   {
+    selector: "0x9a569684",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000009",
+  },
+  {
     selector: "0x13bf4fdb",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000001",
@@ -430,11 +435,6 @@ describe("ConcentratedLiquidityModuleC", function () {
       })
       .then((x) => x.wait());
 
-    console.log(
-      Object.keys(fixture.module.interface.functions).filter((x) =>
-        x.includes("("),
-      ),
-    );
     return fixture;
   }
   async function fixtureDeposited() {
@@ -454,7 +454,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       .moduleC_mintWithBalance({
         manager: POSITION_MANAGER_ADDRESS,
         pool: POOL_ADDRESS,
-        slippageMint: 1_000_000,
+        slippageLiquidity: 1_000_000,
         sqrtPriceX96,
         tickLower: -82920,
         tickUpper: -76020,
@@ -537,8 +537,9 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     expect(await module.tokenId()).to.equal("0");
 
-    await expect(module.position()).to.be.revertedWith(
-      "No existing position to view",
+    await expect(module.position()).to.be.revertedWithCustomError(
+      module,
+      "NoPositionFound",
     );
   });
 
@@ -580,10 +581,10 @@ describe("ConcentratedLiquidityModuleC", function () {
           pool: POOL_ADDRESS,
           tickLower: -80880,
           tickUpper: -81480,
-          slippageMint: 1_000_000,
+          slippageLiquidity: 1_000_000,
           sqrtPriceX96,
         }),
-      ).to.be.revertedWith("Invalid tick range");
+      ).to.be.revertedWithCustomError(module, "InvalidTickParam");
     });
 
     it("Can handle too low slippage", async function () {
@@ -597,7 +598,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageMint: 100, /// 0.01%
+          slippageLiquidity: 100, /// 0.01%
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
@@ -618,80 +619,14 @@ describe("ConcentratedLiquidityModuleC", function () {
         module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageMint: BN.from(1_000_000 - 1),
+          slippageLiquidity: BN.from(1_000_000 - 1),
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
         }),
-      ).to.be.revertedWith("Cannot deposit with existing position");
+      ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
     });
 
-    // it.skip("Can deposit with mint function", async function () {
-    //   const { module, USDB, WETH, PositionManager } =
-    //     await loadFixture(fixtureDeployed);
-    //   // Expect no assets in tba
-    //   expect(
-    //     await Promise.all([
-    //       provider.getBalance(module.address),
-    //       USDB.balanceOf(module.address),
-    //       WETH.balanceOf(module.address),
-    //     ]),
-    //   ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
-
-    //   // Transfer all assets to tba
-    //   await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-    //   await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
-
-    //   // Trigger the deposit
-    //   await module
-    //     .moduleC_mint({
-    //       manager: POSITION_MANAGER_ADDRESS,
-    //       pool: POOL_ADDRESS,
-    //       sqrtPriceX96,
-    //       tickLower: price1ToTick(4000),
-    //       tickUpper: price1ToTick(2000),
-    //     })
-    //     .then((tx) => tx.wait());
-
-    //   // Expect all Assets to be transferred to tba
-    //   expect(
-    //     await Promise.all([
-    //       USDB.balanceOf(USER_ADDRESS),
-    //       WETH.balanceOf(USER_ADDRESS),
-    //     ]),
-    //   ).to.deep.equal([BN.from("0"), BN.from("0")]);
-
-    //   const tokenId = await module.tokenId();
-
-    //   // Position to be minted
-    //   expect(
-    //     convertToStruct(await PositionManager.positions(tokenId)),
-    //   ).to.deep.equal({
-    //     nonce: BN.from("0"),
-    //     operator: "0x0000000000000000000000000000000000000000",
-    //     token0: "0x4300000000000000000000000000000000000003",
-    //     token1: "0x4300000000000000000000000000000000000004",
-    //     fee: 3000,
-    //     tickLower: -82920,
-    //     tickUpper: -76020,
-    //     liquidity: BN.from("33967430851279090622703"),
-    //     feeGrowthInside0LastX128: BN.from(
-    //       "223062771100361370800904183975351004548",
-    //     ),
-    //     feeGrowthInside1LastX128: BN.from(
-    //       "63771321919466126002465612072408134",
-    //     ),
-    //     tokensOwed0: BN.from("0"),
-    //     tokensOwed1: BN.from("0"),
-    //   });
-    //   // Only leftover on one side
-    //   expect(
-    //     await Promise.all([
-    //       USDB.balanceOf(module.address),
-    //       WETH.balanceOf(module.address),
-    //     ]),
-    //   ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
-    // });
     it("Can deposit with WETH", async function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
@@ -713,7 +648,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         .moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageMint: 1_000_000,
+          slippageLiquidity: 1_000_000,
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
@@ -770,10 +705,10 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000),
-      ).to.be.revertedWith("No existing position to view");
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
     });
 
-    it("Can handle too low slippage", async () => {
+    it("Can handle too low slippageSwap", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
       await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
@@ -982,13 +917,13 @@ describe("ConcentratedLiquidityModuleC", function () {
         module.moduleC_rebalance({
           fee: 3000,
           router: SWAP_ROUTER_ADDRESS,
-          slippage: 10000,
-          slippageMint: 1_000_000,
+          slippageSwap: 10000,
+          slippageLiquidity: 1_000_000,
           tickLower: -80880,
           tickUpper: -81480,
           sqrtPriceX96,
         }),
-      ).to.be.revertedWith("Invalid tick range");
+      ).to.be.revertedWithCustomError(module, "InvalidTickParam");
     });
 
     it("Can handle slippage rejection", async () => {
@@ -998,8 +933,8 @@ describe("ConcentratedLiquidityModuleC", function () {
         module.moduleC_rebalance({
           fee: 3000,
           router: SWAP_ROUTER_ADDRESS,
-          slippage: 1000, // 0.1%
-          slippageMint: 1_000_000,
+          slippageSwap: 1000, // 0.1%
+          slippageLiquidity: 1_000_000,
           tickLower: -82020,
           tickUpper: -79620,
           sqrtPriceX96,
@@ -1014,8 +949,8 @@ describe("ConcentratedLiquidityModuleC", function () {
         .moduleC_rebalance({
           fee: 3000,
           router: SWAP_ROUTER_ADDRESS,
-          slippage: 10000,
-          slippageMint: 1_000_000,
+          slippageSwap: 10000,
+          slippageLiquidity: 1_000_000,
           tickLower: -81480,
           tickUpper: -80880,
           sqrtPriceX96,
@@ -1056,8 +991,8 @@ describe("ConcentratedLiquidityModuleC", function () {
         .moduleC_rebalance({
           fee: 3000,
           router: SWAP_ROUTER_ADDRESS,
-          slippage: 10000,
-          slippageMint: 1_000_000,
+          slippageSwap: 10000,
+          slippageLiquidity: 1_000_000,
           tickLower: -80760,
           tickUpper: -80160,
           sqrtPriceX96,
@@ -1105,8 +1040,8 @@ describe("ConcentratedLiquidityModuleC", function () {
         .moduleC_rebalance({
           fee: 3000,
           router: SWAP_ROUTER_ADDRESS,
-          slippage: 10000,
-          slippageMint: 1_000_000,
+          slippageSwap: 10000,
+          slippageLiquidity: 1_000_000,
           tickLower: -82020,
           tickUpper: -79620,
           sqrtPriceX96,

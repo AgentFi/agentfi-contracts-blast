@@ -4,13 +4,14 @@ pragma solidity 0.8.24;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { Blastable } from "./../utils/Blastable.sol";
-import { Calls } from "./../libraries/Calls.sol";
-import { TickMath } from "./../libraries/TickMath.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 import { IThrusterPool as IV3Pool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
+import { Calls } from "./../libraries/Calls.sol";
+import { Errors } from "./../libraries/Errors.sol";
 import { LiquidityAmounts } from "./../libraries/LiquidityAmounts.sol";
+import { TickMath } from "./../libraries/TickMath.sol";
+import { Blastable } from "./../utils/Blastable.sol";
 
 /**
  * @title ConcentratedLiquidityModuleC
@@ -48,7 +49,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     CONSTRUCTOR
     ***************************************/
-
     /**
      * @notice Constructs the ConcentratedLiquidityModuleC contract.
      * @param blast_ The address of the blast gas reward contract.
@@ -66,7 +66,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-
     function moduleName() external pure returns (string memory name_) {
         name_ = "ConcentratedLiquidityModuleC";
     }
@@ -115,7 +114,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         )
     {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        require(state.tokenId != 0, "No existing position to view");
+        if (state.tokenId == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         return manager_.positions(state.tokenId);
     }
@@ -145,10 +144,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_mint(
         MintParams memory params
     ) public payable returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
-        require(tokenId() == 0, "Cannot deposit with existing position");
-        require(params.tickLower < params.tickUpper, "Invalid tick range");
-
+        if (params.tickLower >= params.tickUpper) revert Errors.InvalidTickParam();
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        if (state.tokenId != 0) revert Errors.PositionAlreadyExists();
+
         state.manager = params.manager;
         state.pool = params.pool;
 
@@ -170,7 +169,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 deadline: block.timestamp
             })
         );
-        require(liquidity > 0, "No liquidity minted");
 
         // Update state with new token
         state.tokenId = tokenId_;
@@ -202,7 +200,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
-        require(state.tokenId != 0, "No existing position to increase");
+        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         _setApproval(token0, state.manager, params.amount0Desired);
         _setApproval(token1, state.manager, params.amount1Desired);
@@ -232,7 +230,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     ) public returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        require(state.tokenId != 0, "No existing position to increase");
+        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
@@ -254,7 +252,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_collect(CollectParams memory params) public returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        require(state.tokenId != 0, "No existing position exists");
+        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.collect(
             INonfungiblePositionManager.CollectParams({
@@ -268,10 +266,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     function moduleC_burn() public {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        require(state.tokenId != 0, "No existing position exists");
+        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         manager_.burn(state.tokenId);
+        state.tokenId = 0;
     }
 
     struct ExactInputSingleParams {
@@ -332,62 +331,64 @@ contract ConcentratedLiquidityModuleC is Blastable {
     struct MintBalanceParams {
         address manager;
         address pool;
-        uint24 slippageMint;
+        uint24 slippageLiquidity;
         int24 tickLower;
         int24 tickUpper;
         uint160 sqrtPriceX96;
     }
 
     /// @notice Mints new position with all assets in this contract
-    function moduleC_mintWithBalance(MintBalanceParams memory params) public payable virtual {
-        require(params.slippageMint <= SLIPPAGE_SCALE, "Invalid Slippage");
+    function moduleC_mintWithBalance(
+        MintBalanceParams memory params
+    ) public payable virtual returns (uint256, uint128, uint256, uint256) {
+        if (params.slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
         IV3Pool pool_ = IV3Pool(params.pool);
-        address token0 = pool_.token0();
-        address token1 = pool_.token1();
-        uint256 amount0Desired = IERC20(token0).balanceOf(address(this));
-        uint256 amount1Desired = IERC20(token1).balanceOf(address(this));
-        (uint256 amount0Min, uint256 amount1Min) = _getIncreaseAmounts(
+        uint256 amount0Desired = IERC20(pool_.token0()).balanceOf(address(this));
+        uint256 amount1Desired = IERC20(pool_.token1()).balanceOf(address(this));
+        (uint256 amount0Min, uint256 amount1Min) = _getMinAmountsForIncrease(
             amount0Desired,
             amount1Desired,
             params.tickLower,
             params.tickUpper,
             params.sqrtPriceX96,
-            params.slippageMint
+            params.slippageLiquidity
         );
 
-        moduleC_mint(
-            MintParams({
-                manager: params.manager,
-                pool: params.pool,
-                token0: token0,
-                token1: token1,
-                fee: pool_.fee(),
-                tickLower: params.tickLower,
-                tickUpper: params.tickUpper,
-                amount0Desired: amount0Desired,
-                amount1Desired: amount1Desired,
-                amount0Min: amount0Min,
-                amount1Min: amount1Min,
-                deadline: block.timestamp
-            })
-        );
+        return
+            moduleC_mint(
+                MintParams({
+                    manager: params.manager,
+                    pool: params.pool,
+                    token0: pool_.token0(),
+                    token1: pool_.token1(),
+                    fee: pool_.fee(),
+                    tickLower: params.tickLower,
+                    tickUpper: params.tickUpper,
+                    amount0Desired: amount0Desired,
+                    amount1Desired: amount1Desired,
+                    amount0Min: amount0Min,
+                    amount1Min: amount1Min,
+                    deadline: block.timestamp
+                })
+            );
     }
 
     /// @notice Deposit all assets in contract to existing position (does not change range)
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
-        uint24 slippage
+        uint24 slippageLiquidity
     ) public virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
-        require(slippage <= SLIPPAGE_SCALE, "Invalid Slippage");
+        if (slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
+
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
         (uint256 amount0Desired, uint256 amount1Desired) = _balance();
-        (uint256 amount0Min, uint256 amount1Min) = _getIncreaseAmounts(
+        (uint256 amount0Min, uint256 amount1Min) = _getMinAmountsForIncrease(
             amount0Desired,
             amount1Desired,
             tickLower,
             tickUpper,
             sqrtPriceX96,
-            slippage
+            slippageLiquidity
         );
         (liquidity, amount0, amount1) = moduleC_increaseLiquidity(
             IncreaseLiquidityParams({
@@ -401,52 +402,55 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Collect tokens owned in position, keeping funds in the this contract
-    function moduleC_collectToSelf() public {
-        moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
+    function moduleC_collectToSelf() public returns (uint256, uint256) {
+        return moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
     /// @notice Perform partial withdrawal, keeping funds in the this contract
-    function moduleC_decreaseLiquidityWithSlippage(uint128 liquidity, uint160 sqrtPriceX96, uint24 slippage) public {
-        require(tokenId() != 0, "No existing position to decrease");
-
+    function moduleC_decreaseLiquidityWithSlippage(
+        uint128 liquidity,
+        uint160 sqrtPriceX96,
+        uint24 slippageLiquidity
+    ) public returns (uint256, uint256) {
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
-        uint160 pa = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 pb = TickMath.getSqrtRatioAtTick(tickUpper);
-
         // Get expected amounts, and apply a slippage
         (uint256 amount0Min, uint256 amount1Min) = LiquidityAmounts.getAmountsForLiquidity(
             sqrtPriceX96,
-            pa,
-            pb,
+            TickMath.getSqrtRatioAtTick(tickLower),
+            TickMath.getSqrtRatioAtTick(tickUpper),
             liquidity
         );
-        amount0Min = Math.mulDiv(amount0Min, SLIPPAGE_SCALE - slippage, SLIPPAGE_SCALE);
-        amount1Min = Math.mulDiv(amount1Min, SLIPPAGE_SCALE - slippage, SLIPPAGE_SCALE);
+        amount0Min = Math.mulDiv(amount0Min, SLIPPAGE_SCALE - slippageLiquidity, SLIPPAGE_SCALE);
+        amount1Min = Math.mulDiv(amount1Min, SLIPPAGE_SCALE - slippageLiquidity, SLIPPAGE_SCALE);
 
-        moduleC_decreaseLiquidity(
-            DecreaseLiquidityParams({
-                liquidity: liquidity,
-                amount0Min: amount0Min,
-                amount1Min: amount1Min,
-                deadline: block.timestamp
-            })
-        );
+        return
+            moduleC_decreaseLiquidity(
+                DecreaseLiquidityParams({
+                    liquidity: liquidity,
+                    amount0Min: amount0Min,
+                    amount1Min: amount1Min,
+                    deadline: block.timestamp
+                })
+            );
     }
 
-    function moduleC_partialWithdrawalToSelf(uint128 liquidity, uint160 sqrtPriceX96, uint24 slippage) public {
-        moduleC_decreaseLiquidityWithSlippage(liquidity, sqrtPriceX96, slippage);
-        moduleC_collectToSelf();
+    function moduleC_partialWithdrawalToSelf(
+        uint128 liquidity,
+        uint160 sqrtPriceX96,
+        uint24 slippageLiquidity
+    ) public returns (uint256, uint256) {
+        moduleC_decreaseLiquidityWithSlippage(liquidity, sqrtPriceX96, slippageLiquidity);
+        return moduleC_collectToSelf();
     }
 
     /// @notice Withdrawals principal and fee, and burns position, returning the funds to this contract
-    function moduleC_fullWithdrawToSelf(uint160 sqrtPriceX96, uint24 slippage) public payable {
+    function moduleC_fullWithdrawToSelf(
+        uint160 sqrtPriceX96,
+        uint24 slippageLiquidity
+    ) public payable returns (uint256 amount0, uint256 amount1) {
         (, , , , , , , uint128 liquidity, , , , ) = position();
-        moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippage);
-
-        // Burn position and reset State
-        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        INonfungiblePositionManager(state.manager).burn(state.tokenId);
-        state.tokenId = 0;
+        (amount0, amount1) = moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
+        moduleC_burn();
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
@@ -460,23 +464,23 @@ contract ConcentratedLiquidityModuleC is Blastable {
         address receiver,
         uint128 liquidity,
         uint160 sqrtPriceX96,
-        uint24 slippage
+        uint24 slippageLiquidity
     ) external {
-        moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippage);
+        moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
 
     /// @notice Sends funds to receiver after withdrawaling position
-    function moduleC_fullWithdrawTo(address receiver, uint160 sqrtPriceX96, uint24 slippage) external payable {
-        moduleC_fullWithdrawToSelf(sqrtPriceX96, slippage);
+    function moduleC_fullWithdrawTo(address receiver, uint160 sqrtPriceX96, uint24 slippageLiquidity) external payable {
+        moduleC_fullWithdrawToSelf(sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
 
     struct RebalanceParams {
         address router; // Address of router contract
         uint24 fee; // Fee pool to use
-        uint24 slippage; // Slippage to tolerate
-        uint24 slippageMint; // Slippage to tolerate
+        uint24 slippageSwap; // slippageSwap to tolerate
+        uint24 slippageLiquidity; // slippageSwap to tolerate
         int24 tickLower;
         int24 tickUpper;
         uint160 sqrtPriceX96;
@@ -484,9 +488,9 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleC_rebalance(RebalanceParams memory params) external {
-        moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageMint);
+        moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
 
-        (address tokenIn, address tokenOut, uint256 amountIn) = _balanceTokens(
+        (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
             params.sqrtPriceX96,
             params.tickLower,
             params.tickUpper
@@ -497,7 +501,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 tokenIn: tokenIn,
                 tokenOut: tokenOut,
                 amountIn: amountIn,
-                slippage: params.slippage,
+                slippageSwap: params.slippageSwap,
                 fee: params.fee,
                 sqrtPriceX96: params.sqrtPriceX96
             })
@@ -508,7 +512,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
             MintBalanceParams({
                 manager: state.manager,
                 pool: state.pool,
-                slippageMint: params.slippageMint,
+                slippageLiquidity: params.slippageLiquidity,
                 tickLower: params.tickLower,
                 tickUpper: params.tickUpper,
                 sqrtPriceX96: params.sqrtPriceX96
@@ -524,12 +528,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
      * @notice Rebalances tokens in contract to optimal ratio for depositing into position
      * @dev Not exact as it does not consider price impact of the swap
      */
-    function _balanceTokens(
+    function _getSwapForNewRange(
         uint160 sqrtPriceX96,
         int24 tickLower,
         int24 tickUpper
     ) internal view returns (address, address, uint256) {
-        require(tickLower < tickUpper, "Invalid tick range");
+        if (tickLower >= tickUpper) revert Errors.InvalidTickParam();
 
         IV3Pool pool_ = IV3Pool(pool());
         address token0 = pool_.token0();
@@ -538,22 +542,24 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint256 amount0 = IERC20(token0).balanceOf(address(this));
         uint256 amount1 = IERC20(token1).balanceOf(address(this));
 
-        uint160 p = sqrtPriceX96;
-        uint160 pa = TickMath.getSqrtRatioAtTick(tickLower);
-        uint160 pb = TickMath.getSqrtRatioAtTick(tickUpper);
+        uint256 p = uint256(sqrtPriceX96);
+        uint256 pa = uint256(TickMath.getSqrtRatioAtTick(tickLower));
+        uint256 pb = uint256(TickMath.getSqrtRatioAtTick(tickUpper));
 
         if (pb <= p && amount0 > 0) {
             return (token0, token1, amount0);
         } else if (pa >= p && amount1 > 0) {
             return (token1, token0, amount1);
         } else {
-            uint256 ratio = ((((uint256(p) * uint256(pb)) / uint256(pb - p)) * uint256(p - pa)) * 10 ** 18) / 2 ** 192;
+            uint256 SCALE = 10 ** 18; // Scale  to avoid zero values
+            uint256 ratio = Math.mulDiv((p - pa), (p * pb), (pb - p));
+            ratio = Math.mulDiv(ratio, SCALE, 2 ** 192);
 
-            if ((amount0 * ratio) / 10 ** 18 > amount1) {
-                uint256 amountIn = (amount0 - ((amount1 * 10 ** 18) / ratio)) / 2;
+            if (Math.mulDiv(amount0, ratio, 10 ** 18) > amount1) {
+                uint256 amountIn = (amount0 - Math.mulDiv(amount1, SCALE, ratio)) / 2;
                 return (token0, token1, amountIn);
             } else {
-                uint256 amountIn = (amount1 - ((amount0 * ratio) / 10 ** 18)) / 2;
+                uint256 amountIn = (amount1 - Math.mulDiv(amount0, ratio, SCALE)) / 2;
                 return (token1, token0, amountIn);
             }
         }
@@ -566,20 +572,20 @@ contract ConcentratedLiquidityModuleC is Blastable {
         address tokenOut;
         uint256 amountIn;
         uint160 sqrtPriceX96;
-        uint24 slippage;
+        uint24 slippageSwap;
         uint24 fee;
     }
     function _performSwap(PerformSwapParams memory params) internal {
         uint256 amountOutMinimum;
 
-        //sqrtPrice, slippage, fee, router
+        //sqrtPrice, slippageSwap, fee, router
         if (params.tokenIn < params.tokenOut) {
             amountOutMinimum = Math.mulDiv(params.amountIn, uint256(params.sqrtPriceX96) ** 2, 2 ** 192);
         } else {
             amountOutMinimum = Math.mulDiv(params.amountIn, 2 ** 192, uint256(params.sqrtPriceX96) ** 2);
         }
 
-        amountOutMinimum = Math.mulDiv(amountOutMinimum, SLIPPAGE_SCALE - params.slippage, SLIPPAGE_SCALE);
+        amountOutMinimum = Math.mulDiv(amountOutMinimum, SLIPPAGE_SCALE - params.slippageSwap, SLIPPAGE_SCALE);
 
         // Perform Swap
         moduleC_exactInputSingle(
@@ -600,13 +606,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
     UTIL FUNCTIONS
     ***************************************/
 
-    function _getIncreaseAmounts(
+    function _getMinAmountsForIncrease(
         uint256 amount0Desired,
         uint256 amount1Desired,
         int24 tickLower,
         int24 tickUpper,
         uint160 sqrtPriceX96,
-        uint24 slippage
+        uint24 slippageLiquidity
     ) internal pure returns (uint256 amount0Min, uint256 amount1Min) {
         // Calculate min amounts, by getting expecting liquidity, and apply slippage
         // to the amount need to achieve that liquidity
@@ -623,13 +629,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
         amount0Min = Math.mulDiv(
             LiquidityAmounts.getAmount0ForLiquidity(pa, pb, expectedLiquidity),
-            SLIPPAGE_SCALE - slippage,
+            SLIPPAGE_SCALE - slippageLiquidity,
             SLIPPAGE_SCALE
         );
 
         amount1Min = Math.mulDiv(
             LiquidityAmounts.getAmount1ForLiquidity(pa, pb, expectedLiquidity),
-            SLIPPAGE_SCALE - slippage,
+            SLIPPAGE_SCALE - slippageLiquidity,
             SLIPPAGE_SCALE
         );
     }
@@ -640,6 +646,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         amount0 = IERC20(token0).balanceOf(address(this));
         amount1 = IERC20(token1).balanceOf(address(this));
     }
+
     function _setApproval(address token, address spender, uint256 value) internal {
         SafeERC20.safeIncreaseAllowance(IERC20(token), spender, value);
     }

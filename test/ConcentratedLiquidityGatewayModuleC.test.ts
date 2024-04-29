@@ -75,7 +75,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       .moduleC_mintWithBalance({
         manager: THRUSTER_ADDRESS,
         pool: POOL_ADDRESS,
-        slippageMint: 1_000_000,
+        slippageLiquidity: 1_000_000,
         sqrtPriceX96,
         tickLower: -82920,
         tickUpper: -76020,
@@ -151,7 +151,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         .moduleC_mintWithBalance({
           manager: THRUSTER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageMint: 1_000_000,
+          slippageLiquidity: 1_000_000,
           sqrtPriceX96,
           tickLower: -120000,
           tickUpper: 120000,
@@ -202,7 +202,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000),
-      ).to.be.revertedWith("No existing position to view");
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
     });
 
     it("Can do partial deposit", async () => {
@@ -286,7 +286,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       );
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("21250993373221609723"),
+        BN.from("21250993345221608043"),
       );
     });
   });
@@ -309,7 +309,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         .then((tx) => tx.wait());
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("50864233863413099088"),
+        BN.from("50864233775413090376"),
       );
 
       expect(
@@ -346,7 +346,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("36047882270265770813"),
+        BN.from("36047882341265777842"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),

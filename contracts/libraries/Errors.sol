@@ -149,4 +149,11 @@ library Errors {
     error InvalidMulticallForwarder();
     error InvalidERC6551Registry();
     error InvalidSender();
+    
+
+    //ModuleC Errors
+    error PositionAlreadyExists(); // Throw if trying to create a position, but one exists
+    error NoPositionFound(); // Throw if trying to operate on a position, but none exists
+    error InvalidTickParam(); // Throw if tick params is invalid
+    error InvalidSlippageParam(); // Throw if slippage params is invalid
 }

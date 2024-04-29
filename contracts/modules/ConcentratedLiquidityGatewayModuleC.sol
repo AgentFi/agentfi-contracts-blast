@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { ConcentratedLiquidityModuleC } from "./ConcentratedLiquidityModuleC.sol";
 
@@ -12,12 +13,6 @@ import { ConcentratedLiquidityModuleC } from "./ConcentratedLiquidityModuleC.sol
  *
  * Designed for use on Blast Mainnet only.
  */
-// ! Need to be careful of signature collisions
-interface IWETH {
-    function transferFrom(address src, address dst, uint wad) external returns (bool);
-
-    function withdraw(uint wad) external;
-}
 
 contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
     address internal constant _weth = 0x4300000000000000000000000000000000000004;
@@ -43,17 +38,19 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         }
     }
 
-    function moduleC_mintWithBalance(MintBalanceParams memory params) public payable override {
+    function moduleC_mintWithBalance(
+        MintBalanceParams memory params
+    ) public payable override returns (uint256, uint128, uint256, uint256) {
         moduleC_wrap();
-        super.moduleC_mintWithBalance(params);
+        return super.moduleC_mintWithBalance(params);
     }
 
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
-        uint24 slippage
+        uint24 slippageLiquidity
     ) public override returns (uint128, uint256, uint256) {
         moduleC_wrap();
-        return super.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, slippage);
+        return super.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, slippageLiquidity);
     }
 
     function moduleC_sendBalanceTo(address receiver) public override {
