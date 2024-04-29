@@ -1,19 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
+import { ERC6551AccountLib } from "erc6551/lib/ERC6551AccountLib.sol";
+import { ERC6551AccountLibV2 } from "./../lib/ERC6551AccountLibV2.sol";
 import { BlastooorStrategyAccountBase } from "./BlastooorStrategyAccountBase.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { AccessControlLibrary } from "./../libraries/AccessControlLibrary.sol";
-import { IBlastooorStrategyAgentAccount } from "./../interfaces/accounts/IBlastooorStrategyAgentAccount.sol";
+import { IBlastooorStrategyAgentAccountV2 } from "./../interfaces/accounts/IBlastooorStrategyAgentAccountV2.sol";
 import { IBlast } from "./../interfaces/external/Blast/IBlast.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { LibExecutor } from "./../lib/LibExecutor.sol";
+import { IERC6551Account } from "erc6551/interfaces/IERC6551Account.sol";
+import { OPAddressAliasHelper } from "./../lib/OPAddressAliasHelper.sol";
 
 
 /**
- * @title BlastooorStrategyAgentAccount
+ * @title BlastooorStrategyAgentAccountV2
  * @author AgentFi
  * @notice An account type used by agents. Built on top of Tokenbound BlastooorStrategyAccountBase.
  *
@@ -21,7 +25,7 @@ import { LibExecutor } from "./../lib/LibExecutor.sol";
  *
  * Also comes with some features that integrate the accounts with the Blast ecosystem. The factory configures the account to automatically collect Blast yield and gas rewards on deployment. The TBA owner can claim these gas rewards with [`claimAllGas()`](#claimallgas) or [`claimMaxGas()`](#claimmaxgas). The rewards can also be quoted offchain with [`quoteClaimAllGas()`](#quoteclaimallgas) or [`quoteClaimMaxGas()`](#quoteclaimmaxgas).
  */
-contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastable, IBlastooorStrategyAgentAccount {
+contract BlastooorStrategyAgentAccountV2 is BlastooorStrategyAccountBase, Blastable, IBlastooorStrategyAgentAccountV2 {
 
     /***************************************
     STATE VARIABLES
@@ -30,10 +34,10 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     /// @notice The role for strategy managers.
     bytes32 public constant STRATEGY_MANAGER_ROLE = keccak256("STRATEGY_MANAGER_ROLE");
 
-    /// @notice mapping from selector => implementation, isProtected
+    /// @notice mapping from selector => implementation, requiredRole
     mapping(bytes4 => FunctionSetting) public overrides;
 
-    event OverrideUpdated(bytes4 indexed selector, address indexed implementation, bool isProtected);
+    event OverrideUpdated(bytes4 indexed selector, address indexed implementation, bytes32 requiredRole);
 
     bool internal _isBlastConfigured;
 
@@ -42,7 +46,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     ***************************************/
 
     /**
-     * @notice Constructs the BlastooorStrategyAgentAccount contract.
+     * @notice Constructs the BlastooorStrategyAgentAccountV2 contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
@@ -182,12 +186,12 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
             address implementation = params[i].implementation;
             for(uint256 j = 0; j < params[i].functionParams.length; ++j) {
                 bytes4 selector = params[i].functionParams[j].selector;
-                bool isProtected = params[i].functionParams[j].isProtected;
+                bytes32 requiredRole = params[i].functionParams[j].requiredRole;
                 overrides[selector] = FunctionSetting({
                     implementation: implementation,
-                    isProtected: isProtected
+                    requiredRole: requiredRole
                 });
-                emit OverrideUpdated(selector, implementation, isProtected);
+                emit OverrideUpdated(selector, implementation, requiredRole);
             }
         }
     }
@@ -275,7 +279,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      * @return quoteAmount The amount of gas that can be claimed.
      */
     function quoteClaimAllGas() external payable override virtual returns (uint256 quoteAmount) {
-        try BlastooorStrategyAgentAccount(payable(address(this))).quoteClaimAllGasWithRevert() {}
+        try BlastooorStrategyAgentAccountV2(payable(address(this))).quoteClaimAllGasWithRevert() {}
         catch (bytes memory reason) {
             quoteAmount = BlastableLibrary.parseRevertReasonForAmount(reason);
         }
@@ -300,7 +304,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
      * @return quoteAmount The amount of gas that can be claimed.
      */
     function quoteClaimMaxGas() external payable override virtual returns (uint256 quoteAmount) {
-        try BlastooorStrategyAgentAccount(payable(address(this))).quoteClaimMaxGasWithRevert() {}
+        try BlastooorStrategyAgentAccountV2(payable(address(this))).quoteClaimMaxGasWithRevert() {}
         catch (bytes memory reason) {
             quoteAmount = BlastableLibrary.parseRevertReasonForAmount(reason);
         }
@@ -329,7 +333,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
         FunctionSetting memory settings = overrides[msg.sig];
         address implementation = settings.implementation;
         if(implementation != address(0)) {
-            if(settings.isProtected) _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
+            if(settings.requiredRole != bytes32(0)) _verifySenderIsValidExecutorOrHasRole(settings.requiredRole);
             _beforeExecute();
             (bool success, bytes memory result) = implementation.delegatecall(msg.data);
             assembly {
@@ -348,7 +352,7 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
         FunctionSetting memory settings = overrides[msg.sig];
         address implementation = settings.implementation;
         if(implementation != address(0)) {
-            if(settings.isProtected) _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
+            if(settings.requiredRole != bytes32(0)) _verifySenderIsValidExecutorOrHasRole(settings.requiredRole);
             (bool success, bytes memory result) = implementation.staticcall(msg.data);
             assembly {
                 if iszero(success) { revert(add(result, 32), mload(result)) }
@@ -367,5 +371,80 @@ contract BlastooorStrategyAgentAccount is BlastooorStrategyAccountBase, Blastabl
     // solhint-disable-next-line no-empty-blocks
     receive() external payable override (BlastooorStrategyAccountBase,Blastable) virtual {
         _handleOverride();
+    }
+
+    /***************************************
+    AUTHENTICATION HELPER FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Returns whether a given account is authorized to sign on behalf of this account
+     *
+     * @param signer The address to query authorization for
+     * @return True if the signer is valid, false otherwise
+     */
+    function _isValidSigner(address signer, bytes memory)
+        internal
+        view
+        virtual
+        override
+        returns (bool)
+    {
+        (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
+
+        // Single level account owner is valid signer
+        address _owner = _tokenOwner(chainId, tokenContract, tokenId);
+        if (signer == _owner) return true;
+
+        // Allow signing from any ancestor in account tree
+        while (ERC6551AccountLibV2.isERC6551Account(_owner, erc6551Registry)) {
+            (chainId, tokenContract, tokenId) = IERC6551Account(payable(_owner)).token();
+            _owner = _tokenOwner(chainId, tokenContract, tokenId);
+            if (signer == _owner) return true;
+        }
+
+        // Accounts granted permission by root owner are valid signers
+        return hasPermission(signer, _owner);
+    }
+
+    /**
+     * @notice Returns whether a given account is authorized to execute transactions on behalf of
+     * this account
+     *
+     * @param executor The address to query authorization for
+     * @return True if the executor is authorized, false otherwise
+     */
+    function _isValidExecutor(address executor) internal view virtual override returns (bool) {
+        // Allow execution from ERC-4337 EntryPoint
+        if (executor == address(entryPoint())) return true;
+
+        (uint256 chainId, address tokenContract, uint256 tokenId) = ERC6551AccountLib.token();
+
+        // Allow cross chain execution
+        if (chainId != block.chainid) {
+            // Allow execution from L1 account on OPStack chains
+            if (OPAddressAliasHelper.undoL1ToL2Alias(_msgSender()) == address(this)) {
+                return true;
+            }
+
+            // Allow execution from trusted cross chain bridges
+            if (guardian.isTrustedExecutor(executor)) return true;
+        }
+
+        // Allow execution from owner
+        address _owner = _tokenOwner(chainId, tokenContract, tokenId);
+        if (executor == _owner) return true;
+
+        // Allow execution from any ancestor in account tree
+        while (ERC6551AccountLibV2.isERC6551Account(_owner, erc6551Registry)) {
+            (chainId, tokenContract, tokenId) = IERC6551Account(payable(_owner)).token();
+            _owner = _tokenOwner(chainId, tokenContract, tokenId);
+            if (executor == _owner) return true;
+        }
+
+        // Allow execution from permissioned account
+        if (hasPermission(executor, _owner)) return true;
+
+        return false;
     }
 }
