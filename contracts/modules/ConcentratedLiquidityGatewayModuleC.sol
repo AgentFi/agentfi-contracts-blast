@@ -31,7 +31,7 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         address pointsOperator_
     ) ConcentratedLiquidityModuleC(blast_, gasCollector_, blastPoints_, pointsOperator_) {}
 
-    function moduleC_wrap() public {
+    function moduleC_wrap() public payable {
         uint256 ethAmount = address(this).balance;
         if (ethAmount > 0) {
             Calls.sendValue(_weth, ethAmount);
@@ -48,12 +48,12 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public override returns (uint128, uint256, uint256) {
+    ) public payable override returns (uint128, uint256, uint256) {
         moduleC_wrap();
         return super.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, slippageLiquidity);
     }
 
-    function moduleC_sendBalanceTo(address receiver) public override {
+    function moduleC_sendBalanceTo(address receiver) public payable override {
         uint256 balance = IERC20(_weth).balanceOf(address(this));
         if (balance > 0) {
             IWETH(_weth).withdraw(balance);

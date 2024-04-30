@@ -227,7 +227,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     function moduleC_decreaseLiquidity(
         DecreaseLiquidityParams memory params
-    ) public returns (uint256 amount0, uint256 amount1) {
+    ) public payable returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         if (state.tokenId == 0) revert Errors.NoPositionFound();
@@ -249,7 +249,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 amount1Max;
     }
 
-    function moduleC_collect(CollectParams memory params) public returns (uint256 amount0, uint256 amount1) {
+    function moduleC_collect(CollectParams memory params) public payable returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         if (state.tokenId == 0) revert Errors.NoPositionFound();
@@ -264,7 +264,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    function moduleC_burn() public {
+    function moduleC_burn() public payable {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         if (state.tokenId == 0) revert Errors.NoPositionFound();
 
@@ -313,7 +313,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     AGENT HIGH LEVEL FUNCTIONS
     ***************************************/
     /// @notice Sends token balance to a specified receiver.
-    function moduleC_sendBalanceTo(address receiver) public virtual {
+    function moduleC_sendBalanceTo(address receiver) public payable virtual {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
 
         IV3Pool pool_ = IV3Pool(state.pool);
@@ -377,7 +377,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) public payable virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         if (slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
 
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
@@ -402,7 +402,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Collect tokens owned in position, keeping funds in the this contract
-    function moduleC_collectToSelf() public returns (uint256, uint256) {
+    function moduleC_collectToSelf() public payable returns (uint256, uint256) {
         return moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
@@ -411,7 +411,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public returns (uint256, uint256) {
+    ) public payable returns (uint256, uint256) {
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
         // Get expected amounts, and apply a slippage
         (uint256 amount0Min, uint256 amount1Min) = LiquidityAmounts.getAmountsForLiquidity(
@@ -438,7 +438,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public returns (uint256, uint256) {
+    ) public payable returns (uint256, uint256) {
         moduleC_decreaseLiquidityWithSlippage(liquidity, sqrtPriceX96, slippageLiquidity);
         return moduleC_collectToSelf();
     }
@@ -454,7 +454,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
-    function moduleC_collectTo(address receiver) external virtual {
+    function moduleC_collectTo(address receiver) external payable virtual {
         moduleC_collectToSelf();
         moduleC_sendBalanceTo(receiver);
     }
@@ -465,7 +465,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) external {
+    ) external payable {
         moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
@@ -487,7 +487,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
-    function moduleC_rebalance(RebalanceParams memory params) external {
+    function moduleC_rebalance(RebalanceParams memory params) external payable {
         moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
