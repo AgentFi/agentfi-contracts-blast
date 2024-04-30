@@ -215,7 +215,7 @@ contract BlastooorStrategyAgentAccountV2 is BlastooorStrategyAccountBase, Blasta
      * @param data A list of function calls to execute.
      * @return results The results of each function call.
      */
-    function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
+    function multicall(bytes[] calldata data) external payable override returns (bytes[] memory results) {
         results = new bytes[](data.length);
         address sender = _msgSender();
         bool isForwarder = msg.sender != sender;
