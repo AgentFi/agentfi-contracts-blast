@@ -26,4 +26,8 @@ contract Test1Callee {
     function testFunc3() external payable {
         emit Test1Event(3);
     }
+
+    receive () external payable {
+        emit Test1Event(999);
+    }
 }

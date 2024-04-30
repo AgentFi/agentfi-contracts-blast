@@ -201,8 +201,6 @@ contract BlastooorStrategyAgentAccountV2 is BlastooorStrategyAccountBase, Blasta
      */
     function _strategyManagerPrecheck() internal {
         _verifySenderIsValidExecutorOrHasRole(STRATEGY_MANAGER_ROLE);
-        _verifyIsUnlocked();
-        _updateState();
         _beforeExecute();
     }
 
@@ -336,8 +334,6 @@ contract BlastooorStrategyAgentAccountV2 is BlastooorStrategyAccountBase, Blasta
         address implementation = settings.implementation;
         if(implementation != address(0)) {
             if(settings.requiredRole != bytes32(0)) _verifySenderIsValidExecutorOrHasRole(settings.requiredRole);
-            _verifyIsUnlocked();
-            _updateState();
             _beforeExecute();
             (bool success, bytes memory result) = implementation.delegatecall(msg.data);
             assembly {
