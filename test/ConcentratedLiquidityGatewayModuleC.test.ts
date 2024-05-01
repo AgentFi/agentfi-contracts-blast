@@ -286,7 +286,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       );
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("21250993345221608043"),
+        BN.from("21250994239221661683"),
       );
     });
   });
@@ -309,7 +309,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         .then((tx) => tx.wait());
 
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("50864233775413090376"),
+        BN.from("50864234455413157696"),
       );
 
       expect(
@@ -346,7 +346,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("36047882341265777842"),
+        BN.from("36047883291265871892"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),

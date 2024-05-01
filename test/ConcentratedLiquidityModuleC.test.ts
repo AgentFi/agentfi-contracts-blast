@@ -58,6 +58,7 @@ const permissions = Object.entries({
     "moduleName()",
     "pool()",
     "position()",
+    "slot0()",
     "strategyType()",
     "tokenId()",
   ],
@@ -115,6 +116,11 @@ const functionParams = [
   },
   {
     selector: "0x09218e91",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x3850c7bd",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
@@ -543,14 +549,23 @@ describe("ConcentratedLiquidityModuleC", function () {
     );
   });
 
-  it("Can view existing position ", async function () {
+  it("Can fetch slot0 on pool", async () => {
     const { module, pool } = await loadFixture(fixtureDeposited);
+
+    expect(await module.slot0()).to.deep.equal(await pool.slot0());
+  });
+
+  it("Can view existing position ", async function () {
+    const { module, pool, PositionManager } =
+      await loadFixture(fixtureDeposited);
 
     expect(await module.manager()).to.equal(POSITION_MANAGER_ADDRESS);
     expect(await module.pool()).to.equal(POOL_ADDRESS);
     expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-    expect(convertToStruct(await module.position())).to.deep.equal({
+    const position = await module.position();
+    expect(position).to.deep.equal(await PositionManager.positions(54353));
+    expect(convertToStruct(position)).to.deep.equal({
       nonce: BN.from("0"),
       operator: "0x0000000000000000000000000000000000000000",
       token0: "0x4300000000000000000000000000000000000003",

@@ -83,6 +83,22 @@ contract ConcentratedLiquidityModuleC is Blastable {
         pool_ = concentratedLiquidityModuleCStorage().pool;
     }
 
+    function slot0()
+        public
+        view
+        returns (
+            uint160 sqrtPriceX96,
+            int24 tick,
+            uint16 observationIndex,
+            uint16 observationCardinality,
+            uint16 observationCardinalityNext,
+            uint8 feeProtocol,
+            bool unlocked
+        )
+    {
+        return IV3Pool(concentratedLiquidityModuleCStorage().pool).slot0();
+    }
+
     /// @notice TokenId of NFT position (if exists)
     function tokenId() public view returns (uint256 tokenId_) {
         tokenId_ = concentratedLiquidityModuleCStorage().tokenId;
