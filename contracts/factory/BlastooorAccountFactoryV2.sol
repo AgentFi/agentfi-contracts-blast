@@ -136,7 +136,6 @@ contract BlastooorAccountFactoryV2 is IBlastooorAccountFactoryV2, Blastable, Own
             }
             // early exit for out of gas
             uint256 gasl = gasleft();
-            uint256 gasStart = gasl;
             if(gasl < 50_000) {
                 --agentID; // mark this one as not yet processed
                 break;
