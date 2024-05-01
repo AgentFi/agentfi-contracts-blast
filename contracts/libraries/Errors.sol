@@ -70,8 +70,8 @@ library Errors {
     error AgentDoesNotExist();
     /// @notice Thrown when transferring an agent nft to the agent account.
     error OwnershipCycle();
-    /// @notice Thrown when calling a function that is reserved for agents only.
-    //error CallerIsNotAnAgent();
+    /// @notice Thrown when referrencing an account that is not an agent.
+    error NotAnAgent();
 
     // agent creation errors
     /// @notice Thrown when attempting to create an agent from an account that is not whitelisted.
