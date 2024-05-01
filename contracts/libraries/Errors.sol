@@ -149,4 +149,8 @@ library Errors {
     error InvalidMulticallForwarder();
     error InvalidERC6551Registry();
     error InvalidSender();
+
+    // processing errors
+    /// @notice Thrown when processing an empty queue.
+    error NoMoreItemsInQueue();
 }
