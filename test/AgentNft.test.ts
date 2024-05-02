@@ -59,7 +59,7 @@ describe("AgentNft", function () {
   let agentNft0: Agents;
   let agentNft1: BlastooorGenesisAgents;
   let agentNft2: BlastooorStrategyAgents;
-  let agentNft3: BlastooorExplorerAgents;
+  let agentNft3: ExplorerAgents;
 
   let multicallForwarder: MulticallForwarder;
   let agentRegistry: AgentRegistry;
@@ -131,8 +131,8 @@ describe("AgentNft", function () {
       expect(await agentNft2.totalSupply()).eq(0);
       expect(await agentNft2.balanceOf(user1.address)).eq(0);
     });
-    it("can deploy BlastooorExplorerAgents ERC721", async function () {
-      agentNft3 = await deployContract(deployer, "BlastooorExplorerAgents", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as BlastooorExplorerAgents;
+    it("can deploy ExplorerAgents ERC721", async function () {
+      agentNft3 = await deployContract(deployer, "ExplorerAgents", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as ExplorerAgents;
       await expectDeployed(agentNft3.address);
       expect(await agentNft3.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy Agents", agentNft3.deployTransaction);
@@ -676,11 +676,10 @@ describe("AgentNft", function () {
       });
     });
 
-
     describe("metadata", function () {
       it("has the correct name and symbol", async function () {
-        expect(await agentNft3.name()).eq("Blastooor Explorer")
-        expect(await agentNft3.symbol()).eq("BLASTOOOR EXPLORER")
+        expect(await agentNft3.name()).eq("Explorers")
+        expect(await agentNft3.symbol()).eq("EXPLORERS")
       })
     })
 

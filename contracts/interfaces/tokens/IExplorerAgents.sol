@@ -5,9 +5,9 @@ import { IERC721Enumerable } from "@openzeppelin/contracts/token/ERC721/extensio
 
 
 /**
- * @title IBlastooorExplorerAgents
+ * @title IExplorerAgents
  * @author AgentFi
- * @notice The Blastooor Explorer ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
+ * @notice The Explorers ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
  *
  * Each agent is represented as an NFT. The owner of the NFT is the owner of the agent. Transferring the NFT means transferring the agent and its contents.
  *
@@ -19,7 +19,7 @@ import { IERC721Enumerable } from "@openzeppelin/contracts/token/ERC721/extensio
  *
  * Agents are ERC721s with the enumerable, metadata, and exists extensions. Info about the associated TBAs is stored in another contract.
  */
-interface IBlastooorExplorerAgents is IERC721Enumerable {
+interface IExplorerAgents is IERC721Enumerable {
 
     /// @notice Emitted when a factory is whitelisted or blacklisted.
     event FactoryWhitelisted(address indexed factory, bool wasWhitelisted);

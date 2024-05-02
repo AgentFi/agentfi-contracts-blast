@@ -7,15 +7,15 @@ import { ERC721 } from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import { ERC721Enumerable } from "@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
-import { IBlastooorExplorerAgents } from "./../interfaces/tokens/IBlastooorExplorerAgents.sol";
+import { IExplorerAgents } from "./../interfaces/tokens/IExplorerAgents.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 
 
 /**
- * @title BlastooorExplorerAgents
+ * @title ExplorerAgents
  * @author AgentFi
- * @notice The Blastooor Explorer ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
+ * @notice The Explorers ERC721 token contract. Creates new agents and manages ownership of agents in the AgentFi protocol.
  *
  * Each agent is represented as an NFT. The owner of the NFT is the owner of the agent. Transferring the NFT means transferring the agent and its contents.
  *
@@ -27,7 +27,7 @@ import { Ownable2Step } from "./../utils/Ownable2Step.sol";
  *
  * Agents are ERC721s with the enumerable, metadata, and exists extensions. Info about the associated TBAs is stored in another contract.
  */
-contract BlastooorExplorerAgents is IBlastooorExplorerAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall {
+contract ExplorerAgents is IExplorerAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall {
 
     mapping(address => bool) internal _factoryIsWhitelisted;
 
@@ -38,7 +38,7 @@ contract BlastooorExplorerAgents is IBlastooorExplorerAgents, ERC721Enumerable, 
 
 
     /**
-     * @notice Constructs the BlastooorExplorerAgents nft contract.
+     * @notice Constructs the ExplorerAgents nft contract.
      * @param owner_ The owner of the contract.
      * @param blast_ The address of the blast gas reward contract.
      * @param gasCollector_ The address of the gas collector.
@@ -51,7 +51,7 @@ contract BlastooorExplorerAgents is IBlastooorExplorerAgents, ERC721Enumerable, 
         address gasCollector_,
         address blastPoints_,
         address pointsOperator_
-    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) ERC721("Blastooor Explorer", "BLASTOOOR EXPLORER") {
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) ERC721("Explorers", "EXPLORERS") {
         _transferOwnership(owner_);
     }
 
