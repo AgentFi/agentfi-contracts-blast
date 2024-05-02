@@ -214,8 +214,8 @@ async function verifyContracts() {
 
 function logAddresses() {
   console.log("");
-  console.log("| Contract Name                    | Address                                      |");
-  console.log("|----------------------------------|----------------------------------------------|");
+  console.log("| Contract Name                        | Address                                      |");
+  console.log("|--------------------------------------|----------------------------------------------|");
   logContractAddress("BlastooorGenesisAccountFactoryV2", genesisAccountFactoryV2.address);
 }
 

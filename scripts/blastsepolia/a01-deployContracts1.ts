@@ -280,7 +280,7 @@ async function deployBlastooorStrategyAgentAccountV2() {
     let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
     strategyAccountImplV2 = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccountV2", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccountV2;
     console.log(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}`);
-    contractsToVerify.push({ address: strategyAccountImplV2.address, args })
+    contractsToVerify.push({ address: strategyAccountImplV2.address, args, contractName: "contracts/accounts/BlastooorStrategyAgentAccountV2.sol:BlastooorStrategyAgentAccountV2" })
     if(!!STRATEGY_ACCOUNT_IMPL_V2_ADDRESS && strategyAccountImplV2.address != STRATEGY_ACCOUNT_IMPL_V2_ADDRESS) throw new Error(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}, expected ${STRATEGY_ACCOUNT_IMPL_V2_ADDRESS}`)
   }
 }
@@ -324,8 +324,8 @@ async function verifyContracts() {
 
 function logAddresses() {
   console.log("");
-  console.log("| Contract Name                    | Address                                      |");
-  console.log("|----------------------------------|----------------------------------------------|");
+  console.log("| Contract Name                        | Address                                      |");
+  console.log("|--------------------------------------|----------------------------------------------|");
   logContractAddress("ERC6551Registry", ERC6551_REGISTRY_ADDRESS);
   logContractAddress("ContractFactory", contractFactory.address);
   logContractAddress("GasCollector", gasCollector.address);

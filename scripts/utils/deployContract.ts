@@ -74,7 +74,6 @@ async function getFactoryAddress(desiredFactoryAddress=undefined) {
   }
   const KNOWN_FACTORY_ADDRESSES = [
     "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8",
-    //"0xA74500382CAb2EBFe9A08dc2c01430821A4A8E15",
     "0x2eF7f9C8545cB13EEaBc10CFFA3481553C70Ffc8",
   ]
   for(const addr of KNOWN_FACTORY_ADDRESSES) {
@@ -85,12 +84,8 @@ async function getFactoryAddress(desiredFactoryAddress=undefined) {
   throw new Error("Factory contract not detected");
 }
 
-export async function verifyContract(address: string, constructorArguments: any, contractName: string) {
+export async function verifyContract(address: string, constructorArguments: any, contractName="") {
   console.log("Verifying contract");
-  async function _sleeper(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-  await _sleeper(30000); // likely just deployed a contract, let etherscan index it
   var verifyArgs: any = {
     address: address,
     constructorArguments: constructorArguments
@@ -105,4 +100,4 @@ export async function verifyContract(address: string, constructorArguments: any,
     /* probably already verified */
   }
 }
-exports.verifyContract
+exports.verifyContract = verifyContract

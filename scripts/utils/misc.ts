@@ -105,6 +105,20 @@ export function readJsonFile(filename:string) {
 }
 exports.readJsonFile = readJsonFile
 
+// reads an abi stored as a json file
+export function readAbi(filename:string) {
+  return readJsonFile(filename).filter(x => !!x && x.type=="function")
+}
+exports.readAbi = readAbi
+
+// reads an abi stored as a json file and preps it for use with multicall
+export function readAbiForMC(filename:string) {
+  let abi = readAbi(filename)
+  abi.forEach(x => { x.stateMutability = "view" })
+  return abi
+}
+exports.readAbiForMC = readAbiForMC
+
 // given an array and a mapper function (value => key)
 // returns it as a dictionary
 // in case two elements map to the same key, keep the first element in array
