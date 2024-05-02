@@ -8,23 +8,23 @@ import { MulticallableERC2771Context } from "./../utils/MulticallableERC2771Cont
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { IBlastooorStrategyAgents } from "./../interfaces/tokens/IBlastooorStrategyAgents.sol";
-import { IBlastooorExplorerAgents } from "./../interfaces/tokens/IBlastooorExplorerAgents.sol";
+import { IExplorerAgents } from "./../interfaces/tokens/IExplorerAgents.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
 import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
-import { IBlastooorStrategyFactory } from "./../interfaces/factory/IBlastooorStrategyFactory.sol";
+import { IConcentratedLiquidityAgentFactory } from "./../interfaces/factory/IConcentratedLiquidityAgentFactory.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 import { ConcentratedLiquidityModuleC } from "./../modules/ConcentratedLiquidityModuleC.sol";
 
 
 /**
- * @title BlastooorV3Factory
+ * @title ConcentratedLiquidityAgentFactory
  * @author AgentFi
  * @notice A factory for strategy agents.
  *
  * Users can use [`createAgent()`](#createagent) to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
  */
-contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Context/*, IBlastooorStrategyFactory*/ {
+contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Context, IConcentratedLiquidityAgentFactory {
 
     /***************************************
     STATE VARIABLES
@@ -94,7 +94,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
     /**
      * @notice Gets the addresses that have been statically set.
      */
-    function getStaticAddresses() external view returns (
+    function getStaticAddresses() external view override returns (
         address erc6551Registry_,
         address agentRegistry_,
         address genesisAgentNft_,
@@ -113,7 +113,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
     /**
      * @notice Gets the agent creation settings.
      */
-    function getAgentCreationSettings() external view returns (
+    function getAgentCreationSettings() external view override returns (
         address strategyAccountImpl_,
         address explorerAccountImpl_,
         bytes memory strategyInitializationCall_,
@@ -130,20 +130,6 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
     /***************************************
     CREATE AGENT FUNCTIONS
     ***************************************/
-
-    struct MintBalanceParams {
-        address manager;
-        address pool;
-        uint24 slippageLiquidity;
-        int24 tickLower;
-        int24 tickUpper;
-        uint160 sqrtPriceX96;
-    }
-
-    struct TokenDeposit {
-        address token;
-        uint256 amount;
-    }
 
     /**
      * @notice Creates a new V3 strategy agent.
@@ -165,7 +151,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1,
         address rootAgentAddress
-    ) external payable returns (
+    ) external payable override returns (
         uint256 nonfungiblePositionTokenId,
         uint128 liquidity,
         uint256 amount0,
@@ -211,7 +197,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
         MintBalanceParams calldata mintParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
-    ) external payable returns (
+    ) external payable override returns (
         uint256 nonfungiblePositionTokenId,
         uint128 liquidity,
         uint256 amount0,
@@ -231,7 +217,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
         // transfer v3 agent to explorer agent
         IBlastooorStrategyAgents(_explorerAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
-        IBlastooorExplorerAgents(_strategyAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
+        IExplorerAgents(_strategyAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
     }
 
     /***************************************
@@ -271,14 +257,14 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
             SafeERC20.safeTransfer(IERC20(weth), strategyAddress, IERC20(weth).balanceOf(address(this)));
         }
         else {
-            SafeERC20.safeTransfer(IERC20(deposit0.token), strategyAddress, deposit0.amount);
+            SafeERC20.safeTransferFrom(IERC20(deposit0.token), _msgSender(), strategyAddress, deposit0.amount);
         }
         if(deposit1.token == address(0)) {
             Calls.sendValue(weth, address(this).balance);
             SafeERC20.safeTransfer(IERC20(weth), strategyAddress, IERC20(weth).balanceOf(address(this)));
         }
         else {
-            SafeERC20.safeTransfer(IERC20(deposit1.token), strategyAddress, deposit1.amount);
+            SafeERC20.safeTransferFrom(IERC20(deposit1.token), _msgSender(), strategyAddress, deposit1.amount);
         }
         // create the position in the strategy agent
         (nonfungiblePositionTokenId, liquidity, amount0, amount1) =
@@ -342,7 +328,7 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
     ) {
         // create nft
         address explorers = _explorerAgentNft;
-        explorerAgentID = IBlastooorExplorerAgents(explorers).createAgent();
+        explorerAgentID = IExplorerAgents(explorers).createAgent();
         // create account
         address accountImpl = _explorerAccountImpl;
         bytes32 salt = bytes32(uint256(0));
@@ -368,21 +354,13 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
     OWNER FUNCTIONS
     ***************************************/
 
-    struct AgentCreationSettings {
-        address strategyAccountImpl;
-        address explorerAccountImpl;
-        bytes strategyInitializationCall;
-        bytes explorerInitializationCall;
-        bool isActive;
-    }
-
     /**
      * @notice Posts a new AgentCreationSettings.
      * Can only be called by the contract owner.
      */
     function postAgentCreationSettings(
         AgentCreationSettings calldata creationSettings
-    ) external payable onlyOwner {
+    ) external payable override onlyOwner {
         _strategyAccountImpl = creationSettings.strategyAccountImpl;
         _explorerAccountImpl = creationSettings.explorerAccountImpl;
         _strategyInitializationCall = creationSettings.strategyInitializationCall;
@@ -390,6 +368,4 @@ contract BlastooorV3Factory is Blastable, Ownable2Step, MulticallableERC2771Cont
         _isActive = creationSettings.isActive;
         emit AgentCreationSettingsPosted();
     }
-
-    event AgentCreationSettingsPosted();
 }
