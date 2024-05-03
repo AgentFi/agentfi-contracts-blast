@@ -12,6 +12,7 @@ import { IExplorerAgents } from "./../interfaces/tokens/IExplorerAgents.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
 import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { IConcentratedLiquidityAgentFactory } from "./../interfaces/factory/IConcentratedLiquidityAgentFactory.sol";
+import { IUniswapV2Pair } from "./../interfaces/external/UniswapV2/IUniswapV2Pair.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
 import { ConcentratedLiquidityModuleC } from "./../modules/ConcentratedLiquidityModuleC.sol";
@@ -140,9 +141,6 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
-     * @return liquidity The amount of liquidity minted
-     * @return amount0 The amount of token 0 used.
-     * @return amount1 The amount of token 1 used.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      */
@@ -153,26 +151,13 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         address rootAgentAddress
     ) external payable override returns (
         uint256 nonfungiblePositionTokenId,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1,
         uint256 strategyAgentID,
         address strategyAddress
     ) {
         // checks
-        if(!_isActive) revert Errors.CreationSettingsPaused();
-        IAgentRegistry registry = IAgentRegistry(_agentRegistry);
-        (address collection, uint256 rootAgentID) = registry.getNftOfTba(rootAgentAddress);
-        if(
-            (collection == address(0)) || (
-                (collection != _genesisAgentNft) &&
-                (collection != _strategyAgentNft) &&
-                (collection != _explorerAgentNft)
-            )
-        ) revert Errors.NotAnAgent();
-        if(IERC721(collection).ownerOf(rootAgentID) != _msgSender()) revert Errors.NotOwnerOfAgent();
+        _createAgentForRootPrecheck(rootAgentAddress);
         // create v3 agent
-        (nonfungiblePositionTokenId, liquidity, amount0, amount1, strategyAgentID, strategyAddress) =
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
             _createConcentratedLiquidityAgent(mintParams, deposit0, deposit1);
         // transfer strategy agent to root agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
@@ -185,9 +170,6 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
-     * @return liquidity The amount of liquidity minted
-     * @return amount0 The amount of token 0 used.
-     * @return amount1 The amount of token 1 used.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      * @return explorerAgentID The ID of the newly created explorer agent.
@@ -199,9 +181,6 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         TokenDeposit calldata deposit1
     ) external payable override returns (
         uint256 nonfungiblePositionTokenId,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1,
         uint256 strategyAgentID,
         address strategyAddress,
         uint256 explorerAgentID,
@@ -212,12 +191,162 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         // create explorer agent
         (explorerAgentID, explorerAddress) = _createExplorerAgent();
         // create v3 agent
-        (nonfungiblePositionTokenId, liquidity, amount0, amount1, strategyAgentID, strategyAddress) =
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
             _createConcentratedLiquidityAgent(mintParams, deposit0, deposit1);
         // transfer v3 agent to explorer agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
         IExplorerAgents(_explorerAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndMigrate(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        address rootAgentAddress
+    ) public payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    ) {
+        // checks
+        _createAgentForRootPrecheck(rootAgentAddress);
+        // create v3 agent
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
+            _createConcentratedLiquidityAgentAndMigrate(mintParams, depositLpToken);
+        // transfer strategy agent to root agent
+        IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndMigrate(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken
+    ) public payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    ) {
+        // checks
+        if(!_isActive) revert Errors.CreationSettingsPaused();
+        // create explorer agent
+        (explorerAgentID, explorerAddress) = _createExplorerAgent();
+        // create v3 agent
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
+            _createConcentratedLiquidityAgentAndMigrate(mintParams, depositLpToken);
+        // transfer v3 agent to explorer agent
+        IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
+        // transfer explorer agent to msg sender
+        IExplorerAgents(_explorerAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndMigrateWithPermit(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        address rootAgentAddress,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    ) {
+        // permit lp token
+        IUniswapV2Pair(depositLpToken.token).permit(
+            _msgSender(),
+            address(this),
+            depositLpToken.amount,
+            deadline,
+            v,
+            r,
+            s
+        );
+        // create agent
+        (
+            nonfungiblePositionTokenId,
+            strategyAgentID,
+            strategyAddress
+        ) = createConcentratedLiquidityAgentForRootAndMigrate(mintParams, depositLpToken, rootAgentAddress);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    ) {
+        // permit lp token
+        IUniswapV2Pair(depositLpToken.token).permit(
+            _msgSender(),
+            address(this),
+            depositLpToken.amount,
+            deadline,
+            v,
+            r,
+            s
+        );
+        // create agent
+        (
+            nonfungiblePositionTokenId,
+            strategyAgentID,
+            strategyAddress,
+            explorerAgentID,
+            explorerAddress
+        ) = createConcentratedLiquidityAgentAndExplorerAndMigrate(mintParams, depositLpToken);
     }
 
     /***************************************
@@ -230,9 +359,6 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
-     * @return liquidity The amount of liquidity minted
-     * @return amount0 The amount of token 0 used.
-     * @return amount1 The amount of token 1 used.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      */
@@ -242,9 +368,6 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         TokenDeposit calldata deposit1
     ) internal returns (
         uint256 nonfungiblePositionTokenId,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1,
         uint256 strategyAgentID,
         address strategyAddress
     ) {
@@ -267,7 +390,7 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
             SafeERC20.safeTransferFrom(IERC20(deposit1.token), _msgSender(), strategyAddress, deposit1.amount);
         }
         // create the position in the strategy agent
-        (nonfungiblePositionTokenId, liquidity, amount0, amount1) =
+        (nonfungiblePositionTokenId, , , ) =
             ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
                 ConcentratedLiquidityModuleC.MintBalanceParams({
                   manager: mintParams.manager,
@@ -279,6 +402,45 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
                 })
             );
     }
+
+    /**
+     * @notice Creates a new concentrated liquidity agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function _createConcentratedLiquidityAgentAndMigrate(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken
+    ) internal returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    ) {
+        // create nft
+        (strategyAgentID, strategyAddress) = _createStrategyAgent();
+        // handle token deposits
+        SafeERC20.safeTransferFrom(IERC20(depositLpToken.token), _msgSender(), depositLpToken.token, depositLpToken.amount);
+        IUniswapV2Pair(depositLpToken.token).burn(strategyAddress);
+        // create the position in the strategy agent
+        (nonfungiblePositionTokenId, , , ) =
+            ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
+                ConcentratedLiquidityModuleC.MintBalanceParams({
+                  manager: mintParams.manager,
+                  pool: mintParams.pool,
+                  slippageLiquidity: mintParams.slippageLiquidity,
+                  tickLower: mintParams.tickLower,
+                  tickUpper: mintParams.tickUpper,
+                  sqrtPriceX96: mintParams.sqrtPriceX96
+                })
+            );
+    }
+
+    /***************************************
+    HELPER FUNCTIONS for creating the agent nft and tba
+    ***************************************/
 
     /**
      * @notice Creates a new strategy agent.
@@ -348,6 +510,33 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         }));
         // initialize account
         Calls.functionCall(explorerAddress, _explorerInitializationCall);
+    }
+
+    /***************************************
+    HELPER FUNCTIONS for prechecks
+    ***************************************/
+
+    /**
+     * @notice A precheck for creating new agents to an exist root agent.
+     * @param rootAgentAddress The address of the root agent to mint to.
+     */
+    function _createAgentForRootPrecheck(
+        address rootAgentAddress
+    ) internal {
+        // check if is active
+        if(!_isActive) revert Errors.CreationSettingsPaused();
+        // check agent registry
+        (address collection, uint256 rootAgentID) = IAgentRegistry(_agentRegistry).getNftOfTba(rootAgentAddress);
+        // check if in one of permitted collections
+        if(
+            (collection == address(0)) || (
+                (collection != _genesisAgentNft) &&
+                (collection != _strategyAgentNft) &&
+                (collection != _explorerAgentNft)
+            )
+        ) revert Errors.NotAnAgent();
+        // check if owner
+        if(IERC721(collection).ownerOf(rootAgentID) != _msgSender()) revert Errors.NotOwnerOfAgent();
     }
 
     /***************************************

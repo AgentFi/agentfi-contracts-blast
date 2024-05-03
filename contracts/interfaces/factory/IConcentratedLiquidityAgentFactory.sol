@@ -72,9 +72,6 @@ interface IConcentratedLiquidityAgentFactory {
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
-     * @return liquidity The amount of liquidity minted
-     * @return amount0 The amount of token 0 used.
-     * @return amount1 The amount of token 1 used.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      */
@@ -85,9 +82,6 @@ interface IConcentratedLiquidityAgentFactory {
         address rootAgentAddress
     ) external payable returns (
         uint256 nonfungiblePositionTokenId,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1,
         uint256 strategyAgentID,
         address strategyAddress
     );
@@ -99,9 +93,6 @@ interface IConcentratedLiquidityAgentFactory {
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
-     * @return liquidity The amount of liquidity minted
-     * @return amount0 The amount of token 0 used.
-     * @return amount1 The amount of token 1 used.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      * @return explorerAgentID The ID of the newly created explorer agent.
@@ -113,9 +104,100 @@ interface IConcentratedLiquidityAgentFactory {
         TokenDeposit calldata deposit1
     ) external payable returns (
         uint256 nonfungiblePositionTokenId,
-        uint128 liquidity,
-        uint256 amount0,
-        uint256 amount1,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndMigrate(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        address rootAgentAddress
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndMigrate(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndMigrateWithPermit(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        address rootAgentAddress,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param depositLpToken The lp token and amount to migrate.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata depositLpToken,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
         uint256 strategyAgentID,
         address strategyAddress,
         uint256 explorerAgentID,
