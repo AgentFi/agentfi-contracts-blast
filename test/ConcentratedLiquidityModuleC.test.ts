@@ -613,8 +613,8 @@ describe("ConcentratedLiquidityModuleC", function () {
         module.moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageLiquidity: 100, /// 0.01%
-          sqrtPriceX96,
+          slippageLiquidity: 10, /// 0.001%
+          sqrtPriceX96: sqrtPriceX96.mul(101).div(100), // Can't use pool price if we want slippage
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
         }),
@@ -642,6 +642,67 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
     });
 
+    it("Can deposit optimally WETH", async function () {
+      const { module, USDB, WETH, PositionManager } =
+        await loadFixture(fixtureDeployed);
+      // Expect no assets in tba
+      expect(
+        await Promise.all([
+          provider.getBalance(module.address),
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
+
+      // Transfer all assets to tba
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, BN.from("59265494520598039751")); // Found emperically
+
+      // Trigger the deposit
+      await module
+        .moduleC_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 0,
+          sqrtPriceX96,
+          tickLower: price1ToTick(4000),
+          tickUpper: price1ToTick(2000),
+        })
+        .then((tx) => tx.wait());
+
+      const tokenId = await module.tokenId();
+
+      // Position to be minted
+      expect(
+        convertToStruct(await PositionManager.positions(tokenId)),
+      ).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      // Only leftover on one side
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("10"), BN.from("0")]);
+    });
+
     it("Can deposit with WETH", async function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
@@ -663,7 +724,7 @@ describe("ConcentratedLiquidityModuleC", function () {
         .moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageLiquidity: 1_000_000,
+          slippageLiquidity: 1_00_000,
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
@@ -730,7 +791,10 @@ describe("ConcentratedLiquidityModuleC", function () {
       await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
 
       await expect(
-        module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000),
+        module.moduleC_increaseLiquidityWithBalance(
+          sqrtPriceX96.mul(101).div(100),
+          0,
+        ),
       ).to.be.revertedWith("Price slippage check");
     });
 

@@ -643,17 +643,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
             amount1Desired
         );
 
-        amount0Min = Math.mulDiv(
-            LiquidityAmounts.getAmount0ForLiquidity(pa, pb, expectedLiquidity),
-            SLIPPAGE_SCALE - slippageLiquidity,
-            SLIPPAGE_SCALE
-        );
+        (amount0Min, amount1Min) = LiquidityAmounts.getAmountsForLiquidity(sqrtPriceX96, pa, pb, expectedLiquidity);
 
-        amount1Min = Math.mulDiv(
-            LiquidityAmounts.getAmount1ForLiquidity(pa, pb, expectedLiquidity),
-            SLIPPAGE_SCALE - slippageLiquidity,
-            SLIPPAGE_SCALE
-        );
+        amount0Min = Math.mulDiv(amount0Min, SLIPPAGE_SCALE - slippageLiquidity, SLIPPAGE_SCALE);
+        amount1Min = Math.mulDiv(amount1Min, SLIPPAGE_SCALE - slippageLiquidity, SLIPPAGE_SCALE);
     }
 
     /// @notice Get the balane in the two underlying tokens
