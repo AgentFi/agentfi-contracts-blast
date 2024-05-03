@@ -183,13 +183,15 @@ describe("AccountBase", function () {
     { accountType: "BlastooorStrategyAccountBase", },
     { accountType: "BlastooorStrategyAgentAccount", },
     { accountType: "BlastooorStrategyAgentAccountV2", },
+    { accountType: "ExplorerAgentAccount", },
   ]
 
-  const blastableAccountTypes = ["BlastooorGenesisAgentAccount", "BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2"]
+  const blastableAccountTypes = ["BlastooorGenesisAgentAccount", "BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2", "ExplorerAgentAccount"]
   const genesisAccountTypes = ["AccountV3", "BlastooorGenesisAgentAccount"]
   const strategyAccountTypes = ["BlastooorStrategyAccountBase", "BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2"]
-  const extendedAccountTypes = ["BlastooorGenesisAgentAccount", "BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2"]
+  const extendedAccountTypes = ["BlastooorGenesisAgentAccount", "BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2", "ExplorerAgentAccount"]
   const strategyExtendedAccountTypes = ["BlastooorStrategyAgentAccount", "BlastooorStrategyAgentAccountV2"]
+  const explorerAccountTypes = ["ExplorerAgentAccount"]
 
   for(const testCase of testCases) {
     const accountType = testCase.accountType
@@ -198,15 +200,7 @@ describe("AccountBase", function () {
     const isStrategyType = strategyAccountTypes.includes(accountType)
     const isExtendedType = extendedAccountTypes.includes(accountType)
     const isStrategyExtendedType = strategyExtendedAccountTypes.includes(accountType)
-
-    /*
-    var roleStyle = 0
-    if(["AccountV3", "BlastooorGenesisAgentAccount"].includes(accountType)) {
-      roleStyle = 1
-    } else if(["BlastooorStrategyAccountBase", "BlastooorStrategyAgentAccount"].includes(accountType)) {
-      roleStyle = 2
-    }
-    */
+    const isExplorerType = explorerAccountTypes.includes(accountType)
 
     describe(`account type ${accountType}`, function () {
       let agentID = 1;
@@ -246,6 +240,9 @@ describe("AccountBase", function () {
           else if(accountType == "BlastooorStrategyAgentAccountV2") {
             await expect(deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, AddressZero, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero])).to.be.reverted
           }
+          else if(accountType == "ExplorerAgentAccount") {
+            await expect(deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, AddressZero, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero])).to.be.reverted
+          }
           else {
             throw new Error(`account type ${accountType} unknown`)
           }
@@ -265,6 +262,9 @@ describe("AccountBase", function () {
           }
           else if(accountType == "BlastooorStrategyAgentAccountV2") {
             await expect(deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, AddressZero, AddressZero])).to.be.reverted
+          }
+          else if(accountType == "ExplorerAgentAccount") {
+            await expect(deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, AddressZero, AddressZero])).to.be.reverted
           }
           else {
             throw new Error(`account type ${accountType} unknown`)
@@ -286,6 +286,9 @@ describe("AccountBase", function () {
           else if(accountType == "BlastooorStrategyAgentAccountV2") {
             await expect(deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, AddressZero, ERC6551_REGISTRY_ADDRESS, AddressZero])).to.be.reverted
           }
+          else if(accountType == "ExplorerAgentAccount") {
+            await expect(deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, AddressZero, ERC6551_REGISTRY_ADDRESS, AddressZero])).to.be.reverted
+          }
           else {
             throw new Error(`account type ${accountType} unknown`)
           }
@@ -305,6 +308,9 @@ describe("AccountBase", function () {
           }
           else if(accountType == "BlastooorStrategyAgentAccountV2") {
             erc6551AccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
+          }
+          else if(accountType == "ExplorerAgentAccount") {
+            erc6551AccountImplementation = await deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
           }
           else {
             throw new Error(`account type ${accountType} unknown`)
@@ -534,7 +540,7 @@ describe("AccountBase", function () {
           if(isGenesisType) {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([],[])).to.not.be.reverted
           }
-          else if(isStrategyExtendedType) {
+          else if(isStrategyExtendedType || accountType == "ExplorerAgentAccount") {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([])).to.not.be.reverted
           }
         });
@@ -576,7 +582,7 @@ describe("AccountBase", function () {
           if(isGenesisType) {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([],[])).to.be.revertedWithCustomError(erc6551AccountLocked1, "AccountLocked")
           }
-          else if(isStrategyExtendedType) {
+          else if(isStrategyExtendedType || accountType == "ExplorerAgentAccount") {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([])).to.be.revertedWithCustomError(erc6551AccountLocked1, "AccountLocked")
           }
         });
@@ -610,7 +616,7 @@ describe("AccountBase", function () {
           if(isGenesisType) {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([],[])).to.not.be.reverted
           }
-          else if(isStrategyExtendedType) {
+          else if(isStrategyExtendedType || accountType == "ExplorerAgentAccount") {
             await expect(erc6551AccountLocked1.connect(user1).setOverrides([])).to.not.be.reverted
           }
         });
@@ -1156,6 +1162,9 @@ describe("AccountBase", function () {
             else if(accountType == "BlastooorStrategyAgentAccountV2") {
               erc6551AccountImplementation2 = await deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, AddressZero, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
             }
+            else if(accountType == "ExplorerAgentAccount") {
+              erc6551AccountImplementation2 = await deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, AddressZero, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
+            }
             else {
               throw new Error(`account type ${accountType} unknown`)
             }
@@ -1244,6 +1253,9 @@ describe("AccountBase", function () {
           else if(accountType == "BlastooorStrategyAgentAccountV2") {
             erc6551AccountImplementation3 = await deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
           }
+          else if(accountType == "ExplorerAgentAccount") {
+            erc6551AccountImplementation3 = await deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
+          }
           else {
             throw new Error(`account type ${accountType} unknown`)
           }
@@ -1266,7 +1278,7 @@ describe("AccountBase", function () {
           l1DataFeeAnalyzer.register("registry.createAccount", tx);
         })
 
-        if(accountType == "BlastooorStrategyAgentAccountV2") {
+        if(accountType == "BlastooorStrategyAgentAccountV2" || accountType == "ExplorerAgentAccount") {
           it("root owner can sign on a nested account", async function () {
             expect(await erc6551AccountNested1.owner()).eq(user1.address);
             expect(await erc6551AccountNested2.owner()).eq(erc6551AccountNested1.address);
@@ -1627,7 +1639,7 @@ describe("AccountBase", function () {
           console.log("success - fails if encoded incorrectly pt 13")
         });
         */
-        if(accountType == "BlastooorStrategyAgentAccountV2") {
+        if(accountType == "BlastooorStrategyAgentAccountV2" || accountType == "ExplorerAgentAccount") {
           it("succeeds with different account implementation", async function () {
             let proof = []
             await expect(erc6551AccountNested3.connect(user1).executeNested(user2.address, 0, "0x", 0, proof)).to.not.be.reverted
@@ -1920,7 +1932,7 @@ describe("AccountBase", function () {
           */
         })
 
-        if(isStrategyExtendedType) {
+        if(isStrategyExtendedType || accountType == "ExplorerAgentAccount") {
           describe("executeByStrategyManager", function () {
             it("non strategy manager cannot executeByStrategyManager", async function () {
               let param1 = { to: user3.address, data: "0x" }
@@ -2098,7 +2110,7 @@ describe("AccountBase", function () {
               await expect(multicallForwarder.connect(user1).aggregate3Value(calls)).to.not.be.reverted
             });
             // nested with different implementations
-            if(accountType == "BlastooorStrategyAgentAccountV2") {
+            if(accountType == "BlastooorStrategyAgentAccountV2" || accountType == "ExplorerAgentAccount") {
               it("can directly call nested account if nested properly pt 2", async function () {
                 var callData1 = test1Callee.interface.encodeFunctionData("testFunc1")
                 var callData2 = erc6551AccountNested3.interface.encodeFunctionData("execute", [test1Callee.address, 0, callData1, 0])
@@ -2576,7 +2588,7 @@ describe("AccountBase", function () {
           })
         })
       }
-      else if(accountType == "BlastooorStrategyAgentAccountV2") {
+      else if(accountType == "BlastooorStrategyAgentAccountV2" || accountType == "ExplorerAgentAccount") {
         describe("setOverrides 2", function () {
           it("non owner cannot set overrides", async function () {
             await expect(erc6551Account1.connect(user3).setOverrides([])).to.be.revertedWithCustomError(erc6551Account1, "NotAuthorized")
@@ -2829,6 +2841,9 @@ describe("AccountBase", function () {
             }
             else if(accountType == "BlastooorStrategyAgentAccountV2") {
               erc6551AccountImplementation4 = await deployContract(deployer, "BlastooorStrategyAgentAccountV2", [mockblast.address, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
+            }
+            else if(accountType == "ExplorerAgentAccount") {
+              erc6551AccountImplementation4 = await deployContract(deployer, "ExplorerAgentAccount", [mockblast.address, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
             }
             else {
               throw new Error(`account type ${accountType} unknown`)
