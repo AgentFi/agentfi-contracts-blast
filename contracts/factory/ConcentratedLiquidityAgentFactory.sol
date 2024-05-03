@@ -215,9 +215,9 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         (nonfungiblePositionTokenId, liquidity, amount0, amount1, strategyAgentID, strategyAddress) =
             _createConcentratedLiquidityAgent(mintParams, deposit0, deposit1);
         // transfer v3 agent to explorer agent
-        IBlastooorStrategyAgents(_explorerAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
+        IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
-        IExplorerAgents(_strategyAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
+        IExplorerAgents(_explorerAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
     }
 
     /***************************************
@@ -253,15 +253,15 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         address weth = _weth;
         // handle token deposits
         if(deposit0.token == address(0)) {
-            Calls.sendValue(weth, address(this).balance);
-            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, IERC20(weth).balanceOf(address(this)));
+            Calls.sendValue(weth, deposit0.amount);
+            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, deposit0.amount);
         }
         else {
             SafeERC20.safeTransferFrom(IERC20(deposit0.token), _msgSender(), strategyAddress, deposit0.amount);
         }
         if(deposit1.token == address(0)) {
-            Calls.sendValue(weth, address(this).balance);
-            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, IERC20(weth).balanceOf(address(this)));
+            Calls.sendValue(weth, deposit1.amount);
+            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, deposit1.amount);
         }
         else {
             SafeERC20.safeTransferFrom(IERC20(deposit1.token), _msgSender(), strategyAddress, deposit1.amount);
