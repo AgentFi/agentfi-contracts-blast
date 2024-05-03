@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Blastable } from "./../utils/Blastable.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
+import { IDexBalancerModuleA } from "./../interfaces/modules/IDexBalancerModuleA.sol";
 import { IThrusterRouter } from "./../interfaces/external/Thruster/IThrusterRouter.sol";
 import { IHyperlockStaking } from "./../interfaces/external/Hyperlock/IHyperlockStaking.sol";
 import { IRingSwapV2Router } from "./../interfaces/external/RingProtocol/IRingSwapV2Router.sol";
@@ -20,7 +21,7 @@ import { IBlasterswapV2Router02 } from "./../interfaces/external/Blaster/IBlaste
  *
  * Designed for use on Blast Mainnet only.
  */
-contract DexBalancerModuleA is Blastable {
+contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
 
     /***************************************
     CONSTANTS
@@ -79,46 +80,46 @@ contract DexBalancerModuleA is Blastable {
     VIEW FUNCTIONS
     ***************************************/
 
-    function moduleName() external pure returns (string memory name_) {
+    function moduleName() external pure override returns (string memory name_) {
         name_ = "DexBalancerModuleA";
     }
 
-    function strategyType() external pure returns (string memory type_) {
+    function strategyType() external pure override returns (string memory type_) {
         type_ = "Dex Balancer";
     }
 
-    function weth() external pure returns (address weth_) { weth_ = _weth; }
-    function usdb() external pure returns (address usdb_) { usdb_ = _usdb; }
+    function weth() external pure override returns (address weth_) { weth_ = _weth; }
+    function usdb() external pure override returns (address usdb_) { usdb_ = _usdb; }
 
-    function thrusterRouter100() external pure returns (address thrusterRouter100_) { thrusterRouter100_ = _thrusterRouter100; }
-    function thrusterRouter030() external pure returns (address thrusterRouter030_) { thrusterRouter030_ = _thrusterRouter030; }
-    function thrusterLpToken() external pure returns (address thrusterLpToken_) { thrusterLpToken_ = _thrusterLpToken; }
-    function hyperlockStaking() external pure returns (address hyperlockStaking_) { hyperlockStaking_ = _hyperlockStaking; }
+    function thrusterRouter100() external pure override returns (address thrusterRouter100_) { thrusterRouter100_ = _thrusterRouter100; }
+    function thrusterRouter030() external pure override returns (address thrusterRouter030_) { thrusterRouter030_ = _thrusterRouter030; }
+    function thrusterLpToken() external pure override returns (address thrusterLpToken_) { thrusterLpToken_ = _thrusterLpToken; }
+    function hyperlockStaking() external pure override returns (address hyperlockStaking_) { hyperlockStaking_ = _hyperlockStaking; }
 
-    function ringSwapV2Router() external pure returns (address ringSwapV2Router_) { ringSwapV2Router_ = _ringSwapV2Router; }
-    function ringFwWeth() external pure returns (address ringFwWeth_) { ringFwWeth_ = _ringFwWeth; }
-    function ringFwUsdb() external pure returns (address ringFwUsdb_) { ringFwUsdb_ = _ringFwUsdb; }
-    function ringLpToken() external pure returns (address ringLpToken_) { ringLpToken_ = _ringLpToken; }
-    function ringFwLpToken() external pure returns (address ringFwLpToken_) { ringFwLpToken_ = _ringFwLpToken; }
-    function ringStakingRewards() external pure returns (address ringStakingRewards_) { ringStakingRewards_ = _ringStakingRewards; }
-    function ringStakingIndex() external pure returns (uint256 ringStakingIndex_) { ringStakingIndex_ = _ringStakingIndex; }
+    function ringSwapV2Router() external pure override returns (address ringSwapV2Router_) { ringSwapV2Router_ = _ringSwapV2Router; }
+    function ringFwWeth() external pure override returns (address ringFwWeth_) { ringFwWeth_ = _ringFwWeth; }
+    function ringFwUsdb() external pure override returns (address ringFwUsdb_) { ringFwUsdb_ = _ringFwUsdb; }
+    function ringLpToken() external pure override returns (address ringLpToken_) { ringLpToken_ = _ringLpToken; }
+    function ringFwLpToken() external pure override returns (address ringFwLpToken_) { ringFwLpToken_ = _ringFwLpToken; }
+    function ringStakingRewards() external pure override returns (address ringStakingRewards_) { ringStakingRewards_ = _ringStakingRewards; }
+    function ringStakingIndex() external pure override returns (uint256 ringStakingIndex_) { ringStakingIndex_ = _ringStakingIndex; }
 
-    function blasterswapRouter() external pure returns (address blasterswapRouter_) { blasterswapRouter_ = _blasterswapRouter; }
-    function blasterswapLpToken() external pure returns (address blasterswapLpToken_) { blasterswapLpToken_ = _blasterswapLpToken; }
+    function blasterswapRouter() external pure override returns (address blasterswapRouter_) { blasterswapRouter_ = _blasterswapRouter; }
+    function blasterswapLpToken() external pure override returns (address blasterswapLpToken_) { blasterswapLpToken_ = _blasterswapLpToken; }
 
     /***************************************
     MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleA_depositBalance() external payable {
+    function moduleA_depositBalance() external payable override {
         _depositBalance();
     }
 
-    function moduleA_withdrawBalance() external payable {
+    function moduleA_withdrawBalance() external payable override {
         _withdrawBalance();
     }
 
-    function moduleA_withdrawBalanceTo(address receiver) external payable {
+    function moduleA_withdrawBalanceTo(address receiver) external payable override {
         _withdrawBalance();
         uint256 balance = address(this).balance;
         if(balance > 0) Calls.sendValue(receiver, balance);
