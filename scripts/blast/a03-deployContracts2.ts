@@ -55,7 +55,7 @@ const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4
 const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603e8Ee1e122547EC053Bf18"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0xa11D4dcD5a9ad75c609E1786cf1FD88b53C83A5E"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x4331bc871435D8242cf5852DBbe34bE46B6DBeDc"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x4F4B2f9c1dBE38Bd672CF9291E7C076db652628e"; // v1.0.2
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -145,8 +145,6 @@ async function deployExplorerCollection() {
     contractsToVerify.push({ address: explorerCollection.address, args, contractName: "contracts/tokens/ExplorerAgents.sol:ExplorerAgents" })
     if(!!EXPLORER_COLLECTION_ADDRESS && EXPLORER_COLLECTION_ADDRESS != EXPLORER_COLLECTION_ADDRESS) throw new Error(`Deployed ExplorerAgents to ${EXPLORER_COLLECTION_ADDRESS}, expected ${EXPLORER_COLLECTION_ADDRESS}`)
   }
-  let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
-  contractsToVerify.push({ address: explorerCollection.address, args, contractName: "contracts/tokens/ExplorerAgents.sol:ExplorerAgents" })
 }
 
 async function deployExplorerAgentAccount() {
@@ -160,8 +158,6 @@ async function deployExplorerAgentAccount() {
     contractsToVerify.push({ address: explorerAccountImpl.address, args, contractName: "contracts/accounts/ExplorerAgentAccount.sol:ExplorerAgentAccount" })
     if(!!EXPLORER_ACCOUNT_IMPL_ADDRESS && explorerAccountImpl.address != EXPLORER_ACCOUNT_IMPL_ADDRESS) throw new Error(`Deployed ExplorerAgentAccount to ${explorerAccountImpl.address}, expected ${EXPLORER_ACCOUNT_IMPL_ADDRESS}`)
   }
-  let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
-  contractsToVerify.push({ address: explorerAccountImpl.address, args, contractName: "contracts/accounts/ExplorerAgentAccount.sol:ExplorerAgentAccount" })
 }
 
 async function deployConcentratedLiquidityGatewayModuleC() {
@@ -175,8 +171,6 @@ async function deployConcentratedLiquidityGatewayModuleC() {
     contractsToVerify.push({ address: concentratedLiquidityGatewayModuleC.address, args, contractName: "contracts/modules/ConcentratedLiquidityGatewayModuleC.sol:ConcentratedLiquidityGatewayModuleC" })
     if(!!CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS && concentratedLiquidityGatewayModuleC.address != CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityGatewayModuleC to ${concentratedLiquidityGatewayModuleC.address}, expected ${CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS}`)
   }
-  let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
-  contractsToVerify.push({ address: concentratedLiquidityGatewayModuleC.address, args, contractName: "contracts/modules/ConcentratedLiquidityGatewayModuleC.sol:ConcentratedLiquidityGatewayModuleC" })
 }
 
 async function deployConcentratedLiquidityAgentFactory() {
@@ -190,8 +184,6 @@ async function deployConcentratedLiquidityAgentFactory() {
     contractsToVerify.push({ address: concentratedLiquidityAgentFactory.address, args, contractName: "contracts/factory/ConcentratedLiquidityAgentFactory.sol:ConcentratedLiquidityAgentFactory" })
     if(!!CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS && concentratedLiquidityAgentFactory.address != CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityAgentFactory to ${concentratedLiquidityAgentFactory.address}, expected ${CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS}`)
   }
-  let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, explorerCollection.address, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
-  contractsToVerify.push({ address: concentratedLiquidityAgentFactory.address, args, contractName: "contracts/factory/ConcentratedLiquidityAgentFactory.sol:ConcentratedLiquidityAgentFactory" })
 }
 
 async function verifyContracts() {
