@@ -358,6 +358,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         MintBalanceParams memory params
     ) public payable virtual returns (uint256, uint128, uint256, uint256) {
         if (params.slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
+
         IV3Pool pool_ = IV3Pool(params.pool);
         uint256 amount0Desired = IERC20(pool_.token0()).balanceOf(address(this));
         uint256 amount1Desired = IERC20(pool_.token1()).balanceOf(address(this));
@@ -562,9 +563,9 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint256 pa = uint256(TickMath.getSqrtRatioAtTick(tickLower));
         uint256 pb = uint256(TickMath.getSqrtRatioAtTick(tickUpper));
 
-        if (pb <= p && amount0 > 0) {
+        if (pb <= p) {
             return (token0, token1, amount0);
-        } else if (pa >= p && amount1 > 0) {
+        } else if (pa >= p) {
             return (token1, token0, amount1);
         } else {
             uint256 SCALE = 10 ** 18; // Scale  to avoid zero values
@@ -592,6 +593,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint24 fee;
     }
     function _performSwap(PerformSwapParams memory params) internal {
+        if (params.amountIn == 0) {
+            return;
+        }
+
         uint256 amountOutMinimum;
 
         //sqrtPrice, slippageSwap, fee, router
