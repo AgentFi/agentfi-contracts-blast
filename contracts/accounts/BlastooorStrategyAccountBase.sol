@@ -270,6 +270,7 @@ contract BlastooorStrategyAccountBase is
      * updated prior to execution.
      */
     function _beforeExecute() internal override {
+        super._beforeExecute();
         _verifyIsUnlocked();
         _updateState();
     }
@@ -278,6 +279,7 @@ contract BlastooorStrategyAccountBase is
      * @dev Called before locking the account. Reverts if account is locked. Updates account state.
      */
     function _beforeLock() internal override {
+        super._beforeLock();
         _verifyIsUnlocked();
         _updateState();
     }
@@ -287,6 +289,7 @@ contract BlastooorStrategyAccountBase is
      * account state.
      */
     function _beforeSetPermissions() internal override {
+        super._beforeSetPermissions();
         _verifyIsUnlocked();
         _updateState();
     }

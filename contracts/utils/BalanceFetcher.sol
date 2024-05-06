@@ -17,7 +17,7 @@ import { IBlastooorGenesisAgents } from "./../interfaces/tokens/IBlastooorGenesi
  * @notice The BalanceFetcher is a purely utility contract that helps offchain components efficiently fetch an account's balance of tokens.
  */
 contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
-    address immutable agentRegistry;
+    address public immutable agentRegistry;
 
     /**
      * @notice Constructs the BalanceFetcher contract.
@@ -63,12 +63,17 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
      * @param tokens The list of erc20 tokens to query.
      */
     function fetchAgents(address account, address[] calldata collections, address[] calldata tokens) public payable returns (Agent[] memory agents) {
+        if(account == address(0)) return agents;
         // Start a queue of agents to search for child agents
         Agent[] memory queue = new Agent[](10000);
 
         // Add the queried account as the first item in the queue
-        queue[0].agentAddress = account;	
-        queue[0].balances = fetchBalances(account, tokens);	
+        queue[0].agentAddress = account;
+        queue[0].balances = fetchBalances(account, tokens);
+        {
+        IAgentRegistry registry = IAgentRegistry(agentRegistry);
+        (queue[0].collection, queue[0].agentID) = registry.getNftOfTba(account);
+        }
 
         // For each item in the queue, add children agents to the end.
         // Keep searching until we check all agents
@@ -76,8 +81,9 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
         uint256 count = 1; // Number of agents found
         while(start < count) {
             address parent = queue[start++].agentAddress;
+            if(parent == address(0)) continue;
 
-            for(uint256 i = 0; i < collections.length; i++) {
+            for(uint256 i = 0; i < collections.length; ++i) {
                 IBlastooorGenesisAgents collection = IBlastooorGenesisAgents(collections[i]);
                 uint256 balance = collection.balanceOf(parent);
                 for(uint256 n = 0; n < balance; ++n) {
@@ -86,10 +92,9 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
                 }
             }
         }
-
         // Copy to final array to get the right length
         agents = new Agent[](count);
-        for(uint256 i = 0; i < count; i++) {
+        for(uint256 i = 0; i < count; ++i) {
             agents[i] = queue[i];
         }
     }
@@ -135,18 +140,29 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
      * @return agent Agent information, including balances
      */
     function _fetchAgent(address owner, address collection, uint256 agentID, address[] calldata tokens) internal returns (Agent memory agent) {
-        IAgentRegistry token = IAgentRegistry(agentRegistry);
+        IAgentRegistry registry = IAgentRegistry(agentRegistry);
 
-        IAgentRegistry.AgentInfo memory info = token.getTbasOfNft(collection, agentID)[0];
+        IAgentRegistry.AgentInfo[] memory info = registry.getTbasOfNft(collection, agentID);
 
-        agent = Agent({
-            collection: collection,
-            agentID: agentID,
-            agentAddress: info.agentAddress,
-            implementation: info.implementationAddress,
-            owner: owner,
-            balances: fetchBalances(info.agentAddress, tokens)
-        });
+        if(info.length == 0) {
+            agent = Agent({
+                collection: collection,
+                agentID: agentID,
+                agentAddress: address(0),
+                implementation: address(0),
+                owner: owner,
+                balances: new uint256[](0)
+            });
+        } else {
+            agent = Agent({
+                collection: collection,
+                agentID: agentID,
+                agentAddress: info[0].agentAddress,
+                implementation: info[0].implementationAddress,
+                owner: owner,
+                balances: fetchBalances(info[0].agentAddress, tokens)
+            });
+        }
     }
 
     /**

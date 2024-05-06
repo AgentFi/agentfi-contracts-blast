@@ -34,57 +34,42 @@ let chainID: number;
 const fs = require("fs")
 const ABI_AGENTS_NFT = JSON.parse(fs.readFileSync("abi/contracts/tokens/Agents.sol/Agents.json").toString()).filter(x=>!!x&&x.type=="function")
 const ABI_AGENT_REGISTRY = JSON.parse(fs.readFileSync("abi/contracts/utils/AgentRegistry.sol/AgentRegistry.json").toString()).filter(x=>!!x&&x.type=="function")
-let mcProvider = new MulticallProvider(provider, 168587773);
+let mcProvider = new MulticallProvider(provider, 81457);
 
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
 const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
-const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
+const BLAST_POINTS_ADDRESS            = "0x2536FE9ab3F511540F2f9e2eC2A805005C3Dd800";
 const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
-const MULTICALL_FORWARDER_ADDRESS     = "0x91074d0AB2e5E4b61c4ff03A40E6491103bEB14a"; // v1.0.1
+const MULTICALL_FORWARDER_ADDRESS     = "0xAD55F8b65d5738C6f63b54E651A09cC5d873e4d8"; // v1.0.1
 const CONTRACT_FACTORY_ADDRESS        = "0x9D735e7926729cAB93b10cb5814FF8487Fb6D5e8"; // v1.0.0
 
 const GAS_COLLECTOR_ADDRESS           = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-const BALANCE_FETCHER_ADDRESS         = "0x68b1a5d10FeCD6246299913a553CBb99Ac88913E"; // v1.0.1
+const BALANCE_FETCHER_ADDRESS         = "0x3f8Dc480BEAeF711ecE5110926Ea2780a1db85C5"; // v1.0.1
 
 const GENESIS_COLLECTION_ADDRESS      = "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
 const GENESIS_FACTORY_ADDRESS         = "0x700b6f8B315247DD41C42A6Cfca1dAE6B4567f3B"; // v1.0.0
-const GENESIS_ACCOUNT_IMPL_ADDRESS    = "0x9DE8d1AfA3eF64AcC41Cd84533EE09A0Cd87fefF"; // v1.0.1
-const GENESIS_ACCOUNT_FACTORY_ADDRESS = "0xed545485E59C4Dec4156340871CEA8242674b6a2"; // v1.0.1
+const GENESIS_ACCOUNT_IMPL_ADDRESS    = "0xb9b7FFBaBEC52DFC0589f7b331E4B8Cb78E06301"; // v1.0.1
+const GENESIS_ACCOUNT_FACTORY_ADDRESS = "0x101E03D71e756Da260dC5cCd19B6CdEEcbB4397F"; // v1.0.1
 
-const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCfe23"; // v1.0.1
+const AGENT_REGISTRY_ADDRESS          = "0x12F0A3453F63516815fe41c89fAe84d218Af0FAF"; // v1.0.1
 
-const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
-const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+const STRATEGY_COLLECTION_ADDRESS     = "0x73E75E837e4F3884ED474988c304dE8A437aCbEf"; // v1.0.1
+const STRATEGY_FACTORY_ADDRESS        = "0x09906C1eaC081AC4aF24D6F7e05f7566440b4601"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba213"; // v1.0.1
 
-const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
+const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
-const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0xB52f71b3a8bB630F0F08Ca4f85EeF0d29212cEC0";
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167";
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
 const MAX_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000002";
-const WETH_ADDRESS               = "0x4200000000000000000000000000000000000023";
-const USDB_ADDRESS               = "0x4200000000000000000000000000000000000022";
-
-// ring protocol
-const UNIVERSAL_ROUTER_ADDRESS   = "0x334e3F7f5A9740627fA47Fa9Aa51cE0ccbD765cF";
-const FEW_ROUTER_ADDRESS         = "0x02F1e7A518e3E286C8E305E39cA7D4f25e0a44Aa";
-const STAKING_REWARDS_ADDRESS    = "0x366Ac78214aFE145Ca35d4A6513F4eD9e8909Fe8";
-const USDC_ADDRESS               = "0xF19A5b56b419170Aa2ee49E5c9195F5902D39BF1";
-const USDT_ADDRESS               = "0xD8F542D710346DF26F28D6502A48F49fB2cFD19B";
-const DAI_ADDRESS                = "0x9C6Fc5bF860A4a012C9De812002dB304AD04F581";
-const BOLT_ADDRESS               = "0x1B0cC80F4E2A7d205518A1Bf36de5bED686662FE";
-const RGB_ADDRESS                = "0x7647a41596c1Ca0127BaCaa25205b310A0436B4C";
-
-const FWWETH_ADDRESS             = "0x798dE0520497E28E8eBfF0DF1d791c2E942eA881";
-const FWUSDC_ADDRESS             = "0xa7870cf9143084ED04f4C2311f48CB24a2b4A097";
-const LP_TOKEN_ADDRESS           = "0x024Dd95113137f04E715B2fC8F637FBe678e9512";
-const RING_ADDRESS               = "0x0BD5539E33a1236bA69228271e60f3bFf8fDB7DB";
-const STAKING_REWARDS_INDEX      = 2;
+const WETH_ADDRESS               = "0x4300000000000000000000000000000000000004";
+const USDB_ADDRESS               = "0x4300000000000000000000000000000000000003";
 
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
@@ -111,14 +96,15 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
 let dispatcher: Dispatcher;
 
+let dexBalancerModuleA: DexBalancerModuleA;
 let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let weth: MockERC20;
 let usdb: MockERC20;
 
-let genesisAgent4640ID = 4640;
-let genesisAgent4640Address = "0xB79E35D7CCb26537345C3f73E5bce5a5CE50b0dd";
-let genesisAgent4640: BlastooorAgentAccount;
+let genesisAgent5ID = 5;
+let genesisAgent5Address = "";
+let genesisAgent5: BlastooorAgentAccount;
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -130,7 +116,7 @@ async function main() {
     //return ((chainID == chainid)/* || ((chainID == 31337) && (process.env.FORK_NETWORK === chainName))*/);
     return ((chainID === chainid) || ((chainID === 31337) && (process.env.FORK_NETWORK === chainName)));
   }
-  if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia or a local fork of Blast Sepolia");
+  if(!isChain(81457, "blast")) throw("Only run this on Blast Mainnet or a local fork of Blast Mainnet");
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -153,18 +139,21 @@ async function main() {
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
   strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
 
+  dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
   multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
 
   weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS, agentfideployer) as MockERC20;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
 
-  genesisAgent4640 = await ethers.getContractAt("BlastooorGenesisAgentAccount", genesisAgent4640Address, boombotseth) as BlastooorGenesisAgentAccount;
+  //genesisAgent5 = await ethers.getContractAt("BlastooorGenesisAgentAccount", genesisAgent5Address, boombotseth) as BlastooorGenesisAgentAccount;
+  genesisAgent5 = await ethers.getContractAt("BlastooorGenesisAgentAccount", AddressZero, boombotseth) as BlastooorGenesisAgentAccount;
 
 
   //await listGenesisAgents();
   //await listStrategyAgents();
   //await listGenesisAgents(boombotseth.address);
   //await listStrategyAgents(boombotseth.address);
+  //await listAgentsOf(agentfideployer.address);
 
   await createAgents();
 
@@ -275,20 +264,9 @@ async function createAgents() {
   //await createStrategyAgent19();
 
   //await createStrategyAgent1();
-  await createStrategyAgent2();
+  //await createStrategyAgent2();
+  await createStrategyAgent3();
 }
-
-/*
-Agent ID 4640
-  Agent Address  0x7BEdF6D85E522a30f4eb9b5158dAbDCf31aC0160
-  TBA Impl       0xE2f875c02B4FB117aFa62D40b960f1f95073d25C
-  Owner          0x7da01a06A2582193C2867E22FE62f7f649F7B9e2 // boombotseth
-
-Agent ID 4641
-  Agent Address  0x38A828a45461E8fEcfD6b2035a0F774c34eA4e08
-  TBA Impl       0xE2f875c02B4FB117aFa62D40b960f1f95073d25C
-  Owner          0xA214a4fc09C42202C404E2976c50373fE5F5B789 // agentfideployer
-*/
 
 async function createStrategy(
   sender:any,
@@ -368,11 +346,11 @@ async function createStrategy(
   // if only one call to execute
   if(genesisCallBatch.length == 1) {
     let { to, value, data, operation } = genesisCallBatch[0]
-    genesisAgentCalldata = genesisAgent4640.interface.encodeFunctionData("execute", [to, value, data, operation])
+    genesisAgentCalldata = genesisAgent5.interface.encodeFunctionData("execute", [to, value, data, operation])
   }
   // if more than one call
   else {
-    genesisAgentCalldata = genesisAgent4640.interface.encodeFunctionData("executeBatch", [genesisCallBatch])
+    genesisAgentCalldata = genesisAgent5.interface.encodeFunctionData("executeBatch", [genesisCallBatch])
   }
 
   var tx
@@ -451,7 +429,46 @@ async function createStrategyAgent1() {
 
 
   let depositAmountETH = WeiPerEther.div(1000)
-  let depositAmountUSDB = WeiPerEther.mul(10)
+  //let depositAmountUSDB = WeiPerEther.mul(1)
+  let tokenDeposits = [
+    {
+      token: AddressZero,
+      amount: depositAmountETH,
+    },
+    /*
+    {
+      token: usdb.address,
+      amount: depositAmountUSDB,
+    }
+    */
+  ]
+
+  //let depositAmountETH = Zero
+  //let tokenDeposits = []
+
+  await createStrategy(
+    agentfideployer,
+    genesisAgent5ID,
+    genesisConfigID,
+    //strategyFactoryCalldata,
+    strategyConfigID,
+    depositAmountETH,
+    tokenDeposits
+  )
+}
+
+// creates strategy agent 2
+async function createStrategyAgent2() {
+  console.log(`createStrategyAgent2`)
+
+  // assemble the create strategy calldata
+  let strategyConfigID = 3 // dex balancer module A
+  //let strategyFactoryCalldata = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [strategyConfigID])
+  let genesisConfigID = 1
+
+
+  let depositAmountETH = WeiPerEther.div(1000)
+  let depositAmountUSDB = WeiPerEther.mul(1)
   let tokenDeposits = [
     {
       token: AddressZero,
@@ -467,8 +484,8 @@ async function createStrategyAgent1() {
   //let tokenDeposits = []
 
   await createStrategy(
-    boombotseth,
-    genesisAgent4640ID,
+    agentfideployer,
+    genesisAgent5ID,
     genesisConfigID,
     //strategyFactoryCalldata,
     strategyConfigID,
@@ -477,17 +494,16 @@ async function createStrategyAgent1() {
   )
 }
 
-// creates strategy agent 2
-async function createStrategyAgent2() {
-  console.log(`createStrategyAgent2`)
+// creates strategy agent 3
+async function createStrategyAgent3() {
+  console.log(`createStrategyAgent3`)
 
   // assemble the create strategy calldata
-  let strategyConfigID = 4
-  //let strategyFactoryCalldata = strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [strategyConfigID])
+  let strategyConfigID = 5 // multiplier maxooor
   let genesisConfigID = 1
 
 
-  let depositAmountETH = WeiPerEther.div(1000)
+  let depositAmountETH = WeiPerEther.mul(3).div(1000)
   let tokenDeposits = [
     {
       token: AddressZero,
@@ -499,8 +515,8 @@ async function createStrategyAgent2() {
   //let tokenDeposits = []
 
   await createStrategy(
-    boombotseth,
-    genesisAgent4640ID,
+    agentfideployer,
+    genesisAgent5ID,
     genesisConfigID,
     //strategyFactoryCalldata,
     strategyConfigID,
@@ -582,7 +598,7 @@ async function watchTxForEvents(tx:any) {
     if(event.address != AGENT_REGISTRY_ADDRESS) return false
     if(event.topics.length != 4) return false;
     if(event.topics[0] != "0xae6249e1b0de18c2723755a5833e4712be14aaa5c1d2b8923223ad3784964f6e") return false // agent registered topic
-    if(event.topics[2] != "0x000000000000000000000000d6ec1a987a276c266d17ef8673ba4f05055991c7") return false // strategy collection
+    if(event.topics[2] != "0x00000000000000000000000073e75e837e4f3884ed474988c304de8a437acbef") return false // strategy collection
     return true
   });
   if(registerEvents.length == 1) {

@@ -1,6 +1,6 @@
 {
   "name": "agentfi-contracts",
-  "version": "0.1.3",
+  "version": "1.0.1",
   "description": "Smart contracts for the core of the AgentFi protocol.",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

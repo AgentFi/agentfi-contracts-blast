@@ -16,4 +16,8 @@ contract MockERC1271 {
     function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue) {
         return MockERC1271.isValidSignature.selector;
     }
+
+    function externalCall(address target, bytes calldata data) external {
+        target.call(data);
+    }
 }

@@ -9,7 +9,7 @@ import chai from "chai";
 const { expect, assert } = chai;
 import fs from "fs";
 
-import { Agents, FallbackModule, RevertModule, Test1Module, Test2Module, Test3Module, ModulePack100, AgentFactory01, MockERC20, MockERC721, MockERC1155, MockGasBurner, IBlast, MockBlast, SometimesRevertAccount, GasCollector } from "./../typechain-types";
+import { Agents, AgentFactory01, MockERC20, MockERC721, MockERC1155, MockGasBurner, IBlast, MockBlast, SometimesRevertAccount, GasCollector } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -511,6 +511,19 @@ describe("Blastable", function () {
         //console.error(e)
       }
       // reverted with reason string 'generic error'
+    })
+  })
+
+  describe("mock blast", function () {
+    it("can configure self", async function () {
+      await user3.sendTransaction({to: mockblast.address, value: WeiPerEther})
+      await mockblast.connect(user3).configureAutomaticYield()
+      await mockblast.connect(user3).configureClaimableGas()
+      await mockblast.connect(user3).claimAllGas(user3.address, user3.address)
+      await mockblast.connect(user3).claimMaxGas(user3.address, user3.address)
+      await mockblast.connect(user3).configureVoidGas()
+      await expect(mockblast.connect(user3).claimAllGas(user3.address, user3.address)).to.be.revertedWith("not configured claimable gas")
+      await expect(mockblast.connect(user3).claimMaxGas(user3.address, user3.address)).to.be.revertedWith("not configured claimable gas")
     })
   })
 

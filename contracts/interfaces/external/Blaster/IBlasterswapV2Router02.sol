@@ -2,9 +2,8 @@
 pragma solidity 0.8.24;
 // code borrowed from blast:0x44889b52b71E60De6ed7dE82E2939fcc52fB2B4E
 
-/// @title Router token swapping functionality
-/// @notice Functions for swapping tokens via Thruster CLMM
-interface IThrusterRouter {
+
+interface IBlasterswapV2Router02 {
 
     function factory() external pure returns (address);
     function WETH() external pure returns (address);

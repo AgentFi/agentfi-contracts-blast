@@ -11,7 +11,7 @@ import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
-import "hardhat/console.sol";
+
 
 /**
  * @title BlastooorAccountFactory
@@ -144,7 +144,6 @@ contract BlastooorAccountFactory is IBlastooorAccountFactory, Multicall, Blastab
         account = _createAccount(agentID, creationSettingsID);
         // initialize account
         for(uint256 i = 0; i < callDatas.length; ++i) {
-            //console.log(``)
             Calls.functionCall(account, callDatas[i]);
         }
     }

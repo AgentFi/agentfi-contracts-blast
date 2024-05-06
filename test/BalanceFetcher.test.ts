@@ -9,7 +9,7 @@ import chai from "chai";
 const { expect, assert } = chai;
 import fs from "fs";
 
-import { BalanceFetcher, MockERC20, MockGasBurner, IBlast, MockBlast, GasCollector } from "./../typechain-types";
+import { BalanceFetcher, MockERC20, MockGasBurner, IBlast, MockBlast, GasCollector, AgentRegistry } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
 import { toBytes32 } from "./../scripts/utils/setStorage";
@@ -29,6 +29,29 @@ const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000
 const BLAST_POINTS_ADDRESS            = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
 const BLAST_POINTS_OPERATOR_ADDRESS   = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 const ENTRY_POINT_ADDRESS             = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
+
+const WETH_ADDRESS                    = "0x4300000000000000000000000000000000000004";
+const USDB_ADDRESS                    = "0x4300000000000000000000000000000000000003";
+
+const THRUSTER_ROUTER_ADDRESS_030     = "0x98994a9A7a2570367554589189dC9772241650f6"; // 0.3% fee
+const THRUSTER_ROUTER_ADDRESS_100     = "0x44889b52b71E60De6ed7dE82E2939fcc52fB2B4E"; // 1% fee
+const THRUSTER_LP_TOKEN_ADDRESS       = "0x12c69BFA3fb3CbA75a1DEFA6e976B87E233fc7df";
+
+const HYPERLOCK_STAKING_ADDRESS       = "0xC3EcaDB7a5faB07c72af6BcFbD588b7818c4a40e";
+
+//const UNIVERSAL_ROUTER_ADDRESS        = "";
+const RING_SWAP_V2_ROUTER_ADDRESS     = "0x7001F706ACB6440d17cBFaD63Fa50a22D51696fF";
+const RING_STAKING_REWARDS_ADDRESS    = "0xEff87A51f5Abd015F1AFCD5737BBab450eA15A24";
+const RING_FWWETH_ADDRESS             = "0x66714DB8F3397c767d0A602458B5b4E3C0FE7dd1";
+const RING_FWUSDB_ADDRESS             = "0x866f2C06B83Df2ed7Ca9C2D044940E7CD55a06d6";
+const RING_LP_TOKEN_ADDRESS           = "0x9BE8a40C9cf00fe33fd84EAeDaA5C4fe3f04CbC3";
+const RING_FWLP_TOKEN_ADDRESS         = "0xA3F8128166E54d49A65ec2ba12b45965E4FA87C9";
+//const RING_ADDRESS                    = "";
+const RING_ADDRESS                    = "0x4300000000000000000000000000000000000003";
+const RING_STAKING_REWARDS_INDEX      = 3;
+
+const BLASTERSWAP_ROUTER_ADDRESS      = "0xc972FaE6b524E8A6e0af21875675bF58a3133e60";
+const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713adD";
 
 describe("BalanceFetcher", function () {
   let deployer: SignerWithAddress;
@@ -54,6 +77,7 @@ describe("BalanceFetcher", function () {
   let gasBurner2: MockGasBurner; // inherits blastable
   let iblast: any;
   let mockblast: MockBlast;
+  let agentRegistry: AgentRegistry;
 
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
@@ -83,8 +107,14 @@ describe("BalanceFetcher", function () {
       expect(await gasCollector.owner()).eq(owner.address);
       l1DataFeeAnalyzer.register("deploy GasCollector", gasCollector.deployTransaction);
     })
+    it("can deploy AgentRegistry", async function () {
+      agentRegistry = await deployContract(deployer, "AgentRegistry", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as AgentRegistry;
+      await expectDeployed(agentRegistry.address);
+      expect(await agentRegistry.owner()).eq(owner.address);
+      l1DataFeeAnalyzer.register("deploy AgentRegistry", agentRegistry.deployTransaction);
+    });
     it("can deploy BalanceFetcher", async function () {
-      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as BalanceFetcher;
+      balanceFetcher = await deployContract(deployer, "BalanceFetcher", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, agentRegistry.address]) as BalanceFetcher;
       await expectDeployed(balanceFetcher.address);
       l1DataFeeAnalyzer.register("deploy BalanceFetcher", balanceFetcher.deployTransaction);
     });
@@ -184,8 +214,8 @@ describe("BalanceFetcher", function () {
       let bal1 = await erc20a.balanceOf(gasBurner.address)
       let bal2 = await erc20b.balanceOf(gasBurner.address)
       let bal3 = await erc20c.balanceOf(gasBurner.address)
-      let bal4 = 0 // these SHOULD be nonzero, but
-      let bal5 = 0
+      let bal4 = 5
+      let bal5 = 7
       let account = gasBurner.address
       let tokens = [AddressZero, erc20a.address, erc20b.address, erc20c.address, AddressOne, AddressTwo]
       let tx = await balanceFetcher.fetchBalances(account, tokens)
@@ -197,8 +227,8 @@ describe("BalanceFetcher", function () {
       let bal1 = await erc20a.balanceOf(gasBurner2.address)
       let bal2 = await erc20b.balanceOf(gasBurner2.address)
       let bal3 = await erc20c.balanceOf(gasBurner2.address)
-      let bal4 = 0
-      let bal5 = 0
+      let bal4 = 5
+      let bal5 = 7
       let account = gasBurner2.address
       let tokens = [AddressZero, erc20a.address, erc20b.address, erc20c.address, AddressOne, AddressTwo]
       let tx = await balanceFetcher.fetchBalances(account, tokens)
@@ -314,10 +344,21 @@ describe("BalanceFetcher", function () {
       expect(res[1].quoteAmountMaxGas).eq(0)
       expect(res[2].quoteAmountAllGas).eq(0)
       expect(res[2].quoteAmountMaxGas).eq(0)
-      expect(res[3].quoteAmountAllGas).eq(0)
-      expect(res[3].quoteAmountMaxGas).eq(0)
+      expect(res[3].quoteAmountAllGas).eq(5)
+      expect(res[3].quoteAmountMaxGas).eq(7)
     })
   })
+
+  describe("Fetch v2 pool info", function () {
+    it("Can fetch pool info", async function () {
+      let res = await balanceFetcher.fetchPoolInfoV2(THRUSTER_LP_TOKEN_ADDRESS);
+      expect(res.address0).eq(USDB_ADDRESS)
+      expect(res.address1).eq(WETH_ADDRESS)
+      expect(res.total).gt(0)
+      expect(res.reserve0).gt(0)
+      expect(res.reserve1).gt(0)
+    });
+  });
 
   describe("L1 gas fees", function () {
     it("calculate", async function () {

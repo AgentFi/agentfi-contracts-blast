@@ -2,12 +2,10 @@
 pragma solidity 0.8.24;
 
 import { Multicall } from "./Multicall.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { Blastable } from "./Blastable.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
-import { IBlastooorGenesisAgents } from "./../interfaces/tokens/IBlastooorGenesisAgents.sol";
 
 
 /**
