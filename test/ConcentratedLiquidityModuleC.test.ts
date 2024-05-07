@@ -728,7 +728,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       // Trigger the deposit
       await module
         .moduleC_mintWithBalanceAndRefundTo({
-          reciever: USER_ADDRESS,
+          receiver: USER_ADDRESS,
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
           slippageLiquidity: 1_00_000,
