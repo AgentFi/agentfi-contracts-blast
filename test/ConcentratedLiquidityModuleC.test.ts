@@ -81,10 +81,12 @@ const permissions = Object.entries({
 
   // Owner Only:
   [toBytes32(1)]: [
+    "moduleC_collectTo(address)",
     "moduleC_fullWithdrawTo(address,uint160,uint24)",
+    "moduleC_increaseLiquidityWithBalanceAndRefundTo(address,uint160,uint24)",
+    "moduleC_mintWithBalanceAndRefundTo((address,address,address,uint24,int24,int24,uint160))",
     "moduleC_partialWithdrawTo(address,uint128,uint160,uint24)",
     "moduleC_sendBalanceTo(address)",
-    "moduleC_collectTo(address)",
   ],
 }).reduce(
   (acc, [requiredRole, functions]) => {
@@ -204,7 +206,22 @@ const functionParams = [
       "0x0000000000000000000000000000000000000000000000000000000000000009",
   },
   {
+    selector: "0x7e551aee",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
     selector: "0x13bf4fdb",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
+    selector: "0xe1794328",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
+    selector: "0xba55f842",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
@@ -215,11 +232,6 @@ const functionParams = [
   },
   {
     selector: "0x96cbb0db",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x7e551aee",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
@@ -273,6 +285,8 @@ export async function fixtureSetup(
     BLAST_POINTS_ADDRESS,
     BLAST_POINTS_OPERATOR_ADDRESS,
   ]);
+
+  // console.log(Object.keys(module.functions).filter((x) => x.includes("(")));
 
   // ======= Create Agent Creation Settings
   await hre.network.provider.request({
@@ -704,6 +718,61 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("10"), BN.from("0")]);
     });
 
+    it("Can deposit with WETH and refund", async function () {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
+
+      // Transfer all assets to tba
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+
+      // Trigger the deposit
+      await module
+        .moduleC_mintWithBalanceAndRefundTo({
+          reciever: USER_ADDRESS,
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 1_00_000,
+          sqrtPriceX96,
+          tickLower: price1ToTick(4000),
+          tickUpper: price1ToTick(2000),
+        })
+        .then((tx) => tx.wait());
+
+      // Position to be minted
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      // All funds sent back to user
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
+      expect(
+        await Promise.all([
+          USDB.balanceOf(USER_ADDRESS),
+          WETH.balanceOf(USER_ADDRESS),
+        ]),
+      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
+    });
+
     it("Can deposit with WETH", async function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
@@ -797,6 +866,75 @@ describe("ConcentratedLiquidityModuleC", function () {
           0,
         ),
       ).to.be.revertedWith("Price slippage check");
+    });
+
+    it("Can do partial deposit and refund", async () => {
+      const { module, USDB, WETH, PositionManager } =
+        await loadFixture(fixtureDeposited);
+
+      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+
+      // Position to be minted
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("16983715425639545311351"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      await module
+        .moduleC_increaseLiquidityWithBalanceAndRefundTo(
+          USER_ADDRESS,
+          sqrtPriceX96,
+          0,
+        )
+        .then((tx) => tx.wait());
+
+      // Position to be minted
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("33967430851279090622703"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
+      expect(
+        await Promise.all([
+          USDB.balanceOf(USER_ADDRESS),
+          WETH.balanceOf(USER_ADDRESS),
+        ]),
+      ).to.deep.equal([BN.from("10"), BN.from("1499144318855151961")]);
     });
 
     it("Can do partial deposit", async () => {

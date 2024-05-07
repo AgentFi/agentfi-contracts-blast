@@ -390,6 +390,34 @@ contract ConcentratedLiquidityModuleC is Blastable {
             );
     }
 
+    struct MintBalanceAndRefundParams {
+        address reciever;
+        address manager;
+        address pool;
+        uint24 slippageLiquidity;
+        int24 tickLower;
+        int24 tickUpper;
+        uint160 sqrtPriceX96;
+    }
+
+    /// @notice Mints new position with all assets in this contract
+    function moduleC_mintWithBalanceAndRefundTo(
+        MintBalanceAndRefundParams memory params
+    ) external payable virtual returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+        (tokenId_, liquidity, amount0, amount1) = moduleC_mintWithBalance(
+            MintBalanceParams({
+                manager: params.manager,
+                pool: params.pool,
+                slippageLiquidity: params.slippageLiquidity,
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper,
+                sqrtPriceX96: params.sqrtPriceX96
+            })
+        );
+
+        moduleC_sendBalanceTo(params.reciever);
+    }
+
     /// @notice Deposit all assets in contract to existing position (does not change range)
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
@@ -416,6 +444,15 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 deadline: block.timestamp
             })
         );
+    }
+
+    function moduleC_increaseLiquidityWithBalanceAndRefundTo(
+        address reciever,
+        uint160 sqrtPriceX96,
+        uint24 slippageLiquidity
+    ) external payable virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+        (liquidity, amount0, amount1) = moduleC_increaseLiquidityWithBalance(sqrtPriceX96, slippageLiquidity);
+        moduleC_sendBalanceTo(reciever);
     }
 
     /// @notice Collect tokens owned in position, keeping funds in the this contract
