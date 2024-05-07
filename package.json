@@ -22,7 +22,7 @@
     "@types/node": "^20.1.3",
     "chai": "^4.3.7",
     "ethers": "^5.7.2",
-    "hardhat": "^2.14.0",
+    "hardhat": "2.20.1",
     "hardhat-gas-reporter": "^1.0.9",
     "solc-0.8": "npm:solc@0.8.24",
     "solidity-coverage": "^0.8.2",
