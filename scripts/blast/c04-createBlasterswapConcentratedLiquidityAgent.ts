@@ -32,6 +32,7 @@ let chainID: number;
 
 const fs = require("fs")
 const ABI_BALANCE_FETCHER = readAbiForMC("abi/contracts/utils/BalanceFetcher.sol/BalanceFetcher.json")
+const ABI_MULTICALL_FORWARDER = readAbiForMC("abi/contracts/utils/MulticallForwarder.sol/MulticallForwarder.json")
 const ABI_AGENTS_NFT = readAbiForMC("abi/contracts/tokens/Agents.sol/Agents.json")
 const ABI_AGENT_REGISTRY = readAbiForMC("abi/contracts/utils/AgentRegistry.sol/AgentRegistry.json")
 const ABI_STRATEGY_ACCOUNT = readAbiForMC("abi/contracts/accounts/BlastooorStrategyAgentAccount.sol/BlastooorStrategyAgentAccount.json")
@@ -86,21 +87,28 @@ const USDB_ADDRESS               = "0x4300000000000000000000000000000000000003";
 
 const collections = [GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, EXPLORER_COLLECTION_ADDRESS]
 const tokenlist = [
+  /*
   ETH_ADDRESS,
   ALL_CLAIMABLE_GAS_ADDRESS,
   MAX_CLAIMABLE_GAS_ADDRESS,
   WETH_ADDRESS,
   USDB_ADDRESS
+  */
 ]
 
-const BLASTERSWAP_POSITION_MANAGER_ADDRESS = "0xd01ADc3D44b722721F73DdBe921345863Fc2bAED"
-const BLASTERSWAP_WETH_USDB_V3_POOL      = "0xEA3C97b7e599BafabC2243429f3684AB097e2FD7"; // 0.3% fee
+const BLASTERSWAP_POSITION_MANAGER_ADDRESS = "0xa761d82F952e9998fE40a6Db84bD234F39122BAD"
+const BLASTERSWAP_WETH_USDB_V3_POOL        = "0xEA3C97b7e599BafabC2243429f3684AB097e2FD7"; // 0.3% fee
+
+const TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+const INCREASE_LIQUIDITY_TOPIC = "0x3067048beee31b25b2f1681f88dac838c8bba36af25bfb2b7cf7473a5847e35f"
+const BYTES_32_0 = "0x0000000000000000000000000000000000000000000000000000000000000000"
 
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
 
 let erc6551Registry: IERC6551Registry;
 let multicallForwarder: MulticallForwarder;
+let multicallForwarderStatic: MulticallForwarder;
 let contractFactory: ContractFactory;
 let gasCollector: GasCollector;
 let balanceFetcher: BalanceFetcher;
@@ -157,12 +165,13 @@ async function main() {
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, dummyaccount) as IBlastPoints;
 
   erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
-  balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, dummyaccount) as BalanceFetcher;
+  balanceFetcher = await ethers.getContractAt(ABI_BALANCE_FETCHER, BALANCE_FETCHER_ADDRESS, dummyaccount) as BalanceFetcher;
   balanceFetcherMC = new MulticallContract(BALANCE_FETCHER_ADDRESS, ABI_BALANCE_FETCHER)
   dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, dummyaccount) as Dispatcher;
   agentRegistry = await ethers.getContractAt("AgentRegistry", AGENT_REGISTRY_ADDRESS, dummyaccount) as AgentRegistry;
   agentRegistryMC = new MulticallContract(AGENT_REGISTRY_ADDRESS, ABI_AGENT_REGISTRY)
   multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, dummyaccount) as MulticallForwarder;
+  multicallForwarderStatic = await ethers.getContractAt(ABI_MULTICALL_FORWARDER, MULTICALL_FORWARDER_ADDRESS, dummyaccount) as MulticallForwarder;
 
   genesisCollection = await ethers.getContractAt("Agents", GENESIS_COLLECTION_ADDRESS, dummyaccount) as Agents;
   genesisCollectionMC = new MulticallContract(GENESIS_COLLECTION_ADDRESS, ABI_AGENTS_NFT)
@@ -190,9 +199,13 @@ async function main() {
 
   blasterswapWethUsdbV3Pool = await ethers.getContractAt("IBlasterswapV3Pool", BLASTERSWAP_WETH_USDB_V3_POOL, dummyaccount) as MockERC20;
 
-  //await fetchPrices();
+  await fetchPrices();
 
-  await analyzeAgentsOf("0x9aD2AfB77FD40705c3f55f5f2d8B5Ea8afb4BBDE")
+  // read chain state
+  let { blasterswapCLAgents, rootAgent } = await analyzeAgentsOf("0x14F3fC5Bd9F29fA60B84310cf6e5CfED67d75FB9")
+  
+  // create new agent
+  await createBlasterswapCLAgent()
 }
 
 async function fetchPrices() {
@@ -224,14 +237,9 @@ async function analyzeAgentsOf(address:string) {
       balances: agent.balances.map(x=>x.toString()),
     }
   })
-  /*
-  for(let i = 0; i < agents2.length; i++) {
-    console.log(`agent list ${i}`)
-    console.log(agents2[i])
-  }
-  */
   let blasterswapCLAgents = await listBlasterswapConcentratedLiquidityAgents(agents2)
-  return blasterswapCLAgents
+  let rootAgent = await selectRootAgent(agents2, address)
+  return { blasterswapCLAgents, rootAgent }
 }
 
 async function listBlasterswapConcentratedLiquidityAgents(agents:any[]) {
@@ -254,7 +262,7 @@ async function listBlasterswapConcentratedLiquidityAgents(agents:any[]) {
       callData: strategyAccountImpl.interface.encodeFunctionData("overrides", ["0xbdb7336b"]),
     })
   }
-  let results1 = await multicallForwarder.connect(dummyaccount).callStatic.aggregate(calls1, {...networkSettings.overrides, gasLimit: 15_000_000})
+  let results1 = await multicallForwarderStatic.connect(dummyaccount).aggregate(calls1)
   let returnData = results1[1]
 
   // analyze strategy types
@@ -272,7 +280,6 @@ async function listBlasterswapConcentratedLiquidityAgents(agents:any[]) {
       if(CONCENTRATED_LIQUIDITY_MODULES.includes(impl)) {
         strategyType = "Concentrated Liquidity"
         clAgents.push(strategyAgents[agentIndex])
-        console.log(`Strategy agent ${agentID} account ${tbaAddress} is a strategy of type ${strategyType}`)
         break
       }
     }
@@ -315,6 +322,149 @@ async function listBlasterswapConcentratedLiquidityAgents(agents:any[]) {
   }
   console.log(`User has ${blasterswapCLAgents.length} Blasterswap Concentrated Liquidity Agents`)
   return blasterswapCLAgents
+}
+
+async function selectRootAgent(agents:any[], owner:string) {
+  let rootAgents = agents.filter(agent => agent.owner == owner)
+  if(rootAgents.length == 0) {
+    console.log("No root agents")
+    return undefined
+  }
+  let agents3 = selectionSortAgents(rootAgents)
+  return agents3[0]
+}
+
+// creates a new agent
+async function createBlasterswapCLAgent() {
+
+  // these values should be provided by the frontend
+  let manager = BLASTERSWAP_POSITION_MANAGER_ADDRESS
+  let pool = BLASTERSWAP_WETH_USDB_V3_POOL
+  let slippageLiquidity = 1_000_000
+  let tickLower = -80520
+  let tickUpper = -79560
+  let sqrtPriceX96 = BN.from("1441300361101759976520828579")
+  let mintParams = { manager, pool, slippageLiquidity, tickLower, tickUpper, sqrtPriceX96 }
+
+  let deposit0 = {
+    token: WETH_ADDRESS, // also accepts ETH by passing in AddressZero
+    amount: WeiPerEther.mul(1).div(30_000)
+  }
+  let deposit1 = {
+    token: USDB_ADDRESS,
+    amount: WeiPerEther.mul(1).div(10)
+  }
+  let deposits = [deposit0, deposit1]
+
+  let signer = new ethers.Wallet(accounts.boombotseth.key, provider);
+
+  // fetch the users root agent if any
+  let agents = await balanceFetcher.callStatic.fetchAgents(signer.address, collections, tokenlist)
+  let rootAgent = await selectRootAgent(agents, signer.address)
+  //rootAgent = undefined
+
+  // check token balances and allowance
+  for(let deposit of deposits) {
+    let { token, amount } = deposit
+    if(token == AddressZero) {
+      let balance = await provider.getBalance(signer.address)
+      if(balance.lt(amount)) throw new Error(`Insufficient ETH for deposit, expected ${amount} have ${balance}`)
+    }
+    else {
+      let erc20 = await ethers.getContractAt("MockERC20", token, signer) as MockERC20;
+      let balance = await erc20.balanceOf(signer.address)
+      if(balance.lt(amount)) throw new Error(`Insufficient ERC20 ${token} for deposit, expected ${amount} have ${balance}`)
+      let allowance = await erc20.allowance(signer.address, CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS)
+      if(allowance.lt(amount)) {
+        console.log(`Approving ${token}`)
+        let tx = await erc20.approve(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS, MaxUint256, {...networkSettings.overrides, gasLimit: 200_000})
+        await tx.wait(networkSettings.confirmations)
+      }
+    }
+  }
+
+  // create the agent
+  let tx
+  console.log(`Creating agent`)
+  if(!!rootAgent) {
+    tx = await concentratedLiquidityAgentFactory.connect(signer).createConcentratedLiquidityAgentForRoot(
+      mintParams, deposit0, deposit1, rootAgent.agentAddress, {...networkSettings.overrides, gasLimit: 4_000_000}
+    )
+  } else {
+    tx = await concentratedLiquidityAgentFactory.connect(signer).createConcentratedLiquidityAgentAndExplorer(
+      mintParams, deposit0, deposit1, {...networkSettings.overrides, gasLimit: 4_000_000}
+    )
+  }
+  await watchTxForEvents(tx)
+  console.log(`Created agent`)
+}
+
+async function watchTxForEvents(tx:any) {
+  console.log("tx:", tx.hash);
+  let receipt = await tx.wait(networkSettings.confirmations);
+  console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+  if(!receipt || !receipt.logs || receipt.logs.length == 0) {
+    console.log(receipt)
+    console.log("No events found")
+  }
+
+  console.log('logs:')
+  for(let i = 0; i < receipt.logs.length; i++) {
+    let log = receipt.logs[i]
+    let address = log.address
+
+    if(address == STRATEGY_COLLECTION_ADDRESS) {
+      if(log.topics[0] == TRANSFER_TOPIC) {
+        let agentID = BN.from(log.topics[3]).toNumber()
+        if(log.topics[1] == BYTES_32_0) {
+          console.log(`Minted strategy agent #${agentID}`)
+        } else {
+          console.log(`Transferred strategy agent #${agentID}`)
+        }
+      } else {
+        console.log("Did something with a strategy agent")
+      }
+    }
+    else if(address == EXPLORER_COLLECTION_ADDRESS) {
+      if(log.topics[0] == TRANSFER_TOPIC) {
+        let agentID = BN.from(log.topics[3]).toNumber()
+        if(log.topics[1] == BYTES_32_0) {
+          console.log(`Minted explorer agent #${agentID}`)
+        } else {
+          console.log(`Transferred explorer agent #${agentID}`)
+        }
+      } else {
+        console.log("Did something with an explorer agent")
+      }
+    }
+    else if(address == ERC6551_REGISTRY_ADDRESS) {
+      let collection = bytesToAddr(log.topics[2])
+      let agentID = BN.from(log.topics[3]).toNumber()
+      if(collection == STRATEGY_COLLECTION_ADDRESS) {
+        console.log(`Created a TBA for strategy agent #${agentID}`)
+      }
+      else if(collection == EXPLORER_COLLECTION_ADDRESS) {
+        console.log(`Created a TBA for explorer agent #${agentID}`)
+      }
+      else {
+        console.log(`Created a TBA for agent ${collection} #${agentID}`)
+      }
+    }
+    else if(address == BLASTERSWAP_POSITION_MANAGER_ADDRESS) {
+      if(log.topics[0] == TRANSFER_TOPIC) {
+        let tokenID = BN.from(log.topics[3]).toNumber()
+        if(log.topics[1] == BYTES_32_0) {
+          console.log(`Minted Blasterswap V3 position #${tokenID}`)
+        } else {
+          console.log(`Transferred Blasterswap V3 position #${tokenID}`)
+        }
+      } else if(log.topics[0] == INCREASE_LIQUIDITY_TOPIC) {
+        console.log("Increased liquidity in the Blasterswap V3 position")
+      } else {
+        console.log("Did something with a Blasterswap V3 position")
+      }
+    }
+  }
 }
 
 
