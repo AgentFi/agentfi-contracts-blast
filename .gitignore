@@ -15,5 +15,3 @@ artifacts
 abi/
 *-backup*
 *-ignore*
-
-.vscode/*
