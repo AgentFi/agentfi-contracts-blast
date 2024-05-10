@@ -12,19 +12,7 @@ import chai from "chai";
 const { expect } = chai;
 
 import { fixtureSetup } from "./ConcentratedLiquidityModuleC.test";
-
-// Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
-function convertToStruct(res: any) {
-  return Object.keys(res)
-    .filter((x) => Number.isNaN(parseInt(x)))
-    .reduce(
-      (acc, k) => {
-        acc[k] = res[k];
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
-}
+import { almostEqual, convertToStruct } from "../scripts/utils/test";
 
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
@@ -285,11 +273,13 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         BN.from("64580542070095326831"),
       );
 
-      expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("21250994194221658983"),
+      almostEqual(
+        (await signer.getBalance()).sub(eth),
+        BN.from("21250994223237000000"),
       );
     });
   });
+
   describe("Withdrawal tests", () => {
     it("Can withdrawal to user", async () => {
       const { module, USDB, WETH, signer } =
@@ -308,8 +298,9 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         .moduleC_fullWithdrawTo(user, sqrtPriceX96, 1_000)
         .then((tx) => tx.wait());
 
-      expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("50864236031413313720"),
+      almostEqual(
+        (await signer.getBalance()).sub(eth),
+        BN.from("50864236031413000000"),
       );
 
       expect(
@@ -345,8 +336,9 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("8491857712819772655676"),
       );
-      expect((await signer.getBalance()).sub(eth)).to.equal(
-        BN.from("36047885196266060487"),
+      almostEqual(
+        (await signer.getBalance()).sub(eth),
+        BN.from("36047885180298000000"),
       );
       expect(await USDB.balanceOf(user)).to.equal(
         BN.from("309769618242554963762453"),

@@ -8,7 +8,15 @@ import { BigNumber as BN, Contract, Signer } from "ethers";
 import chai from "chai";
 const { expect } = chai;
 
-import { ConcentratedLiquidityModuleC } from "../typechain-types";
+import {
+  AgentRegistry,
+  BlastooorAccountFactory,
+  BlastooorGenesisAgentAccount,
+  BlastooorGenesisFactory,
+  BlastooorStrategyAgents,
+  BlastooorStrategyFactory,
+  ConcentratedLiquidityModuleC,
+} from "../typechain-types";
 
 import { deployContract } from "../scripts/utils/deployContract";
 import {
@@ -18,31 +26,16 @@ import {
 } from "../scripts/utils/v3";
 import { toBytes32 } from "../scripts/utils/setStorage";
 import { calcSighash } from "../scripts/utils/diamond";
-
-// Ether.js returns some funky stuff for structs (merges an object and array). Convert to an array
-function convertToStruct(res: any) {
-  return Object.keys(res)
-    .filter((x) => Number.isNaN(parseInt(x)))
-    .reduce(
-      (acc, k) => {
-        acc[k] = res[k];
-        return acc;
-      },
-      {} as Record<string, any>,
-    );
-}
+import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/BlastooorGenesisAgents";
+import { convertToStruct } from "../scripts/utils/test";
 
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
 /* prettier-ignore */ const BLAST_POINTS_OPERATOR_ADDRESS = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 /* prettier-ignore */ const ENTRY_POINT_ADDRESS           = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 /* prettier-ignore */ const ERC6551_REGISTRY_ADDRESS      = "0x000000006551c19487814612e58FE06813775758";
-/* prettier-ignore */ const GAS_COLLECTOR_ADDRESS         = "0xf237c20584DaCA970498917470864f4d027de4ca"; // v1.0.0
-/* prettier-ignore */ const MULTICALL_FORWARDER_ADDRESS   = "0xAD55F8b65d5738C6f63b54E651A09cC5d873e4d8"; // v1.0.1
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 /* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
-/* prettier-ignore */ const STRATEGY_COLLECTION_ADDRESS   = "0x73E75E837e4F3884ED474988c304dE8A437aCbEf"; // v1.0.1
-/* prettier-ignore */ const STRATEGY_FACTORY_ADDRESS      = "0x09906C1eaC081AC4aF24D6F7e05f7566440b4601"; // v1.0.1
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
@@ -84,7 +77,8 @@ const permissions = Object.entries({
     "moduleC_collectTo(address)",
     "moduleC_fullWithdrawTo(address,uint160,uint24)",
     "moduleC_increaseLiquidityWithBalanceAndRefundTo(address,uint160,uint24)",
-    "moduleC_mintWithBalanceAndRefundTo((address,address,address,uint24,int24,int24,uint160))",
+    // "moduleC_mintWithBalanceAndRefundTo((address,address,address,uint24,int24,int24,uint160))",
+    "moduleC_mintWithBalanceAndRefundTo((address,address,uint24,int24,int24,uint160,address))",
     "moduleC_partialWithdrawTo(address,uint128,uint160,uint24)",
     "moduleC_sendBalanceTo(address)",
   ],
@@ -221,7 +215,7 @@ const functionParams = [
       "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
   {
-    selector: "0xba55f842",
+    selector: "0x6dd4afce",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
@@ -259,49 +253,198 @@ export async function fixtureSetup(
     ],
   });
 
-  if ((await provider.getNetwork()).chainId !== 81457) {
-    throw new Error("Need to run this on chainid 81457");
-  }
-
-  // ===== Deploy Module and new account
-  const strategyAccountImplementation = await deployContract(
-    deployer,
-    "BlastooorStrategyAgentAccountV2",
-    [
-      BLAST_ADDRESS,
-      GAS_COLLECTOR_ADDRESS,
-      BLAST_POINTS_ADDRESS,
-      BLAST_POINTS_OPERATOR_ADDRESS,
-      ENTRY_POINT_ADDRESS,
-      MULTICALL_FORWARDER_ADDRESS,
-      ERC6551_REGISTRY_ADDRESS,
-      ethers.constants.AddressZero,
-    ],
-  );
-
-  const module = await deployContract(deployer, moduleName, [
-    BLAST_ADDRESS,
-    GAS_COLLECTOR_ADDRESS,
-    BLAST_POINTS_ADDRESS,
-    BLAST_POINTS_OPERATOR_ADDRESS,
-  ]);
-
   // console.log(Object.keys(module.functions).filter((x) => x.includes("(")));
 
-  // ======= Create Agent Creation Settings
+  // ======= Setup
   await hre.network.provider.request({
     method: "hardhat_impersonateAccount",
     params: [OWNER_ADDRESS],
   });
 
   const owner = await provider.getSigner(OWNER_ADDRESS);
-  const strategyFactory = await ethers.getContractAt(
-    "BlastooorStrategyFactory",
-    STRATEGY_FACTORY_ADDRESS,
-    owner,
+
+  const gasCollector = await deployContract(deployer, "GasCollector", [
+    OWNER_ADDRESS,
+    BLAST_ADDRESS,
+    BLAST_POINTS_ADDRESS,
+    BLAST_POINTS_OPERATOR_ADDRESS,
+  ]);
+
+  const genesisAgentNft = (await deployContract(
+    deployer,
+    "BlastooorGenesisAgents",
+    [
+      OWNER_ADDRESS,
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      ERC6551_REGISTRY_ADDRESS,
+    ],
+  )) as BlastooorGenesisAgents;
+
+  const multicallForwarder = await deployContract(
+    deployer,
+    "MulticallForwarder",
+    [
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+    ],
   );
 
-  const strategyConfigID = 7;
+  // Deploy genesis account implementation
+  const genesisAccountImplementation = (await deployContract(
+    deployer,
+    "BlastooorGenesisAgentAccount",
+    [
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      ENTRY_POINT_ADDRESS,
+      multicallForwarder.address,
+      ERC6551_REGISTRY_ADDRESS,
+      ethers.constants.AddressZero,
+    ],
+  )) as BlastooorGenesisAgentAccount;
+
+  const genesisFactory = (await deployContract(
+    deployer,
+    "BlastooorGenesisFactory",
+    [
+      OWNER_ADDRESS,
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      genesisAgentNft.address,
+    ],
+  )) as BlastooorGenesisFactory;
+
+  const agentRegistry = (await deployContract(deployer, "AgentRegistry", [
+    OWNER_ADDRESS,
+    BLAST_ADDRESS,
+    gasCollector.address,
+    BLAST_POINTS_ADDRESS,
+    BLAST_POINTS_OPERATOR_ADDRESS,
+  ])) as AgentRegistry;
+
+  const genesisAccountFactory = (await deployContract(
+    deployer,
+    "BlastooorAccountFactory",
+    [
+      OWNER_ADDRESS,
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      multicallForwarder.address,
+      genesisAgentNft.address,
+      agentRegistry.address,
+      ERC6551_REGISTRY_ADDRESS,
+    ],
+  )) as BlastooorAccountFactory;
+
+  const strategyAgentNft = (await deployContract(
+    deployer,
+    "BlastooorStrategyAgents",
+    [
+      OWNER_ADDRESS,
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+    ],
+  )) as BlastooorStrategyAgents;
+
+  const strategyAccountImplementation = await deployContract(
+    deployer,
+    "BlastooorStrategyAgentAccountV2",
+    [
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      ENTRY_POINT_ADDRESS,
+      multicallForwarder.address,
+      ERC6551_REGISTRY_ADDRESS,
+      ethers.constants.AddressZero,
+    ],
+  );
+
+  const strategyFactory = (await deployContract(
+    deployer,
+    "BlastooorStrategyFactory",
+    [
+      OWNER_ADDRESS,
+      BLAST_ADDRESS,
+      gasCollector.address,
+      BLAST_POINTS_ADDRESS,
+      BLAST_POINTS_OPERATOR_ADDRESS,
+      genesisAgentNft.address,
+      strategyAgentNft.address,
+      ERC6551_REGISTRY_ADDRESS,
+      agentRegistry.address,
+    ],
+  )) as BlastooorStrategyFactory;
+
+  // Whitelist Factory
+  await genesisAgentNft.connect(owner).setWhitelist([
+    {
+      factory: genesisFactory.address,
+      shouldWhitelist: true,
+    },
+  ]);
+
+  // Create genesis settings
+  await genesisFactory.connect(owner).postAgentCreationSettings({
+    agentImplementation: genesisAccountImplementation.address,
+    initializationCalls: [],
+    isActive: true,
+    // paymentToken: ethers.constants.AddressZero,
+    paymentAmount: ethers.constants.WeiPerEther.mul(1).div(100),
+    paymentReceiver: OWNER_ADDRESS,
+    timestampAllowlistMintStart: 0,
+    timestampAllowlistMintEnd: 1,
+    timestampPublicMintStart: 0,
+  });
+
+  await agentRegistry.connect(owner).setOperators([
+    {
+      account: genesisAccountFactory.address,
+      isAuthorized: true,
+    },
+  ]);
+
+  await genesisAccountFactory.connect(owner).postAgentCreationSettings({
+    agentImplementation: genesisAccountImplementation.address,
+    initializationCalls: [
+      genesisAccountImplementation.interface.encodeFunctionData(
+        "blastConfigure",
+      ),
+    ],
+    isActive: true,
+  });
+
+  await strategyAgentNft.connect(owner).setWhitelist([
+    {
+      factory: strategyFactory.address,
+      shouldWhitelist: true,
+    },
+  ]);
+
+  const strategyConfigID = 1;
+
+  // ===== Deploy Module and new account
+
+  const module = await deployContract(deployer, moduleName, [
+    BLAST_ADDRESS,
+    gasCollector.address,
+    BLAST_POINTS_ADDRESS,
+    BLAST_POINTS_OPERATOR_ADDRESS,
+  ]);
 
   const overrides = [
     {
@@ -330,40 +473,8 @@ export async function fixtureSetup(
     strategyConfigID,
   );
 
-  const GENESIS_COLLECTION_ADDRESS =
-    "0x5066A1975BE96B777ddDf57b496397efFdDcB4A9"; // v1.0.0
-
-  // ===== Transfer Gensis agent to user
-  const genesisAgentId = 5;
-  let genesisAgentAddress = "0xf93D295e760f05549451ae68A392F774428040B4";
-
-  const genesisCollection = await ethers.getContractAt(
-    "BlastooorGenesisAgents",
-    GENESIS_COLLECTION_ADDRESS,
-    owner,
-  );
-
-  // Send NFT 5 to user
-  genesisCollection.transferFrom(OWNER_ADDRESS, USER_ADDRESS, genesisAgentId);
-  const AGENT_REGISTRY_ADDRESS = "0x12F0A3453F63516815fe41c89fAe84d218Af0FAF"; // v1.0.1
-
-  const agentRegistry = await ethers.getContractAt(
-    "AgentRegistry",
-    AGENT_REGISTRY_ADDRESS,
-    owner,
-  );
-
-  expect(
-    await agentRegistry
-      .getTbasOfNft(GENESIS_COLLECTION_ADDRESS, genesisAgentId)
-      .then((x) => x[0][0]),
-  ).to.equal(genesisAgentAddress);
-
-  const genesisAgent = await ethers.getContractAt(
-    "BlastooorGenesisAgentAccount",
-    genesisAgentAddress,
-    owner,
-  );
+  const genesisAgentId = 1;
+  let genesisAgentAddress = "0x87862cDA0357756faBc999cA872C81508fb62F40";
 
   // ===== Mint the strategy agent
   await hre.network.provider.request({
@@ -372,6 +483,35 @@ export async function fixtureSetup(
   });
   const signer = await provider.getSigner(USER_ADDRESS);
 
+  // Create agent
+  await genesisFactory
+    .connect(signer)
+    .blastooorPublicMint(1, { value: ethers.constants.WeiPerEther.div(100) });
+
+  await agentRegistry.connect(owner).setOperators([
+    {
+      account: strategyFactory.address,
+      isAuthorized: true,
+    },
+  ]);
+
+  await genesisAccountFactory.connect(owner).setMaxCreationsPerAgent(999);
+  await genesisAccountFactory
+    .connect(signer)
+    ["createAccount(uint256,uint256)"](1, 1);
+
+  await strategyFactory.connect(owner).setMaxCreationsPerGenesisAgent(999);
+  expect(
+    await agentRegistry
+      .getTbasOfNft(genesisAgentNft.address, genesisAgentId)
+      .then((x) => x[0][0]),
+  ).to.equal(genesisAgentAddress);
+
+  const genesisAgent = await ethers.getContractAt(
+    "BlastooorGenesisAgentAccount",
+    genesisAgentAddress,
+    owner,
+  );
   await signer.sendTransaction({
     to: genesisAgentAddress,
     data: genesisAgent.interface.encodeFunctionData("execute", [
@@ -386,12 +526,12 @@ export async function fixtureSetup(
     gasLimit: 3_000_000,
   });
 
-  const strategyAgentID = 398;
-  const strategyAgentAddress = "0x6Bd112426637eaF6EF50213553c388E110a1695f";
+  const strategyAgentID = 1;
+  const strategyAgentAddress = "0x8C6A882eA6998F0f6617567628AAF90e50e76d52";
 
   expect(
     await agentRegistry
-      .getTbasOfNft(STRATEGY_COLLECTION_ADDRESS, strategyAgentID)
+      .getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       .then((r) => r[0][0]),
   ).to.equal(strategyAgentAddress);
 
@@ -557,6 +697,8 @@ describe("ConcentratedLiquidityModuleC", function () {
     );
 
     expect(await module.tokenId()).to.equal("0");
+    expect(await module.strategyType()).to.equal("Concentrated Liquidity");
+    expect(await module.moduleName()).to.equal("ConcentratedLiquidityModuleC");
 
     await expect(module.position()).to.be.revertedWithCustomError(
       module,
@@ -731,7 +873,7 @@ describe("ConcentratedLiquidityModuleC", function () {
           receiver: USER_ADDRESS,
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageLiquidity: 1_00_000,
+          slippageLiquidity: 100_000,
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
