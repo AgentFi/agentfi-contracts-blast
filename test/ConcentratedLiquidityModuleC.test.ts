@@ -4,7 +4,7 @@ import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
-import { BigNumber as BN, Contract, Signer } from "ethers";
+import { BigNumber as BN } from "ethers";
 import chai from "chai";
 const { expect } = chai;
 
@@ -28,6 +28,7 @@ import { toBytes32 } from "../scripts/utils/setStorage";
 import { calcSighash } from "../scripts/utils/diamond";
 import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/BlastooorGenesisAgents";
 import { convertToStruct } from "../scripts/utils/test";
+import { moduleCFunctionParams as functionParams } from "../scripts/configuration/ConcentratedLiquidityModuleC";
 
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
@@ -77,7 +78,6 @@ const permissions = Object.entries({
     "moduleC_collectTo(address)",
     "moduleC_fullWithdrawTo(address,uint160,uint24)",
     "moduleC_increaseLiquidityWithBalanceAndRefundTo(address,uint160,uint24)",
-    // "moduleC_mintWithBalanceAndRefundTo((address,address,address,uint24,int24,int24,uint160))",
     "moduleC_mintWithBalanceAndRefundTo((address,address,uint24,int24,int24,uint160,address))",
     "moduleC_partialWithdrawTo(address,uint128,uint160,uint24)",
     "moduleC_sendBalanceTo(address)",
@@ -92,144 +92,6 @@ const permissions = Object.entries({
   },
   [] as { selector: string; requiredRole: string }[],
 );
-
-const functionParams = [
-  {
-    selector: "0x481c6a75",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x93f0899a",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x16f0115b",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x09218e91",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x3850c7bd",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x82ccd330",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x17d70f7c",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x7004cd10",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x23a1c099",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x76223cbe",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x089b0539",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x91b8dcf4",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xe0ad98b9",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x18ac4325",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xdc307439",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x52d1c175",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xbdb7336b",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xaeb0ea21",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x4921fc42",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x66f0beb2",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x9a569684",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x7e551aee",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x13bf4fdb",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0xe1794328",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x6dd4afce",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x6807b478",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x96cbb0db",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-];
 
 expect(functionParams).to.deep.equal(permissions);
 
