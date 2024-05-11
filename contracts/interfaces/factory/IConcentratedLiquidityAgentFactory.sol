@@ -115,6 +115,53 @@ interface IConcentratedLiquidityAgentFactory {
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param deposit0 The first token and amount to deposit.
+     * @param deposit1 The second token and amount to deposit.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndRefundExcess(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata deposit0,
+        TokenDeposit calldata deposit1,
+        address rootAgentAddress
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param deposit0 The first token and amount to deposit.
+     * @param deposit1 The second token and amount to deposit.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata deposit0,
+        TokenDeposit calldata deposit1
+    ) external payable returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    );
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
      * @param depositLpToken The lp token and amount to migrate.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.

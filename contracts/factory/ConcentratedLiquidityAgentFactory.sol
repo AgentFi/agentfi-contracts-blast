@@ -204,6 +204,73 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param deposit0 The first token and amount to deposit.
+     * @param deposit1 The second token and amount to deposit.
+     * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function createConcentratedLiquidityAgentForRootAndRefundExcess(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata deposit0,
+        TokenDeposit calldata deposit1,
+        address rootAgentAddress
+    ) external payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    ) {
+        // checks
+        _createAgentForRootPrecheck(rootAgentAddress);
+        // create v3 agent
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
+            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, deposit0, deposit1);
+        // transfer strategy agent to root agent
+        IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to a new explorer agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param deposit0 The first token and amount to deposit.
+     * @param deposit1 The second token and amount to deposit.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     * @return explorerAgentID The ID of the newly created explorer agent.
+     * @return explorerAddress The address of the newly created explorer agent.
+     */
+    function createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata deposit0,
+        TokenDeposit calldata deposit1
+    ) external payable override returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress,
+        uint256 explorerAgentID,
+        address explorerAddress
+    ) {
+        // checks
+        if(!_isActive) revert Errors.CreationSettingsPaused();
+        // create explorer agent
+        (explorerAgentID, explorerAddress) = _createExplorerAgent();
+        // create v3 agent
+        (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
+            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, deposit0, deposit1);
+        // transfer v3 agent to explorer agent
+        IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
+        // transfer explorer agent to msg sender
+        IExplorerAgents(_explorerAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
+    }
+
+    /**
+     * @notice Creates a new V3 strategy agent.
+     * The new agent will be minted to an existing root agent.
+     * Can only be called by the owner of the root agent.
+     * @param mintParams Parameters to use to mint the position.
      * @param depositLpToken The lp token and amount to migrate.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -399,6 +466,57 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
                   tickLower: mintParams.tickLower,
                   tickUpper: mintParams.tickUpper,
                   sqrtPriceX96: mintParams.sqrtPriceX96
+                })
+            );
+    }
+
+    /**
+     * @notice Creates a new concentrated liquidity agent.
+     * @param mintParams Parameters to use to mint the position.
+     * @param deposit0 The first token and amount to deposit.
+     * @param deposit1 The second token and amount to deposit.
+     * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
+     * @return strategyAgentID The ID of the newly created strategy agent.
+     * @return strategyAddress The address of the newly created strategy agent.
+     */
+    function _createConcentratedLiquidityAgentAndRefundExcess(
+        MintBalanceParams calldata mintParams,
+        TokenDeposit calldata deposit0,
+        TokenDeposit calldata deposit1
+    ) internal returns (
+        uint256 nonfungiblePositionTokenId,
+        uint256 strategyAgentID,
+        address strategyAddress
+    ) {
+        // create nft
+        (strategyAgentID, strategyAddress) = _createStrategyAgent();
+        address weth = _weth;
+        // handle token deposits
+        if(deposit0.token == address(0)) {
+            Calls.sendValue(weth, deposit0.amount);
+            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, deposit0.amount);
+        }
+        else {
+            SafeERC20.safeTransferFrom(IERC20(deposit0.token), _msgSender(), strategyAddress, deposit0.amount);
+        }
+        if(deposit1.token == address(0)) {
+            Calls.sendValue(weth, deposit1.amount);
+            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, deposit1.amount);
+        }
+        else {
+            SafeERC20.safeTransferFrom(IERC20(deposit1.token), _msgSender(), strategyAddress, deposit1.amount);
+        }
+        // create the position in the strategy agent
+        (nonfungiblePositionTokenId, , , ) =
+            ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalanceAndRefundTo(
+                ConcentratedLiquidityModuleC.MintBalanceAndRefundParams({
+                  manager: mintParams.manager,
+                  pool: mintParams.pool,
+                  slippageLiquidity: mintParams.slippageLiquidity,
+                  tickLower: mintParams.tickLower,
+                  tickUpper: mintParams.tickUpper,
+                  sqrtPriceX96: mintParams.sqrtPriceX96,
+                  receiver: _msgSender()
                 })
             );
     }
