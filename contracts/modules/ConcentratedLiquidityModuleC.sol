@@ -6,6 +6,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/INonfungiblePositionManager.sol";
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
+import { ISwapRouter02 } from "./../interfaces/external/Thruster/ISwapRouter02.sol";
 import { IThrusterPool as IV3Pool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
@@ -325,6 +326,40 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
+    struct ExactInputSingle02Params {
+        address tokenIn;
+        address tokenOut;
+        uint24 fee;
+        uint256 amountIn;
+        uint256 amountOutMinimum;
+        uint160 sqrtPriceLimitX96;
+    }
+
+    /// @notice Swaps `amountIn` of one token for as much as possible of another token
+    /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata
+    /// @return amountOut The amount of the received token
+    function moduleC_exactInputSingle02(
+        address router,
+        ExactInputSingle02Params memory params
+    ) public payable returns (uint256 amountOut) {
+        ISwapRouter02 swapRouter = ISwapRouter02(router);
+
+        // Set allowance
+        _setApproval(params.tokenIn, router, params.amountIn);
+
+        amountOut = swapRouter.exactInputSingle(
+            ISwapRouter02.ExactInputSingleParams({
+                tokenIn: params.tokenIn,
+                tokenOut: params.tokenOut,
+                fee: params.fee,
+                recipient: address(this),
+                amountIn: params.amountIn,
+                amountOutMinimum: params.amountOutMinimum,
+                sqrtPriceLimitX96: params.sqrtPriceLimitX96
+            })
+        );
+    }
+
     /***************************************
     AGENT HIGH LEVEL FUNCTIONS
     ***************************************/
@@ -574,6 +609,40 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
+    /// @notice Withdrawals, swaps and creates a new position at the new range
+    function moduleC_rebalance02(RebalanceParams memory params) external payable {
+        moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
+
+        (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
+            params.sqrtPriceX96,
+            params.tickLower,
+            params.tickUpper
+        );
+        _performSwap02(
+            PerformSwapParams({
+                router: params.router,
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                amountIn: amountIn,
+                slippageSwap: params.slippageSwap,
+                fee: params.fee,
+                sqrtPriceX96: params.sqrtPriceX96
+            })
+        );
+
+        ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        moduleC_mintWithBalance(
+            MintBalanceParams({
+                manager: state.manager,
+                pool: state.pool,
+                slippageLiquidity: params.slippageLiquidity,
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper,
+                sqrtPriceX96: params.sqrtPriceX96
+            })
+        );
+    }
+
     /***************************************
     INTERNAL FUNCTIONS
     ***************************************/
@@ -629,6 +698,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint24 slippageSwap;
         uint24 fee;
     }
+
     function _performSwap(PerformSwapParams memory params) internal {
         if (params.amountIn == 0) {
             return;
@@ -653,6 +723,36 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 tokenOut: params.tokenOut,
                 fee: params.fee,
                 deadline: block.timestamp,
+                amountIn: params.amountIn,
+                amountOutMinimum: amountOutMinimum,
+                sqrtPriceLimitX96: 0
+            })
+        );
+    }
+
+    function _performSwap02(PerformSwapParams memory params) internal {
+        if (params.amountIn == 0) {
+            return;
+        }
+
+        uint256 amountOutMinimum;
+
+        //sqrtPrice, slippageSwap, fee, router
+        if (params.tokenIn < params.tokenOut) {
+            amountOutMinimum = Math.mulDiv(params.amountIn, uint256(params.sqrtPriceX96) ** 2, 2 ** 192);
+        } else {
+            amountOutMinimum = Math.mulDiv(params.amountIn, 2 ** 192, uint256(params.sqrtPriceX96) ** 2);
+        }
+
+        amountOutMinimum = Math.mulDiv(amountOutMinimum, SLIPPAGE_SCALE - params.slippageSwap, SLIPPAGE_SCALE);
+
+        // Perform Swap
+        moduleC_exactInputSingle02(
+            params.router,
+            ExactInputSingle02Params({
+                tokenIn: params.tokenIn,
+                tokenOut: params.tokenOut,
+                fee: params.fee,
                 amountIn: params.amountIn,
                 amountOutMinimum: amountOutMinimum,
                 sqrtPriceLimitX96: 0

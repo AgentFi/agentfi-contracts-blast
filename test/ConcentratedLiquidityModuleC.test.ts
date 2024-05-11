@@ -63,6 +63,7 @@ const permissions = Object.entries({
     "moduleC_decreaseLiquidity((uint128,uint256,uint256,uint256))",
     "moduleC_decreaseLiquidityWithSlippage(uint128,uint160,uint24)",
     "moduleC_exactInputSingle(address,(address,address,uint24,uint256,uint256,uint256,uint160))",
+    "moduleC_exactInputSingle02(address,(address,address,uint24,uint256,uint256,uint160))",
     "moduleC_fullWithdrawToSelf(uint160,uint24)",
     "moduleC_increaseLiquidity((uint256,uint256,uint256,uint256,uint256))",
     "moduleC_increaseLiquidityWithBalance(uint160,uint24)",
@@ -70,6 +71,7 @@ const permissions = Object.entries({
     "moduleC_mintWithBalance((address,address,uint24,int24,int24,uint160))",
     "moduleC_partialWithdrawalToSelf(uint128,uint160,uint24)",
     "moduleC_rebalance((address,uint24,uint24,uint24,int24,int24,uint160))",
+    "moduleC_rebalance02((address,uint24,uint24,uint24,int24,int24,uint160))",
     "moduleC_wrap()",
   ],
 
@@ -85,7 +87,7 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func), requiredRole });
+      acc.push({ selector: calcSighash(func, true), requiredRole });
     });
 
     return acc;

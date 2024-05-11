@@ -14,7 +14,7 @@ const allowlistSignerAddress = accounts.allowlistSigner.address
 
 import { Agents, BlastooorAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher, IBlastPoints } from "../../typechain-types";
 
-import { delay, deduplicateArray } from "./../utils/misc";
+import { delay, deduplicateArray, readAbi, readAbiForMC } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
 import { logContractAddress } from "./../utils/logContractAddress";
 import { getNetworkSettings } from "./../utils/getNetworkSettings";
@@ -22,12 +22,19 @@ import { deployContractUsingContractFactory, verifyContract } from "./../utils/d
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
 import { moduleCFunctionParams as functionParams } from "./../configuration/ConcentratedLiquidityModuleC";
+import { MulticallProvider, MulticallContract } from "./../utils/multicall";
+import { multicallChunked } from "./../utils/network";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
 
 let networkSettings: any;
 let chainID: number;
+
+const ABI_BALANCE_FETCHER = readAbiForMC("abi/contracts/utils/BalanceFetcher.sol/BalanceFetcher.json")
+const ABI_DISPATCHER = readAbiForMC("abi/contracts/utils/Dispatcher.sol/Dispatcher.json")
+const ABI_MULTICALL_FORWARDER = readAbiForMC("abi/contracts/utils/MulticallForwarder.sol/MulticallForwarder.json")
+let mcProvider = new MulticallProvider(provider, 168587773);
 
 const ERC6551_REGISTRY_ADDRESS        = "0x000000006551c19487814612e58FE06813775758";
 const BLAST_ADDRESS                   = "0x4300000000000000000000000000000000000002";
@@ -50,7 +57,8 @@ const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCf
 
 const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
 const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_V1_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
+const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x22ff0d4B6b634A8Fa58B415E13bafa51FC0c80B8"; // v1.0.2
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
@@ -60,7 +68,7 @@ const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c6
 
 const EXPLORER_COLLECTION_ADDRESS                       = "0x1eE50B39EB877F7053dC18816C3f7121Fc7340De"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0x37edeCaaa04e3bCD652B8ac35d928d57b66b212D"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x89f6bfa5AF5Fe665F7Bc39156E6023641e426A9e"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x42Bd5c64C5a6d49F4969D7Cd5Cd7e7286d5AF0fE"; // v1.0.2
 const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x06ACC535E997bcc338927586802797A37be81A34"; // v1.0.2
 
 // tokens
@@ -90,9 +98,11 @@ let iblast: IBlast;
 let iblastpoints: IBlastPoints;
 
 let multicallForwarder: MulticallForwarder;
+let multicallForwarderMC: any;
 let contractFactory: ContractFactory;
 let gasCollector: GasCollector;
 let balanceFetcher: BalanceFetcher;
+let balanceFetcherMC: any;
 
 let genesisCollection: BlastooorGenesisAgents;
 let genesisFactory: BlastooorGenesisFactory;
@@ -108,6 +118,7 @@ let strategyAccountImpl: BlastooorStrategyAgentAccount;
 let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let dispatcher: Dispatcher;
+let dispatcherMC: any;
 
 let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
@@ -153,6 +164,10 @@ async function main() {
 
   gasCollector = await ethers.getContractAt("GasCollector", GAS_COLLECTOR_ADDRESS, agentfideployer) as GasCollector;
   balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;
+  balanceFetcherMC = new MulticallContract(BALANCE_FETCHER_ADDRESS, ABI_BALANCE_FETCHER)
+  dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
+  dispatcherMC = new MulticallContract(DISPATCHER_ADDRESS, ABI_DISPATCHER)
+  multicallForwarderMC = new MulticallContract(MULTICALL_FORWARDER_ADDRESS, ABI_MULTICALL_FORWARDER)
   genesisCollection = await ethers.getContractAt("BlastooorGenesisAgents", GENESIS_COLLECTION_ADDRESS, agentfideployer) as BlastooorGenesisAgents;
   genesisFactory = await ethers.getContractAt("BlastooorGenesisFactory", GENESIS_FACTORY_ADDRESS, agentfideployer) as BlastooorGenesisFactory;
   genesisAccountImpl = await ethers.getContractAt("BlastooorGenesisAgentAccount", GENESIS_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorGenesisAgentAccount;
@@ -160,8 +175,7 @@ async function main() {
   agentRegistry = await ethers.getContractAt("AgentRegistry", AGENT_REGISTRY_ADDRESS, agentfideployer) as AgentRegistry;
   strategyCollection = await ethers.getContractAt("BlastooorStrategyAgents", STRATEGY_COLLECTION_ADDRESS, agentfideployer) as BlastooorStrategyAgents;
   strategyFactory = await ethers.getContractAt("BlastooorStrategyFactory", STRATEGY_FACTORY_ADDRESS, agentfideployer) as BlastooorStrategyFactory;
-  strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
-  dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
+  strategyAccountImpl = await ethers.getContractAt("BlastooorStrategyAgentAccount", STRATEGY_ACCOUNT_IMPL_V1_ADDRESS, agentfideployer) as BlastooorStrategyAgentAccount;
   multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
   multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
   usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
@@ -179,6 +193,8 @@ async function main() {
   await agentRegistrySetOperators();
 
   await postConcentratedLiquidityAccountCreationSettings();
+
+  await addRebalancersToDispatcher()
 }
 
 async function whitelistStrategyFactories() {
@@ -337,6 +353,53 @@ async function postConcentratedLiquidityAccountCreationSettings() {
   }
 }
 
+async function addRebalancersToDispatcher() {
+  let numAccounts = 32
+  let accounts = []
+  let calls = []
+  for(let i = 0; i < numAccounts; i++) {
+    // get hd wallet
+    let path = `m/44'/60'/0'/0/${i}`
+    let acc = ethers.Wallet.fromMnemonic(process.env.REBALANCER_MNEMONIC, path).connect(provider)
+    accounts.push({ eoaAccountIndex: i, address: acc.address })
+    calls.push(dispatcherMC.isOperator(acc.address))
+    calls.push(multicallForwarderMC.getEthBalance(acc.address))
+  }
+  let results = await multicallChunked(mcProvider, calls, "latest", 500)
+
+  console.log(JSON.stringify({
+    mnemonic: process.env.REBALANCER_MNEMONIC,
+    accounts
+  }, undefined, 2))
+
+  let diff = []
+  for(let i = 0; i < numAccounts; i++) {
+    let isOperator = results[i*2+0]
+    let ethBalance = results[i*2+1]
+    if(!isOperator) {
+      diff.push({
+        account: accounts[i].address,
+        isAuthorized: true
+      })
+    }
+    if(ethBalance.lt(WeiPerEther.div(1_000))) {
+      console.log(`Transferring ETH to rebalancer ${accounts[i].address}`)
+      let tx = await agentfideployer.sendTransaction({
+        to: accounts[i].address,
+        data: "0x",
+        value: WeiPerEther.mul(5).div(1_000),
+        gasLimit: 21_000,
+        ...networkSettings.overrides
+      })
+      await tx.wait(networkSettings.confirmations)
+    }
+  }
+  if(diff.length > 0) {
+    console.log(`Adding ${diff.length} rebalancer eoas`)
+    let tx = await dispatcher.connect(agentfideployer).setOperators(diff, {...networkSettings.overrides, gasLimit: 1_000_000})
+    await tx.wait(networkSettings.confirmations)
+  }
+}
 
 main()
     .then(() => process.exit(0))
