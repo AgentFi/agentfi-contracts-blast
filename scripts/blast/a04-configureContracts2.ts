@@ -22,6 +22,7 @@ import { getNetworkSettings } from "./../utils/getNetworkSettings";
 import { deployContractUsingContractFactory, verifyContract } from "./../utils/deployContract";
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
+import { moduleCFunctionParams as functionParams } from "./../configuration/ConcentratedLiquidityModuleC";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -60,7 +61,7 @@ const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4
 const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603e8Ee1e122547EC053Bf18"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x10C02a975a748Db5B749Dc420154dD945e2e8657"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x4F4B2f9c1dBE38Bd672CF9291E7C076db652628e"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x96E50f33079F749cb20f32C05DBb62B09620a817"; // v1.0.2
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -275,8 +276,7 @@ async function agentRegistrySetOperators() {
 // concentratedLiquidityAgentFactory
 
 async function postConcentratedLiquidityAccountCreationSettings() {
-  console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
-
+  // assemble expected settings
   let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
   let overrides = [
     {
@@ -295,18 +295,35 @@ async function postConcentratedLiquidityAccountCreationSettings() {
   let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
   let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
-
-  let settings1 = {
+  let expectedSettings = {
     strategyAccountImpl: strategyAccountImpl.address,
     explorerAccountImpl: explorerAccountImpl.address,
     strategyInitializationCall: multicallCalldata,
     explorerInitializationCall: blastConfigureCalldata,
     isActive: true,
   }
-  let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(settings1, networkSettings.overrides)
-  let receipt = await tx.wait(networkSettings.confirmations)
+  // fetch current settings
+  let currentSettings = await concentratedLiquidityAgentFactory.getAgentCreationSettings()
+  // compare
+  let isDiff = (
+    expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
+    expectedSettings.explorerAccountImpl != currentSettings.explorerAccountImpl_ ||
+    expectedSettings.strategyInitializationCall != currentSettings.strategyInitializationCall_ ||
+    expectedSettings.explorerInitializationCall != currentSettings.explorerInitializationCall_ ||
+    expectedSettings.isActive != currentSettings.isActive_
+  )
+  // only post if necessary
+  if(isDiff) {
+    console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
 
-  console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let receipt = await tx.wait(networkSettings.confirmations)
+
+    console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
+  else {
+    //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
 }
 
 

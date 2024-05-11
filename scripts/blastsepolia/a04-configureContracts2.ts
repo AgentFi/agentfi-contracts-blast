@@ -21,6 +21,7 @@ import { getNetworkSettings } from "./../utils/getNetworkSettings";
 import { deployContractUsingContractFactory, verifyContract } from "./../utils/deployContract";
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
+import { moduleCFunctionParams as functionParams } from "./../configuration/ConcentratedLiquidityModuleC";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -60,7 +61,7 @@ const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c6
 const EXPLORER_COLLECTION_ADDRESS                       = "0x1eE50B39EB877F7053dC18816C3f7121Fc7340De"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0x37edeCaaa04e3bCD652B8ac35d928d57b66b212D"; // v1.0.2
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x89f6bfa5AF5Fe665F7Bc39156E6023641e426A9e"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0xa8A3da313094C8DA378A81B5922a04049bDaAf79"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x06ACC535E997bcc338927586802797A37be81A34"; // v1.0.2
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -114,134 +115,6 @@ let concentratedLiquidityGatewayModuleC: ConcentratedLiquidityGatewayModuleC;
 let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
 
 let usdb: MockERC20;
-
-const functionParams = [
-  {
-    selector: "0x481c6a75",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x93f0899a",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x16f0115b",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x09218e91",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x3850c7bd",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x82ccd330",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x17d70f7c",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-  },
-  {
-    selector: "0x7004cd10",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x23a1c099",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x76223cbe",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x089b0539",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x91b8dcf4",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xe0ad98b9",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x18ac4325",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xdc307439",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x52d1c175",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xbdb7336b",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0xaeb0ea21",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x4921fc42",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x66f0beb2",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x9a569684",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000009",
-  },
-  {
-    selector: "0x13bf4fdb",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x6807b478",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x96cbb0db",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-  {
-    selector: "0x7e551aee",
-    requiredRole:
-      "0x0000000000000000000000000000000000000000000000000000000000000001",
-  },
-];
 
 async function main() {
   console.log(`Using ${boombotseth.address} as boombotseth`);
@@ -414,8 +287,7 @@ async function agentRegistrySetOperators() {
 // concentratedLiquidityAgentFactory
 
 async function postConcentratedLiquidityAccountCreationSettings() {
-  console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
-
+  // assemble expected settings
   let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
   let overrides = [
     {
@@ -434,18 +306,35 @@ async function postConcentratedLiquidityAccountCreationSettings() {
   let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
   let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
-
-  let settings1 = {
+  let expectedSettings = {
     strategyAccountImpl: strategyAccountImpl.address,
     explorerAccountImpl: explorerAccountImpl.address,
     strategyInitializationCall: multicallCalldata,
     explorerInitializationCall: blastConfigureCalldata,
     isActive: true,
   }
-  let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(settings1, networkSettings.overrides)
-  let receipt = await tx.wait(networkSettings.confirmations)
+  // fetch current settings
+  let currentSettings = await concentratedLiquidityAgentFactory.getAgentCreationSettings()
+  // compare
+  let isDiff = (
+    expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
+    expectedSettings.explorerAccountImpl != currentSettings.explorerAccountImpl_ ||
+    expectedSettings.strategyInitializationCall != currentSettings.strategyInitializationCall_ ||
+    expectedSettings.explorerInitializationCall != currentSettings.explorerInitializationCall_ ||
+    expectedSettings.isActive != currentSettings.isActive_
+  )
+  // only post if necessary
+  if(isDiff) {
+    console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
 
-  console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let receipt = await tx.wait(networkSettings.confirmations)
+
+    console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
+  else {
+    //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
 }
 
 
