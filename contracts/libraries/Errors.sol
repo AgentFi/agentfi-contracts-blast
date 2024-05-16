@@ -155,6 +155,7 @@ library Errors {
     error NoPositionFound(); // Throw if trying to operate on a position, but none exists
     error InvalidTickParam(); // Throw if tick params is invalid
     error InvalidSlippageParam(); // Throw if slippage params is invalid
+    error InvalidManagerParam(); // Throw if nfp manager param is invalid
 
     // processing errors
     /// @notice Thrown when processing an empty queue.

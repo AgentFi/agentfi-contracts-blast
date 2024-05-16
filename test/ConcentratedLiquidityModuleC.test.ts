@@ -15,7 +15,7 @@ import {
   BlastooorGenesisFactory,
   BlastooorStrategyAgents,
   BlastooorStrategyFactory,
-  ConcentratedLiquidityModuleC,
+  ConcentratedLiquidityHyperlockModuleC,
 } from "../typechain-types";
 
 import { deployContract } from "../scripts/utils/deployContract";
@@ -54,6 +54,9 @@ const permissions = Object.entries({
     "slot0()",
     "strategyType()",
     "tokenId()",
+
+    // Hyperlock only - This collides with dex balancer function
+    "hyperlockStaking()",
   ],
   // AgentFi + Owner
   [toBytes32(9)]: [
@@ -97,8 +100,9 @@ expect(functionParams).to.deep.equal(permissions);
 
 export async function fixtureSetup(
   moduleName:
-    | "ConcentratedLiquidityModuleC"
-    | "ConcentratedLiquidityGatewayModuleC",
+    | "ConcentratedLiquidityGatewayModuleC"
+    | "ConcentratedLiquidityHyperlockModuleC"
+    | "ConcentratedLiquidityModuleC",
 ) {
   const [deployer] = await ethers.getSigners();
   const blockNumber = 2178591;
@@ -401,7 +405,7 @@ export async function fixtureSetup(
     moduleName,
     strategyAgentAddress,
     signer,
-  )) as ConcentratedLiquidityModuleC;
+  )) as ConcentratedLiquidityHyperlockModuleC;
 
   const strategyAgent = await ethers.getContractAt(
     "BlastooorStrategyAgentAccountV2",
@@ -1106,6 +1110,55 @@ describe("ConcentratedLiquidityModuleC", function () {
   });
 
   describe("Partial Withdrawal test suite", () => {
+    it("Can decrease liquidity", async () => {
+      const { module } = await loadFixture(fixtureDeposited);
+
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("16983715425639545311351"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("0"),
+        tokensOwed1: BN.from("0"),
+      });
+
+      await module.moduleC_decreaseLiquidity({
+        liquidity: BN.from("16983715425639545311351").div(2),
+        amount0Min: 0,
+        amount1Min: 0,
+        deadline: (await provider.getBlock("latest")).timestamp + 1000,
+      });
+
+      expect(convertToStruct(await module.position())).to.deep.equal({
+        nonce: BN.from("0"),
+        operator: "0x0000000000000000000000000000000000000000",
+        token0: "0x4300000000000000000000000000000000000003",
+        token1: "0x4300000000000000000000000000000000000004",
+        fee: 3000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        liquidity: BN.from("8491857712819772655676"),
+        feeGrowthInside0LastX128: BN.from(
+          "223062771100361370800904183975351004548",
+        ),
+        feeGrowthInside1LastX128: BN.from(
+          "63771321919466126002465612072408134",
+        ),
+        tokensOwed0: BN.from("103256539414184987920806"),
+        tokensOwed1: BN.from("14816373630149509937"),
+      });
+    });
+
     it("Can reject with slippage", async () => {
       const { module } = await loadFixture(fixtureDeposited);
       expect(
