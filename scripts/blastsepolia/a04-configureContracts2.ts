@@ -360,7 +360,7 @@ async function addRebalancersToDispatcher() {
   for(let i = 0; i < numAccounts; i++) {
     // get hd wallet
     let path = `m/44'/60'/0'/0/${i}`
-    let acc = ethers.Wallet.fromMnemonic(process.env.REBALANCER_MNEMONIC, path).connect(provider)
+    let acc = ethers.Wallet.fromMnemonic(process.env.REBALANCER_MNEMONIC_BLAST_SEPOLIA, path).connect(provider)
     accounts.push({ eoaAccountIndex: i, address: acc.address })
     calls.push(dispatcherMC.isOperator(acc.address))
     calls.push(multicallForwarderMC.getEthBalance(acc.address))
@@ -368,7 +368,7 @@ async function addRebalancersToDispatcher() {
   let results = await multicallChunked(mcProvider, calls, "latest", 500)
 
   console.log(JSON.stringify({
-    mnemonic: process.env.REBALANCER_MNEMONIC,
+    mnemonic: process.env.REBALANCER_MNEMONIC_BLAST_SEPOLIA,
     accounts
   }, undefined, 2))
 

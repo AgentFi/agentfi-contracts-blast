@@ -10,7 +10,7 @@ const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const blasttestnetuser3 = new ethers.Wallet(accounts.blasttestnetuser3.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
+import { Agents, BlastooorAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -39,7 +39,7 @@ const GAS_COLLECTOR_ADDRESS           = "0x0311b9696907AdC2093448678cf080adA1368
 const BALANCE_FETCHER_ADDRESS         = "0xb646F462A89799d910b1dc330BA1DA9dE763c931"; // v0.1.3
 
 const AGENT_NFT_ADDRESS               = "0xA1E88Ac5DBA42116eDd02987aed8880AbA38d112"; // v0.1.3
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0xB51A0d4ea00AAf80B5A1d7bCf3e361BDe68EF7c8"; // v0.1.3
+const ACCOUNT_IMPL_BROKEN_ADDRESS     = "0xB51A0d4ea00AAf80B5A1d7bCf3e361BDe68EF7c8"; // v0.1.3
 
 const AGENT_FACTORY01_ADDRESS         = "0x9EDa22a1F7Df00A502D164986743933cF787d6Ae"; // v0.1.3
 const AGENT_FACTORY02_ADDRESS         = "0x3D6B33A07629D3E120c06419c11b8A1F8714ec40"; // v0.1.3
@@ -97,7 +97,7 @@ async function main() {
   }
   if(!isChain(168587773, "blastsepolia")) throw("Only run this on Blast Sepolia. Cannot use a local fork");
 
-  accountProxy5 = await ethers.getContractAt("BlastAgentAccountRingProtocolC", agentAddress5, agentOwner);
+  accountProxy5 = await ethers.getContractAt("BlastooorAgentAccountRingProtocolC", agentAddress5, agentOwner);
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentOwner) as IBlast;
   balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentOwner) as BalanceFetcher;
 
