@@ -76,7 +76,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Address for the NonfungiblePositionManager
-    function manager() public view returns (address manager_) {
+    function manager() public view virtual returns (address manager_) {
         manager_ = concentratedLiquidityModuleCStorage().manager;
     }
 
@@ -160,7 +160,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /// @return amount1 The amount of token1
     function moduleC_mint(
         MintParams memory params
-    ) public payable returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) public payable virtual returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
         if (params.tickLower >= params.tickUpper) revert Errors.InvalidTickParam();
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         if (state.tokenId != 0) revert Errors.PositionAlreadyExists();
@@ -244,7 +244,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     function moduleC_decreaseLiquidity(
         DecreaseLiquidityParams memory params
-    ) public payable returns (uint256 amount0, uint256 amount1) {
+    ) public payable virtual returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         if (state.tokenId == 0) revert Errors.NoPositionFound();
@@ -266,7 +266,9 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 amount1Max;
     }
 
-    function moduleC_collect(CollectParams memory params) public payable returns (uint256 amount0, uint256 amount1) {
+    function moduleC_collect(
+        CollectParams memory params
+    ) public payable virtual returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         if (state.tokenId == 0) revert Errors.NoPositionFound();
@@ -281,7 +283,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    function moduleC_burn() public payable {
+    function moduleC_burn() public payable virtual {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         if (state.tokenId == 0) revert Errors.NoPositionFound();
 
