@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.24;
 
-
 /// @title Router token swapping functionality
 /// @notice Functions for swapping tokens via Thruster CLMM
 interface ISwapRouter {
-
     struct ExactInputSingleParams {
         address tokenIn;
         address tokenOut;
@@ -47,4 +45,8 @@ interface ISwapRouter {
     /// @param params The parameters necessary for the multi-hop swap, encoded as `ExactOutputParams` in calldata
     /// @return amountIn The amount of the input token
     function exactOutput(ExactOutputParams calldata params) external payable returns (uint256 amountIn);
+
+    /// @notice The contract that deployed the pool, which must adhere to the IThrusterPoolFactory interface
+    /// @return The contract address
+    function factory() external view returns (address);
 }

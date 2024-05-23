@@ -39,6 +39,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: process.env.FORK_NETWORK ? forking : undefined,
       //hardfork: "merge",
+      chainId: Number(process.env.HARDHAT_CHAIN_ID ?? 31337),
       //allowUnlimitedContractSize: true,
       //chainId: 31337,
       //chainId: 168587773

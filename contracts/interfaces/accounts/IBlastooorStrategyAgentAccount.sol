@@ -137,7 +137,7 @@ interface IBlastooorStrategyAgentAccount {
      * @param data A list of function calls to execute.
      * @return results The results of each function call.
      */
-    function multicall(bytes[] calldata data) external returns (bytes[] memory results);
+    function multicall(bytes[] calldata data) external payable returns (bytes[] memory results);
 
     /***************************************
     GAS REWARD CLAIM FUNCTIONS

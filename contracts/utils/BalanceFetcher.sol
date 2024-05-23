@@ -55,7 +55,7 @@ contract BalanceFetcher is IBalanceFetcher, Blastable, Ownable2Step, Multicall {
             else balances[i] = IERC20(token).balanceOf(account);
         }
     }
- 
+
     /**
      * @notice Given an account and a list of nft contracts and tokens, returns all agents under that account
      * @param account The account to query.

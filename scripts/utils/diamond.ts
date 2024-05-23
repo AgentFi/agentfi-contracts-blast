@@ -83,10 +83,12 @@ export const findAddressPositionInFacets = (facetAddress:string, facets:any) => 
   }
 }
 
-function calcSighash(funcSig:string) {
-  //console.log(ethers.utils.id(''))
-  // owner() -> 0x08c379a0
-  return ethers.utils.id(funcSig).substring(0, 10)
+function calcSighash(funcSig:string, log=false) {
+  let sighash = ethers.utils.id(funcSig).substring(0, 10)
+  if(log) {
+    console.log(`calcSighash(${funcSig}) -> ${sighash}`)
+  }
+  return sighash
 }
 
 function calcSighashes(contract:any, contractName="", debugMode=false) {

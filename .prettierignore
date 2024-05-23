@@ -1,0 +1,35 @@
+# We want to ignore everything but specific files. A bit hacky to get a specific file deeply nexted
+/*
+
+
+# ====
+!/contracts/
+/contracts/*
+!/contracts/modules/
+/contracts/modules/*
+!/contracts/modules/ConcentratedLiquidityModuleC.sol
+!/contracts/modules/ConcentratedLiquidityGatewayModuleC.sol
+!/contracts/modules/ConcentratedLiquidityHyperlockModuleC.sol
+
+!/contracts/interfaces/
+/contracts/interfaces/*
+!/contracts/interfaces/external
+/contracts/interfaces/external/*
+!/contracts/interfaces/external/Hyperlock
+/contracts/interfaces/external/Hyperlock/*
+!/contracts/interfaces/external/Hyperlock/IERC721PointDeposits.sol
+
+!/scripts/
+/scripts/*
+!/scripts/utils/
+!/scripts/configuration
+/scripts/utils/*
+!/scripts/utils/v3.ts
+
+# ====
+!/test/
+/test/*
+!/test/ConcentratedLiquidityModuleC.test.ts
+!/test/ConcentratedLiquidityGatewayModuleC.test.ts
+!/test/ConcentratedLiquidityHyperlockModuleC.test.ts
+!/test/v3.test.ts

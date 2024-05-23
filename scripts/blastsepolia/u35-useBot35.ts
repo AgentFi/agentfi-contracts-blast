@@ -9,7 +9,7 @@ const accounts = JSON.parse(process.env.ACCOUNTS || "{}");
 const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const blasttestnetuser3 = new ethers.Wallet(accounts.blasttestnetuser3.key, provider);
 
-import { Agents, BlastAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
+import { Agents, BlastooorAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";

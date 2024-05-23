@@ -46,7 +46,7 @@ const AGENT_REGISTRY_ADDRESS          = "0x40473B0D0cDa8DF6F73bFa0b5D35c2f701eCf
 const STRATEGY_COLLECTION_ADDRESS     = "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"; // v1.0.1
 const STRATEGY_FACTORY_ADDRESS        = "0x9578850dEeC9223Ba1F05aae1c998DD819c7520B"; // v1.0.1
 const STRATEGY_ACCOUNT_IMPL_V1_ADDRESS   = "0xb64763516040409536D85451E423e444528d66ff"; // v1.0.1
-const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x220668Aa522074E93A64a74f40Aff5fce198720f"; // v1.0.2
+const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x22ff0d4B6b634A8Fa58B415E13bafa51FC0c80B8"; // v1.0.2
 
 const DISPATCHER_ADDRESS              = "0x1523e29DbfDb7655A8358429F127cF4ea9c601Fd"; // v1.0.1
 
@@ -280,7 +280,7 @@ async function deployBlastooorStrategyAgentAccountV2() {
     let args = [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero];
     strategyAccountImplV2 = await deployContractUsingContractFactory(agentfideployer, "BlastooorStrategyAgentAccountV2", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as BlastooorStrategyAgentAccountV2;
     console.log(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}`);
-    contractsToVerify.push({ address: strategyAccountImplV2.address, args })
+    contractsToVerify.push({ address: strategyAccountImplV2.address, args, contractName: "contracts/accounts/BlastooorStrategyAgentAccountV2.sol:BlastooorStrategyAgentAccountV2" })
     if(!!STRATEGY_ACCOUNT_IMPL_V2_ADDRESS && strategyAccountImplV2.address != STRATEGY_ACCOUNT_IMPL_V2_ADDRESS) throw new Error(`Deployed BlastooorStrategyAgentAccountV2 to ${strategyAccountImplV2.address}, expected ${STRATEGY_ACCOUNT_IMPL_V2_ADDRESS}`)
   }
 }
@@ -324,8 +324,8 @@ async function verifyContracts() {
 
 function logAddresses() {
   console.log("");
-  console.log("| Contract Name                    | Address                                      |");
-  console.log("|----------------------------------|----------------------------------------------|");
+  console.log("| Contract Name                        | Address                                      |");
+  console.log("|--------------------------------------|----------------------------------------------|");
   logContractAddress("ERC6551Registry", ERC6551_REGISTRY_ADDRESS);
   logContractAddress("ContractFactory", contractFactory.address);
   logContractAddress("GasCollector", gasCollector.address);

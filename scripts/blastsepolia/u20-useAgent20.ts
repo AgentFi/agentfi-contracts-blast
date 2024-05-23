@@ -10,7 +10,7 @@ const boombotseth = new ethers.Wallet(accounts.boombotseth.key, provider);
 const blasttestnetuser3 = new ethers.Wallet(accounts.blasttestnetuser3.key, provider);
 const agentfideployer = new ethers.Wallet(accounts.agentfideployer.key, provider);
 
-import { Agents, BlastAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
+import { Agents, BlastooorAgentAccount, ModulePack100, AgentFactory01, AgentFactory02, IBlast, BalanceFetcher, MockERC20 } from "../../typechain-types";
 
 import { delay } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
@@ -45,7 +45,7 @@ const AGENT_FACTORY01_ADDRESS         = "0x66458d8cE1238C7C7818e7988974F0bd5B373
 const AGENT_FACTORY02_ADDRESS         = "0x59c11B12a2D11810d1ca4afDc21a9Fc837193f41"; // v0.1.3
 const AGENT_FACTORY03_ADDRESS         = "0x3c12E9F1FC3C3211B598aD176385939Ea01deA89"; // v0.1.3
 
-const ACCOUNT_IMPL_BASE_ADDRESS       = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
+const ACCOUNT_IMPL_BROKEN_ADDRESS     = "0x25a9aD7766D2857E4EB320a9557F637Bd748b97c"; // v0.1.3
 const ACCOUNT_IMPL_RING_C_ADDRESS     = "0xeb61E6600f87c07EB40C735B0DF0aedf899C24F6"; // v0.1.3
 const ACCOUNT_IMPL_RING_D_ADDRESS     = "0xD9F32ab36bCB6dD3005038DeB53f9ed742947b64"; // v0.1.3
 const ACCOUNT_IMPL_THRUSTER_A_ADDRESS = "0xC33F80Ca19c8Cbc55837F4B6c6EC5C3FE7c4400f"; // v0.1.5
@@ -101,11 +101,11 @@ let agentNftMC: any;
 let factory01: AgentFactory01;
 let factory02: AgentFactory02;
 let factory03: AgentFactory02;
-let accountImplBase: BlastAgentAccount; // the base implementation for agentfi accounts
-let accountImplRingC: BlastAgentAccountRingProtocolC;
-let accountImplRingD: BlastAgentAccountRingProtocolD;
-let accountImplThrusterA: BlastAgentAccountThrusterA;
-let accountImplBasketA: BlastAgentAccountBasketA;
+let accountImplBase: BlastooorAgentAccount; // the base implementation for agentfi accounts
+let accountImplRingC: BlastooorAgentAccountRingProtocolC;
+let accountImplRingD: BlastooorAgentAccountRingProtocolD;
+let accountImplThrusterA: BlastooorAgentAccountThrusterA;
+let accountImplBasketA: BlastooorAgentAccountBasketA;
 
 let weth: MockERC20;
 let usdc: MockERC20;
@@ -156,10 +156,10 @@ async function main() {
   agentNft = await ethers.getContractAt("Agents", AGENT_NFT_ADDRESS, boombotseth) as Agents;
   //agentNftMC = new MulticallContract(AGENT_NFT_ADDRESS, ABI_AGENTS_NFT)
 
-  accountProxy20 = await ethers.getContractAt("BlastAgentAccount", agentAddress20, agentOwner20);
-  accountProxy21 = await ethers.getContractAt("BlastAgentAccountBasketA", agentAddress21, agentOwner20);
-  accountProxy22 = await ethers.getContractAt("BlastAgentAccountRingProtocolD", agentAddress22, agentOwner20);
-  accountProxy23 = await ethers.getContractAt("BlastAgentAccountThrusterA", agentAddress23, agentOwner20);
+  accountProxy20 = await ethers.getContractAt("BlastooorAgentAccount", agentAddress20, agentOwner20);
+  accountProxy21 = await ethers.getContractAt("BlastooorAgentAccountBasketA", agentAddress21, agentOwner20);
+  accountProxy22 = await ethers.getContractAt("BlastooorAgentAccountRingProtocolD", agentAddress22, agentOwner20);
+  accountProxy23 = await ethers.getContractAt("BlastooorAgentAccountThrusterA", agentAddress23, agentOwner20);
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   balanceFetcher = await ethers.getContractAt("BalanceFetcher", BALANCE_FETCHER_ADDRESS, agentfideployer) as BalanceFetcher;

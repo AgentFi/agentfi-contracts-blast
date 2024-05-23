@@ -70,8 +70,8 @@ library Errors {
     error AgentDoesNotExist();
     /// @notice Thrown when transferring an agent nft to the agent account.
     error OwnershipCycle();
-    /// @notice Thrown when calling a function that is reserved for agents only.
-    //error CallerIsNotAnAgent();
+    /// @notice Thrown when referrencing an account that is not an agent.
+    error NotAnAgent();
 
     // agent creation errors
     /// @notice Thrown when attempting to create an agent from an account that is not whitelisted.
@@ -149,6 +149,13 @@ library Errors {
     error InvalidMulticallForwarder();
     error InvalidERC6551Registry();
     error InvalidSender();
+
+    //ModuleC Errors
+    error PositionAlreadyExists(); // Throw if trying to create a position, but one exists
+    error NoPositionFound(); // Throw if trying to operate on a position, but none exists
+    error InvalidTickParam(); // Throw if tick params is invalid
+    error InvalidSlippageParam(); // Throw if slippage params is invalid
+    error InvalidManagerParam(); // Throw if nfp manager param is invalid
 
     // processing errors
     /// @notice Thrown when processing an empty queue.

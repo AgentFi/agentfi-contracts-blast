@@ -6,5 +6,5 @@ export function expandStr(str: String, len: number) {
 }
 
 export function logContractAddress(contractName: String, address: String) {
-  console.log(`| ${expandStr(contractName,32)} | \`${expandStr(address,42)}\` |`)
+  console.log(`| ${expandStr(contractName,36)} | \`${expandStr(address,42)}\` |`)
 }

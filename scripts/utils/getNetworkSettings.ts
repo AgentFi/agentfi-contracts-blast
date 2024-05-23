@@ -46,8 +46,9 @@ export function getNetworkSettings(chainID: number) {
     //[8453]: {},//{maxFeePerGas: 100, maxPriorityFeePerGas: 90},
     [8453]: {maxFeePerGas: 800, maxPriorityFeePerGas: 100},
     [84531]: {},//{maxFeePerGas: 100, maxPriorityFeePerGas: 90},
-    [81457]: {maxFeePerGas: ONE_GWEI/10000, maxPriorityFeePerGas: ONE_GWEI/100000},
-    [168587773]: {},
+    //[81457]: {maxFeePerGas: ONE_GWEI/10000, maxPriorityFeePerGas: ONE_GWEI/100000},
+    [81457]: {maxFeePerGas: ONE_GWEI*7/10000, maxPriorityFeePerGas: ONE_GWEI/100000},
+    [168587773]: {maxFeePerGas: 500, maxPriorityFeePerGas: 50},
     [31337]: {},
   };
   let overrides = OVERRIDES.hasOwnProperty(chainID) ? OVERRIDES[chainID] : {};

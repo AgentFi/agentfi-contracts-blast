@@ -119,3 +119,19 @@ export function formatPPM(ppm:BigNumberish) {
   return `${L}.${R}%`;
 }
 exports.formatPPM = formatPPM
+
+// used to format dollar values
+export function formatNumber2(num:number) {
+  let s = num.toLocaleString('en-us')
+  if(num >= 0.01) {
+    let i = s.indexOf('.')
+    if(i >= 0) {
+      s += '00'
+      s = s.substring(0, i+3)
+    }
+    else s += '.00'
+  }
+  if(s.indexOf('.') == -1) s += '.00'
+  return s
+}
+exports.formatNumber2 = formatNumber2

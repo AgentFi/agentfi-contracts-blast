@@ -25,7 +25,7 @@ import { Ownable2Step } from "./../utils/Ownable2Step.sol";
  *
  * The list of factories can be queried via [`factoryIsWhitelisted()`](#factoryiswhitelisted) and maintained by the contract owner via [`setWhitelist()`](#setwhitelist).
  *
- * Agents are ERC721s with the enumerable extension. Additional information about each agent can be queried via [`getAgentInfo()`](#getagentinfo) and [`exists()`](#exists).
+ * Agents are ERC721s with the enumerable, metadata, and exists extensions. Info about the associated TBAs is stored in this contract and can be queried via [`getAgentInfo()`](#getagentinfo).
  */
 contract BlastooorGenesisAgents is IBlastooorGenesisAgents, ERC721Enumerable, Blastable, Ownable2Step, Multicall {
 

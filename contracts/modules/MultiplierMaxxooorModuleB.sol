@@ -2,6 +2,7 @@
 pragma solidity 0.8.24;
 
 import { Blastable } from "./../utils/Blastable.sol";
+import { IMultiplierMaxxooorModuleB } from "./../interfaces/modules/IMultiplierMaxxooorModuleB.sol";
 
 
 /**
@@ -9,7 +10,7 @@ import { Blastable } from "./../utils/Blastable.sol";
  * @author AgentFi
  * @notice A module used in the Multiplier Maxxooor Strategy.
  */
-contract MultiplierMaxxooorModuleB is Blastable {
+contract MultiplierMaxxooorModuleB is Blastable, IMultiplierMaxxooorModuleB {
 
     /***************************************
     CONSTRUCTOR
@@ -33,11 +34,11 @@ contract MultiplierMaxxooorModuleB is Blastable {
     VIEW FUNCTIONS
     ***************************************/
 
-    function moduleName() external pure returns (string memory name_) {
+    function moduleName() external pure override returns (string memory name_) {
         name_ = "MultiplierMaxxooorModuleB";
     }
 
-    function strategyType() external pure returns (string memory type_) {
+    function strategyType() external pure override returns (string memory type_) {
         type_ = "Multiplier Maxxooor";
     }
 }
