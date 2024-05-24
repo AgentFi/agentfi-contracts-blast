@@ -10,11 +10,6 @@ import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
 import { IWrapMintV2 } from "./../interfaces/external/Duo/IWrapMintV2.sol";
 import { IOErc20Delegator } from "./../interfaces/external/Orbit/IOErc20Delegator.sol";
 import { IOrbitSpaceStationV4 } from "./../interfaces/external/Orbit/IOrbitSpaceStationV4.sol";
-//import { IThrusterRouter } from "./../interfaces/external/Thruster/IThrusterRouter.sol";
-//import { IHyperlockStaking } from "./../interfaces/external/Hyperlock/IHyperlockStaking.sol";
-//import { IRingSwapV2Router } from "./../interfaces/external/RingProtocol/IRingSwapV2Router.sol";
-//import { IFixedStakingRewards } from "./../interfaces/external/RingProtocol/IFixedStakingRewards.sol";
-//import { IBlasterswapV2Router02 } from "./../interfaces/external/Blaster/IBlasterswapV2Router02.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
 /**
@@ -26,21 +21,29 @@ import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
  */
 contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     /***************************************
+    State
+    ***************************************/
+    bytes32 private constant LOOPOOR_MODULED_STORAGE_POSITION = keccak256("agentfi.storage.loopoormoduleD");
+
+    struct LoopooorModuleDStorage {
+        address wrapMint;
+        address oToken;
+    }
+
+    function loopooorModuleDStorage() internal pure returns (LoopooorModuleDStorage storage s) {
+        bytes32 position_ = LOOPOOR_MODULED_STORAGE_POSITION;
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            s.slot := position_
+        }
+    }
+
+    /***************************************
     CONSTANTS
     ***************************************/
 
-    // tokens
-
     address internal constant _weth = 0x4300000000000000000000000000000000000004; // wrapped eth
     address internal constant _usdb = 0x4300000000000000000000000000000000000003;
-
-    address internal constant _odeth = 0xa3135b76c28b3971B703a5e6CD451531b187Eb5A; // orbit duo eth
-    address internal constant _wrapMintEth = 0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF;
-
-    // address internal constant _comptroller = 0xe9266ae95bB637A7Ad598CB0390d44262130F433;
-    // orbit
-    // deth
-    // dusd
 
     /***************************************
     CONSTRUCTOR
@@ -79,18 +82,34 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         usdb_ = _usdb;
     }
 
-    function comptroller() public view returns (address) {
-        return IOErc20Delegator(_odeth).comptroller();
+    function wrapMint() public view returns (address) {
+        return loopooorModuleDStorage().wrapMint;
+    }
+
+    function oToken() public view returns (IOErc20Delegator) {
+        return IOErc20Delegator(loopooorModuleDStorage().oToken);
+    }
+
+    function comptroller() public view returns (IOrbitSpaceStationV4) {
+        address oToken_ = loopooorModuleDStorage().oToken;
+        if (oToken_ == address(0)) {
+            return IOrbitSpaceStationV4(address(0));
+        }
+        return IOrbitSpaceStationV4(IOErc20Delegator(oToken_).comptroller());
     }
 
     function duoAsset() public view returns (address) {
-        return IOErc20Delegator(_odeth).underlying();
-        // Could also get from wrap_mintETH
+        address oToken_ = loopooorModuleDStorage().oToken;
+        if (oToken_ == address(0)) {
+            return address(0);
+        }
+        return IOErc20Delegator(oToken_).underlying();
     }
 
     /***************************************
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/
+
     function moduleD_mintVariableRateEth(
         address exchange,
         uint256 amountIn,
@@ -98,7 +117,8 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         bytes calldata data
     ) external payable returns (address variableRateContract, uint256 amountOut) {
         // IWrapMintV2 wrapper = IWrapMintV2(0x7B4b51b482e874B3109ba618B0CA9cc1A75210dF);
-        IWrapMintV2 wrapper = IWrapMintV2(_wrapMintEth);
+
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
 
         (variableRateContract, amountOut) = wrapper.mintVariableRateEth{ value: amountIn }(
             exchange,
@@ -114,10 +134,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         uint256 amount,
         uint256 minYield
     ) external returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
-        IWrapMintV2 wrapper = IWrapMintV2(_wrapMintEth);
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
         // IWrapMintV2 wrapper = IWrapMintV2(0x7B4b51b482e874B3109ba618B0CA9cc1A75210dF);
 
-        IERC20(duoAsset()).approve(_wrapMintEth, amount);
+        IERC20(duoAsset()).approve(wrapMint(), amount);
         return wrapper.burnVariableRate(variableRate, amount, minYield);
     }
 
@@ -125,37 +145,41 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     LOW LEVEL ORBITER MUTATOR FUNCTIONS
     ***************************************/
     function moduleD_borrow(uint borrowAmount) external returns (uint) {
-        IOErc20Delegator wrapper = IOErc20Delegator(_odeth);
-        return wrapper.borrow(borrowAmount);
+        return oToken().borrow(borrowAmount);
     }
 
     function moduleD_mint(uint mintAmount) public returns (uint) {
-        IERC20(duoAsset()).approve(_odeth, mintAmount);
-        IOErc20Delegator OToken = IOErc20Delegator(_odeth);
-        return OToken.mint(mintAmount);
+        IOErc20Delegator oToken_ = oToken();
+        IERC20(duoAsset()).approve(address(oToken_), mintAmount);
+        return oToken_.mint(mintAmount);
     }
 
     function moduleD_repayBorrow(uint repayAmount) public returns (uint) {
-        IERC20(duoAsset()).approve(_odeth, repayAmount);
-        IOErc20Delegator OToken = IOErc20Delegator(_odeth);
-        return OToken.repayBorrow(repayAmount);
+        IOErc20Delegator oToken_ = oToken();
+        IERC20(duoAsset()).approve(address(oToken_), repayAmount);
+        return oToken_.repayBorrow(repayAmount);
     }
 
     function moduleD_redeem(uint redeemTokens) public returns (uint) {
-        IERC20(_odeth).approve(_odeth, redeemTokens);
-        IOErc20Delegator OToken = IOErc20Delegator(_odeth);
-        return OToken.redeem(redeemTokens);
+        IOErc20Delegator oToken_ = IOErc20Delegator(oToken());
+        IERC20(address(oToken_)).approve(address(oToken_), redeemTokens);
+        return oToken_.redeem(redeemTokens);
     }
 
     function moduleD_enterMarkets(address[] memory oTokens) public returns (uint[] memory) {
-        IOrbitSpaceStationV4 _comptroller = IOrbitSpaceStationV4(comptroller());
-
-        return _comptroller.enterMarkets(oTokens);
+        return comptroller().enterMarkets(oTokens);
     }
 
     /***************************************
     HIGH LEVEL AGENT MUTATOR FUNCTIONS
     ***************************************/
+
+    function moduleD_initialize(address wrapMint_, address oToken_) external {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        if (state.wrapMint != address(0) || state.oToken != address(0)) revert Errors.AlreadyInitialized();
+        state.wrapMint = wrapMint_;
+        state.oToken = oToken_;
+    }
 
     function moduleD_depositBalance(MintParams memory params) external payable override {
         _depositBalance();

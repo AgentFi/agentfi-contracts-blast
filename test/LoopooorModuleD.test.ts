@@ -26,13 +26,20 @@ import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/Blas
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
 /* prettier-ignore */ const BLAST_POINTS_OPERATOR_ADDRESS = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
+/* prettier-ignore */ const COMPTROLLER_ADDRESS           = "0xe9266ae95bB637A7Ad598CB0390d44262130F433";
+/* prettier-ignore */ const DETH_ADDRESS                  = "0x1Da40C742F32bBEe81694051c0eE07485fC630f6";
+/* prettier-ignore */ const DUSDB_ADDRESS                 = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
 /* prettier-ignore */ const ENTRY_POINT_ADDRESS           = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 /* prettier-ignore */ const ERC6551_REGISTRY_ADDRESS      = "0x000000006551c19487814612e58FE06813775758";
+/* prettier-ignore */ const ODETH_ADDRESS                 = "0xa3135b76c28b3971B703a5e6CD451531b187Eb5A";
+/* prettier-ignore */ const ODUSDB_ADDRESS                = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 /* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
+/* prettier-ignore */ const WRAPMINT_ETH_ADDRESS          = "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF";
+/* prettier-ignore */ const WRAPMINT_USDB_ADDRESS         = "0xf2050acF080EE59300E3C0782B87f54FDf312525";
 
 /* prettier-ignore */ const OWNER_ADDRESS                 = "0xA214a4fc09C42202C404E2976c50373fE5F5B789";
 /* prettier-ignore */ const USER_ADDRESS                  = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
@@ -40,17 +47,21 @@ import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/Blas
 const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
-    "moduleName()",
-    "strategyType()",
-    "duoAsset()",
     "comptroller()",
+    "duoAsset()",
+    "moduleName()",
+    "oToken()",
+    "strategyType()",
+    "wrapMint()",
   ],
+
   // AgentFi + Owner
   [toBytes32(9)]: [
     "moduleD_borrow(uint256)",
     "moduleD_burnFixedRate(address,uint256)",
     "moduleD_burnVariableRate(address,uint256,uint256)",
     "moduleD_enterMarkets(address[])",
+    "moduleD_initialize(address,address)",
     "moduleD_mint(uint256)",
     "moduleD_mintVariableRateEth(address,uint256,uint256,bytes)",
     "moduleD_redeem(uint256)",
@@ -279,7 +290,7 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
     BLAST_POINTS_OPERATOR_ADDRESS,
   ]);
 
-  console.log(Object.keys(module.functions).filter((x) => x.includes("(")));
+  // console.log(Object.keys(module.functions).filter((x) => x.includes("(")));
 
   const overrides = [
     {
@@ -423,135 +434,202 @@ describe("LoopoorModuleD", function () {
 
     return fixture;
   }
-
-  it("View initial state", async function () {
+  it("View uninitialized state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
     expect(await module.strategyType()).to.equal("Loopooor");
     expect(await module.moduleName()).to.equal("LoopooorModuleD");
+
+    expect(await module.oToken()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
+    expect(await module.wrapMint()).to.equal(
+      "0x0000000000000000000000000000000000000000",
+    );
     expect(await module.comptroller()).to.equal(
-      "0xe9266ae95bB637A7Ad598CB0390d44262130F433",
+      "0x0000000000000000000000000000000000000000",
     );
     expect(await module.duoAsset()).to.equal(
-      "0x1Da40C742F32bBEe81694051c0eE07485fC630f6",
+      "0x0000000000000000000000000000000000000000",
     );
   });
 
-  const ODETH_ADDRESS = "0xa3135b76c28b3971B703a5e6CD451531b187Eb5A";
-  const DETH_ADDRESS = "0x1da40c742f32bbee81694051c0ee07485fc630f6";
-  const SPACE_STATION_ADDRESS = "0xe9266ae95bB637A7Ad598CB0390d44262130F433";
+  describe("USDB Configuration", () => {
+    async function fixtureInitialized() {
+      const fixture = await fixtureDeployed();
 
-  it("Can enter market", async function () {
-    const { module } = await loadFixture(fixtureDeployed);
+      await fixture.module.moduleD_initialize(
+        WRAPMINT_USDB_ADDRESS,
+        ODUSDB_ADDRESS,
+      );
+      return fixture;
+    }
+    it("Can view state after initialize", async function () {
+      const { module } = await loadFixture(fixtureInitialized);
 
-    const SPACE_STATION = await ethers.getContractAt(
-      "IOrbitSpaceStationV4",
-      SPACE_STATION_ADDRESS,
-    );
+      expect(await module.oToken()).to.equal(ODUSDB_ADDRESS);
+      expect(await module.wrapMint()).to.equal(WRAPMINT_USDB_ADDRESS);
+      expect(await module.comptroller()).to.equal(COMPTROLLER_ADDRESS);
+      expect(await module.duoAsset()).to.equal(DUSDB_ADDRESS);
+    });
 
-    expect(
-      await SPACE_STATION.checkMembership(module.address, ODETH_ADDRESS),
-    ).to.equal(false);
+    it("Can enter market", async function () {
+      const { module } = await loadFixture(fixtureInitialized);
 
-    await module.moduleD_enterMarkets([ODETH_ADDRESS]).then((tx) => tx.wait());
+      const COMPTROLLER = await ethers.getContractAt(
+        "IOrbitSpaceStationV4",
+        COMPTROLLER_ADDRESS,
+      );
 
-    expect(
-      await SPACE_STATION.checkMembership(module.address, ODETH_ADDRESS),
-    ).to.equal(true);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+      ).to.equal(false);
+
+      await module
+        .moduleD_enterMarkets([ODUSDB_ADDRESS])
+        .then((tx) => tx.wait());
+
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+      ).to.equal(true);
+    });
+
+    it("Individual integrations for depositing USDB in boost yield", async function () {});
   });
 
-  it("Individual integrations for depositing ETH in boost yield", async function () {
-    const { module, WETH } = await loadFixture(fixtureDeployed);
+  describe("ETH Configuration", () => {
+    async function fixtureInitialized() {
+      const fixture = await fixtureDeployed();
 
-    const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
-    const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
+      await fixture.module.moduleD_initialize(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+      );
+      return fixture;
+    }
+    it("Can view state after initialize", async function () {
+      const { module } = await loadFixture(fixtureInitialized);
 
-    const wrapper = await ethers.getContractAt(
-      "IWrapMintV2",
-      "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF",
-    );
+      expect(await module.oToken()).to.equal(ODETH_ADDRESS);
+      expect(await module.wrapMint()).to.equal(WRAPMINT_ETH_ADDRESS);
+      expect(await module.comptroller()).to.equal(COMPTROLLER_ADDRESS);
+      expect(await module.duoAsset()).to.equal(DETH_ADDRESS);
+    });
 
-    // ===== Mint DETH
-    // This is the proxy contract where the principal is stored, we check we "guessed" the right one
-    const variableRateAddress = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
-    const mintTx = module.moduleD_mintVariableRateEth(
-      SWAP_ROUTER_ADDRESS,
-      parseEther("0.2"),
-      0,
-      toBytes32(0),
-      {
-        value: parseEther("0.2"),
-      },
-    );
+    it("Can enter market", async function () {
+      const { module } = await loadFixture(fixtureInitialized);
 
-    await expect(mintTx).to.changeTokenBalance(
-      DETH,
-      module.address,
-      parseEther("0.2"),
-    );
-    await expect(mintTx)
-      .to.emit(wrapper, "MintVariableRate")
-      .withArgs(variableRateAddress, module.address, parseEther("0.2"));
+      const COMPTROLLER = await ethers.getContractAt(
+        "IOrbitSpaceStationV4",
+        COMPTROLLER_ADDRESS,
+      );
 
-    // ===== Supply, minting oDETH
-    const supplyTx = module.moduleD_mint(parseEther("0.1"));
-    await expect(supplyTx).to.changeTokenBalance(
-      ODETH,
-      module.address,
-      parseEther("499.999985204947937787"),
-    );
-    await expect(supplyTx).to.changeTokenBalance(
-      DETH,
-      module.address,
-      parseEther("-0.1"),
-    );
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(false);
 
-    // Enable as collateral
-    await module.moduleD_enterMarkets([ODETH_ADDRESS]);
+      await module
+        .moduleD_enterMarkets([ODETH_ADDRESS])
+        .then((tx) => tx.wait());
 
-    // ======= Borrow
-    await expect(
-      module.moduleD_borrow(parseEther("0.05")),
-    ).to.changeTokenBalance(DETH, module.address, parseEther("0.05"));
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+    });
 
-    // == Repay borrow
-    await expect(
-      module.moduleD_repayBorrow(ethers.constants.MaxUint256),
-    ).to.changeTokenBalance(
-      DETH,
-      module.address,
-      parseEther("-0.050000000004818234"),
-    );
+    it("Individual integrations for depositing ETH in boost yield", async function () {
+      const { module, WETH } = await loadFixture(fixtureInitialized);
 
-    // == Redeem
-    const withdrawalTx = module.moduleD_redeem(
-      await ODETH.balanceOf(module.address),
-    );
-    await expect(withdrawalTx).to.changeTokenBalance(
-      ODETH,
-      module.address,
-      parseEther("-499.999985204947937787"),
-    );
-    await expect(withdrawalTx).to.changeTokenBalance(
-      DETH,
-      module.address,
-      parseEther("0.100000000000374499"),
-    );
+      const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
+      const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
 
-    // == Burn
-    const burnTx = module.moduleD_burnVariableRate(
-      variableRateAddress,
-      await DETH.balanceOf(module.address),
-      0,
-    );
-    await expect(burnTx).to.changeTokenBalance(
-      DETH,
-      module.address,
-      parseEther("-0.199999999995556265"),
-    );
-    await expect(burnTx).to.changeTokenBalance(
-      WETH,
-      module.address,
-      parseEther("0.200000004101846585"),
-    );
+      const wrapper = await ethers.getContractAt(
+        "IWrapMintV2",
+        WRAPMINT_ETH_ADDRESS,
+      );
+
+      // ===== Mint DETH
+      // This is the proxy contract where the principal is stored, we check we "guessed" the right one
+      const variableRateAddress = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
+      const mintTx = module.moduleD_mintVariableRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.2"),
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.2"),
+        },
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.2"),
+      );
+      await expect(mintTx)
+        .to.emit(wrapper, "MintVariableRate")
+        .withArgs(variableRateAddress, module.address, parseEther("0.2"));
+
+      // ===== Supply, minting oDETH
+      const supplyTx = module.moduleD_mint(parseEther("0.1"));
+      await expect(supplyTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("499.999985204480437814"),
+      );
+      await expect(supplyTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.1"),
+      );
+
+      // Enable as collateral
+      await module.moduleD_enterMarkets([ODETH_ADDRESS]);
+
+      // ======= Borrow
+      await expect(
+        module.moduleD_borrow(parseEther("0.05")),
+      ).to.changeTokenBalance(DETH, module.address, parseEther("0.05"));
+
+      // == Repay borrow
+      await expect(
+        module.moduleD_repayBorrow(ethers.constants.MaxUint256),
+      ).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.050000000004818234"),
+      );
+
+      // == Redeem
+      const withdrawalTx = module.moduleD_redeem(
+        await ODETH.balanceOf(module.address),
+      );
+      await expect(withdrawalTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("-499.999985204480437814"),
+      );
+      await expect(withdrawalTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.100000000000374499"),
+      );
+
+      // == Burn
+      const burnTx = module.moduleD_burnVariableRate(
+        variableRateAddress,
+        await DETH.balanceOf(module.address),
+        0,
+      );
+      await expect(burnTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.199999999995556265"),
+      );
+      await expect(burnTx).to.changeTokenBalance(
+        WETH,
+        module.address,
+        parseEther("0.200000004101846116"),
+      );
+    });
   });
 });
