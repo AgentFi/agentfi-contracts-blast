@@ -10,14 +10,17 @@
 !/contracts/modules/ConcentratedLiquidityModuleC.sol
 !/contracts/modules/ConcentratedLiquidityGatewayModuleC.sol
 !/contracts/modules/ConcentratedLiquidityHyperlockModuleC.sol
+!/contracts/modules/LoopooorModuleD.sol
 
 !/contracts/interfaces/
 /contracts/interfaces/*
 !/contracts/interfaces/external
 /contracts/interfaces/external/*
+!/contracts/interfaces/external/Duo
 !/contracts/interfaces/external/Hyperlock
 /contracts/interfaces/external/Hyperlock/*
 !/contracts/interfaces/external/Hyperlock/IERC721PointDeposits.sol
+!/contracts/interfaces/external/Orbit
 
 !/scripts/
 /scripts/*
@@ -32,4 +35,5 @@
 !/test/ConcentratedLiquidityModuleC.test.ts
 !/test/ConcentratedLiquidityGatewayModuleC.test.ts
 !/test/ConcentratedLiquidityHyperlockModuleC.test.ts
+!/test/LoopooorModuleD.test.ts
 !/test/v3.test.ts
