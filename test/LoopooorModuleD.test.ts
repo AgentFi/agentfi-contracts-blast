@@ -60,12 +60,14 @@ const permissions = Object.entries({
     "moduleD_borrow(uint256)",
     "moduleD_burnFixedRate(address,uint256)",
     "moduleD_burnVariableRate(address,uint256,uint256)",
+    "moduleD_depositBalance(uint256)",
     "moduleD_enterMarkets(address[])",
     "moduleD_initialize(address,address)",
     "moduleD_mint(uint256)",
     "moduleD_mintVariableRateEth(address,uint256,uint256,bytes)",
     "moduleD_redeem(uint256)",
     "moduleD_repayBorrow(uint256)",
+    "moduleD_withdrawBalance()",
   ],
 
   // Owner Only:
@@ -432,7 +434,14 @@ describe("LoopoorModuleD", function () {
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("LoopooorModuleD");
 
-    return fixture;
+    const COMPTROLLER = await ethers.getContractAt(
+      "IOrbitSpaceStationV4",
+      COMPTROLLER_ADDRESS,
+    );
+    return {
+      ...fixture,
+      COMPTROLLER,
+    };
   }
   it("View uninitialized state", async function () {
     const { module } = await loadFixture(fixtureDeployed);
@@ -504,7 +513,13 @@ describe("LoopoorModuleD", function () {
         WRAPMINT_ETH_ADDRESS,
         ODETH_ADDRESS,
       );
-      return fixture;
+      const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
+      const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
+      return {
+        ...fixture,
+        DETH,
+        ODETH,
+      };
     }
     it("Can view state after initialize", async function () {
       const { module } = await loadFixture(fixtureInitialized);
@@ -516,12 +531,7 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Can enter market", async function () {
-      const { module } = await loadFixture(fixtureInitialized);
-
-      const COMPTROLLER = await ethers.getContractAt(
-        "IOrbitSpaceStationV4",
-        COMPTROLLER_ADDRESS,
-      );
+      const { module, COMPTROLLER } = await loadFixture(fixtureInitialized);
 
       expect(
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
@@ -537,10 +547,8 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Individual integrations for depositing ETH in boost yield", async function () {
-      const { module, WETH } = await loadFixture(fixtureInitialized);
-
-      const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
-      const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
+      const { module, WETH, ODETH, DETH } =
+        await loadFixture(fixtureInitialized);
 
       const wrapper = await ethers.getContractAt(
         "IWrapMintV2",
@@ -630,6 +638,58 @@ describe("LoopoorModuleD", function () {
         module.address,
         parseEther("0.200000004101846116"),
       );
+    });
+
+    it("Looped depositing ETH in boost yield", async function () {
+      const { module, ODETH, DETH, COMPTROLLER, WETH } =
+        await loadFixture(fixtureInitialized);
+
+      // Confirm Initial stage
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(false);
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0"),
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("1249.999962512369859241"),
+      );
+
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+
+      // ===== Do leverage burn
+      const burnTx = module.moduleD_withdrawBalance();
+
+      await expect(burnTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("-1249.999962512369859241"),
+      );
+
+      // parseEther("0.099999999985763471") <- DETH burned
+      await expect(burnTx).to.changeTokenBalance(
+        WETH,
+        module.address,
+        parseEther("0.100000001012336285"),
+      );
+
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
     });
   });
 });
