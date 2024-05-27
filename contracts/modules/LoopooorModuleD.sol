@@ -23,6 +23,11 @@ import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
  */
 // TODO:- Write interface
 contract LoopooorModuleD is Blastable {
+    enum MODE {
+        INITIAL, // Initial state
+        BOOST_POINTS, //Mint Fixed Rate
+        BOOST_YIELD // Mint Variable Rate
+    }
     /***************************************
     State
     ***************************************/
@@ -34,6 +39,7 @@ contract LoopooorModuleD is Blastable {
         address variableRateContract;
         address fixedRateContract;
         address underlying;
+        MODE mode;
     }
 
     function loopooorModuleDStorage() internal pure returns (LoopooorModuleDStorage storage s) {
@@ -87,6 +93,10 @@ contract LoopooorModuleD is Blastable {
     }
     function usdb() external pure returns (address usdb_) {
         usdb_ = _usdb;
+    }
+
+    function mode() public view returns (MODE) {
+        return loopooorModuleDStorage().mode;
     }
 
     function variableRateContract() public view returns (address) {
@@ -176,6 +186,7 @@ contract LoopooorModuleD is Blastable {
         // Save the variable rate contract address. Need this when burning
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.fixedRateContract = fixedRateContract_;
+        state.mode = MODE.BOOST_POINTS;
     }
 
     function moduleD_mintFixedRateEth(
@@ -197,8 +208,9 @@ contract LoopooorModuleD is Blastable {
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.fixedRateContract = fixedRateContract_;
-        // TODO:- Add refund (like underlying)
+        state.mode = MODE.BOOST_POINTS;
     }
+
     function moduleD_mintVariableRate(
         address exchange,
         address token,
@@ -214,6 +226,7 @@ contract LoopooorModuleD is Blastable {
         // Save the variable rate contract address. Need this when burning
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = variableRateContract_;
+        state.mode = MODE.BOOST_YIELD;
     }
 
     function moduleD_mintVariableRateEth(
@@ -233,6 +246,7 @@ contract LoopooorModuleD is Blastable {
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = variableRateContract_;
+        state.mode = MODE.BOOST_YIELD;
     }
 
     function moduleD_burnVariableRate(
@@ -246,6 +260,17 @@ contract LoopooorModuleD is Blastable {
         (yieldToUnlock, yieldToRelease) = wrapper.burnVariableRate(variableRate, amount, minYield);
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = address(0);
+    }
+    function moduleD_burnFixedRate(
+        address fixedRate,
+        uint256 amount
+    ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
+
+        IERC20(duoAsset()).approve(wrapMint(), amount);
+        (yieldToUnlock, yieldToRelease) = wrapper.burnFixedRate(fixedRate, amount);
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.fixedRateContract = address(0);
     }
 
     /***************************************
@@ -294,10 +319,11 @@ contract LoopooorModuleD is Blastable {
         moduleD_enterMarkets(oTokens);
     }
 
-    function moduleD_depositBalance(address token, uint256 leverage) external payable {
+    function moduleD_depositBalance(address token, MODE mode_, uint256 leverage) external payable {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         if (state.underlying != address(0)) revert Errors.PositionAlreadyExists();
         state.underlying = token;
+        state.mode = mode_;
 
         moduleD_enterMarket();
         if (token == _eth) {
@@ -308,7 +334,12 @@ contract LoopooorModuleD is Blastable {
         uint256 balance = IERC20(token).balanceOf(address(this));
         uint256 total = Math.mulDiv(balance, leverage, 10 ** 18);
 
-        moduleD_mintVariableRate(address(0), token, balance, 0, new bytes(0));
+        if (mode_ == MODE.BOOST_POINTS) {
+            moduleD_mintFixedRate(address(0), token, balance, 0, 0, new bytes(0));
+        }
+        if (mode_ == MODE.BOOST_YIELD) {
+            moduleD_mintVariableRate(address(0), token, balance, 0, new bytes(0));
+        }
         moduleD_mint(balance);
         total -= balance;
 
@@ -363,12 +394,22 @@ contract LoopooorModuleD is Blastable {
         moduleD_redeem(oToken_.balanceOf(address(this)));
 
         // Burn
-        moduleD_burnVariableRate(
-            loopooorModuleDStorage().variableRateContract,
-            IERC20(duoAsset()).balanceOf(address(this)),
-            0
-        );
+        MODE mode_ = mode();
+        if (mode_ == MODE.BOOST_POINTS) {
+            moduleD_burnFixedRate(
+                loopooorModuleDStorage().fixedRateContract,
+                IERC20(duoAsset()).balanceOf(address(this))
+            );
+        }
+        if (mode_ == MODE.BOOST_YIELD) {
+            moduleD_burnVariableRate(
+                loopooorModuleDStorage().variableRateContract,
+                IERC20(duoAsset()).balanceOf(address(this)),
+                0
+            );
+        }
 
+        // Unwrap if necesary
         if (underlying() == _eth) {
             uint256 balance = IERC20(_weth).balanceOf(address(this));
             IWETH(_weth).withdraw(balance);
@@ -388,44 +429,7 @@ contract LoopooorModuleD is Blastable {
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.underlying = address(0);
-    }
-
-    /***************************************
-    DEPOSIT FUNCTIONS
-    ***************************************/
-
-    /**
-     * @notice Deposits this contracts balance and loops.
-     */
-    function _depositBalance() internal {
-        // wrap eth
-        uint256 balance = address(this).balance;
-        if (balance > 0) Calls.sendValue(_weth, balance);
-        // deposit weth into deth
-        balance = IERC20(_weth).balanceOf(address(this));
-        if (balance > 0) {
-            //_checkApproval(_weth, _deth, balance);
-            // _deth.deposit()
-        }
-        // deposit deth
-        // ?
-        // deposit usdb into dusd
-        balance = IERC20(_usdb).balanceOf(address(this));
-        //if(balance > 0) // deposit into dusd
-        // deposit dusd
-        // ?
-    }
-
-    /***************************************
-    WITHDRAW FUNCTIONS
-    ***************************************/
-
-    /**
-     * @notice Withdraws from any loops.
-     * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
-     */
-    function _withdrawBalance() internal {
-        //
+        state.mode = MODE(0);
     }
 
     /***************************************
