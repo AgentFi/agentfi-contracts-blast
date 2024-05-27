@@ -33,6 +33,7 @@ contract LoopooorModuleD is Blastable {
         address oToken;
         address variableRateContract;
         address fixedRateContract;
+        address underlying;
     }
 
     function loopooorModuleDStorage() internal pure returns (LoopooorModuleDStorage storage s) {
@@ -47,6 +48,7 @@ contract LoopooorModuleD is Blastable {
     CONSTANTS
     ***************************************/
 
+    address internal constant _eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant _weth = 0x4300000000000000000000000000000000000004; // wrapped eth
     address internal constant _usdb = 0x4300000000000000000000000000000000000003;
 
@@ -89,6 +91,10 @@ contract LoopooorModuleD is Blastable {
 
     function variableRateContract() public view returns (address) {
         return loopooorModuleDStorage().variableRateContract;
+    }
+
+    function underlying() public view returns (address) {
+        return loopooorModuleDStorage().underlying;
     }
 
     function fixedRateContract() public view returns (address) {
@@ -211,10 +217,11 @@ contract LoopooorModuleD is Blastable {
         uint256 minYield
     ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
-        // IWrapMintV2 wrapper = IWrapMintV2(0x7B4b51b482e874B3109ba618B0CA9cc1A75210dF);
 
         IERC20(duoAsset()).approve(wrapMint(), amount);
-        return wrapper.burnVariableRate(variableRate, amount, minYield);
+        (yieldToUnlock, yieldToRelease) = wrapper.burnVariableRate(variableRate, amount, minYield);
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.variableRateContract = address(0);
     }
 
     /***************************************
@@ -263,13 +270,21 @@ contract LoopooorModuleD is Blastable {
         moduleD_enterMarkets(oTokens);
     }
 
-    function moduleD_depositBalance(uint256 leverage) external payable {
-        moduleD_enterMarket();
+    function moduleD_depositBalance(address token, uint256 leverage) external payable {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        if (state.underlying != address(0)) revert Errors.PositionAlreadyExists();
+        state.underlying = token;
 
-        uint256 balance = address(this).balance;
+        moduleD_enterMarket();
+        if (token == _eth) {
+            token = _weth;
+            Calls.sendValue(_weth, address(this).balance);
+        }
+
+        uint256 balance = IERC20(token).balanceOf(address(this));
         uint256 total = Math.mulDiv(balance, leverage, 10 ** 18);
 
-        moduleD_mintVariableRateEth(address(0), balance, 0, new bytes(0));
+        moduleD_mintVariableRate(address(0), token, balance, 0, new bytes(0));
         moduleD_mint(balance);
         total -= balance;
 
@@ -290,7 +305,7 @@ contract LoopooorModuleD is Blastable {
         }
     }
 
-    function moduleD_withdrawBalance() external payable {
+    function moduleD_withdrawBalance() public {
         IOErc20Delegator oToken_ = oToken();
         uint256 price = IPriceOracle(comptroller().oracle()).getUnderlyingPrice(address(oToken()));
         uint256 exchangeRate = oToken_.exchangeRateCurrent();
@@ -329,19 +344,26 @@ contract LoopooorModuleD is Blastable {
             IERC20(duoAsset()).balanceOf(address(this)),
             0
         );
+
+        if (underlying() == _eth) {
+            uint256 balance = IERC20(_weth).balanceOf(address(this));
+            IWETH(_weth).withdraw(balance);
+        }
     }
 
     function moduleD_withdrawBalanceTo(address receiver) external payable {
-        _withdrawBalance();
-        // withdraw usdb
-        uint256 balance = IERC20(_usdb).balanceOf(address(this));
-        if (balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
-        // unwrap weth
-        balance = IERC20(_weth).balanceOf(address(this));
-        if (balance > 0) IWETH(_weth).withdraw(balance);
-        // transfer eth last
-        balance = address(this).balance;
-        if (balance > 0) Calls.sendValue(receiver, balance);
+        moduleD_withdrawBalance();
+
+        // Send funds to reciever
+        address underlying_ = underlying();
+        if (underlying_ == _eth) {
+            Calls.sendValue(receiver, address(this).balance);
+        } else {
+            SafeERC20.safeTransfer(IERC20(underlying_), receiver, IERC20(underlying_).balanceOf(address(this)));
+        }
+
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.underlying = address(0);
     }
 
     /***************************************

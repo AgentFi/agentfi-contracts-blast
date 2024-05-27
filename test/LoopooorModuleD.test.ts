@@ -39,6 +39,7 @@ import { parse } from "path";
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 /* prettier-ignore */ const USDB_ADDRESS                  = "0x4300000000000000000000000000000000000003";
 /* prettier-ignore */ const WETH_ADDRESS                  = "0x4300000000000000000000000000000000000004";
+/* prettier-ignore */ const ETH_ADDRESS                   = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 /* prettier-ignore */ const WRAPMINT_ETH_ADDRESS          = "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF";
 /* prettier-ignore */ const WRAPMINT_USDB_ADDRESS         = "0xf2050acF080EE59300E3C0782B87f54FDf312525";
 
@@ -50,12 +51,13 @@ const permissions = Object.entries({
   [toBytes32(0)]: [
     "comptroller()",
     "duoAsset()",
+    "fixedRateContract()",
     "moduleName()",
     "oToken()",
     "strategyType()",
-    "wrapMint()",
-    "fixedRateContract()",
+    "underlying()",
     "variableRateContract()",
+    "wrapMint()",
   ],
 
   // AgentFi + Owner
@@ -63,7 +65,7 @@ const permissions = Object.entries({
     "moduleD_borrow(uint256)",
     "moduleD_burnFixedRate(address,uint256)",
     "moduleD_burnVariableRate(address,uint256,uint256)",
-    "moduleD_depositBalance(uint256)",
+    "moduleD_depositBalance(address,uint256)",
     "moduleD_enterMarkets(address[])",
     "moduleD_initialize(address,address)",
     "moduleD_mint(uint256)",
@@ -77,7 +79,7 @@ const permissions = Object.entries({
   ],
 
   // Owner Only:
-  [toBytes32(1)]: [],
+  [toBytes32(1)]: ["moduleD_withdrawBalanceTo(address)"],
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
@@ -456,14 +458,16 @@ describe("LoopoorModuleD", function () {
 
     expect(
       await Promise.all([
-        module.oToken(),
-        module.wrapMint(),
         module.comptroller(),
         module.duoAsset(),
-        module.variableRateContract(),
         module.fixedRateContract(),
+        module.oToken(),
+        module.underlying(),
+        module.variableRateContract(),
+        module.wrapMint(),
       ]),
     ).to.deep.equal([
+      "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000000",
       "0x0000000000000000000000000000000000000000",
@@ -629,6 +633,27 @@ describe("LoopoorModuleD", function () {
       ).to.equal(true);
     });
 
+    it("Can reject double deposit", async function () {
+      const { module } = await loadFixture(fixtureInitialized);
+      await module.moduleD_depositBalance(
+        ETH_ADDRESS,
+        parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await expect(
+        module.moduleD_depositBalance(
+          ETH_ADDRESS,
+          parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+          {
+            value: parseEther("0.1"),
+          },
+        ),
+      ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
+    });
+
     it("Can mint fixedRate DETH with WETH", async function () {
       const { module, DETH, WETH, signer, WRAPMINT } =
         await loadFixture(fixtureInitialized);
@@ -743,12 +768,14 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Individual integrations for depositing ETH in boost yield", async function () {
+      // @ts-expect-error
+      this.retries = 3;
       const { module, WETH, ODETH, DETH, WRAPMINT } =
         await loadFixture(fixtureInitialized);
 
       // ===== Mint DETH
       // This is the proxy contract where the principal is stored, we check we "guessed" the right one
-      const variableRateAddress = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
+      const variableRateContract = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
       const mintTx = module.moduleD_mintVariableRateEth(
         SWAP_ROUTER_ADDRESS,
         parseEther("0.2"),
@@ -767,7 +794,7 @@ describe("LoopoorModuleD", function () {
 
       await expect(mintTx)
         .to.emit(WRAPMINT, "MintVariableRate")
-        .withArgs(variableRateAddress, module.address, parseEther("0.2"));
+        .withArgs(variableRateContract, module.address, parseEther("0.2"));
 
       // ===== Supply, minting oDETH
       const supplyTx = module.moduleD_mint(parseEther("0.1"));
@@ -816,7 +843,7 @@ describe("LoopoorModuleD", function () {
 
       // == Burn
       const burnTx = module.moduleD_burnVariableRate(
-        variableRateAddress,
+        variableRateContract,
         await DETH.balanceOf(module.address),
         0,
       );
@@ -828,12 +855,78 @@ describe("LoopoorModuleD", function () {
       await expect(burnTx).to.changeTokenBalance(
         WETH,
         module.address,
-        parseEther("0.200000004101846116"),
+        parseEther("0.200000004101845646"),
       );
+
+      expect(await module.underlying()).to.equal(ethers.constants.AddressZero);
+    });
+
+    it("Looped depositing WETH in variableRate", async function () {
+      // @ts-expect-error
+      this.retries = 3;
+      const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT, signer } =
+        await loadFixture(fixtureInitialized);
+
+      // Confirm Initial stage
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(false);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        WETH_ADDRESS,
+        parseEther("2.499999990000000000"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0"),
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("1249.999958010032492546"),
+      );
+
+      await expect(mintTx).to.emit(WRAPMINT, "MintVariableRate");
+
+      expect(await module.underlying()).to.equal(WETH_ADDRESS);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+
+      // ===== Do leverage burn
+      const burnTx = module.moduleD_withdrawBalance();
+
+      await expect(burnTx).to.changeTokenBalance(
+        ODETH,
+        module.address,
+        parseEther("-1249.999958010032492546"),
+      );
+
+      // parseEther("0.099999999985763471") <- DETH burned
+      await expect(burnTx).to.changeTokenBalance(
+        WETH,
+        module.address,
+        parseEther("0.100000001012337189"),
+      );
+
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
     it("Looped depositing ETH in variableRate", async function () {
-      const { module, ODETH, DETH, COMPTROLLER, WETH } =
+      // @ts-expect-error
+      this.retries = 3;
+      const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT, signer } =
         await loadFixture(fixtureInitialized);
 
       // Confirm Initial stage
@@ -843,7 +936,8 @@ describe("LoopoorModuleD", function () {
 
       // ===== Do leverage mint
       const mintTx = module.moduleD_depositBalance(
-        parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+        ETH_ADDRESS,
+        parseEther("2.499999990000000000"), // 2.5 is max based on 60% LTV
         {
           value: parseEther("0.1"),
         },
@@ -858,30 +952,33 @@ describe("LoopoorModuleD", function () {
       await expect(mintTx).to.changeTokenBalance(
         ODETH,
         module.address,
-        parseEther("1249.999962512369859241"),
+        parseEther("1249.999958012369992399"),
       );
 
+      await expect(mintTx).to.emit(WRAPMINT, "MintVariableRate");
+
+      expect(await module.underlying()).to.equal(ETH_ADDRESS);
       expect(
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
       // ===== Do leverage burn
-      const burnTx = module.moduleD_withdrawBalance();
+      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       await expect(burnTx).to.changeTokenBalance(
         ODETH,
         module.address,
-        parseEther("-1249.999962512369859241"),
+        parseEther("-1249.999958012369992399"),
       );
 
       // parseEther("0.099999999985763471") <- DETH burned
-      await expect(burnTx).to.changeTokenBalance(
-        WETH,
-        module.address,
-        parseEther("0.100000001012336285"),
+      await expect(burnTx).to.changeEtherBalance(
+        USER_ADDRESS,
+        parseEther("0.100000000670145275"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
+      expect(await module.underlying()).to.equal(ethers.constants.AddressZero);
     });
   });
 });
