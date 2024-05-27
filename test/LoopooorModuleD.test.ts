@@ -1,4 +1,4 @@
-/* global describe it before ethers */
+// /* global describe it before ethers */
 
 import hre from "hardhat";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
@@ -22,6 +22,7 @@ import { deployContract } from "../scripts/utils/deployContract";
 import { toBytes32 } from "../scripts/utils/setStorage";
 import { calcSighash } from "../scripts/utils/diamond";
 import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/BlastooorGenesisAgents";
+import { parse } from "path";
 
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
@@ -53,6 +54,8 @@ const permissions = Object.entries({
     "oToken()",
     "strategyType()",
     "wrapMint()",
+    "fixedRateContract()",
+    "variableRateContract()",
   ],
 
   // AgentFi + Owner
@@ -64,6 +67,9 @@ const permissions = Object.entries({
     "moduleD_enterMarkets(address[])",
     "moduleD_initialize(address,address)",
     "moduleD_mint(uint256)",
+    "moduleD_mintFixedRate(address,address,uint256,uint256,uint256,bytes)",
+    "moduleD_mintFixedRateEth(address,uint256,uint256,uint256,bytes)",
+    "moduleD_mintVariableRate(address,address,uint256,uint256,bytes)",
     "moduleD_mintVariableRateEth(address,uint256,uint256,bytes)",
     "moduleD_redeem(uint256)",
     "moduleD_repayBorrow(uint256)",
@@ -448,18 +454,23 @@ describe("LoopoorModuleD", function () {
     expect(await module.strategyType()).to.equal("Loopooor");
     expect(await module.moduleName()).to.equal("LoopooorModuleD");
 
-    expect(await module.oToken()).to.equal(
+    expect(
+      await Promise.all([
+        module.oToken(),
+        module.wrapMint(),
+        module.comptroller(),
+        module.duoAsset(),
+        module.variableRateContract(),
+        module.fixedRateContract(),
+      ]),
+    ).to.deep.equal([
       "0x0000000000000000000000000000000000000000",
-    );
-    expect(await module.wrapMint()).to.equal(
       "0x0000000000000000000000000000000000000000",
-    );
-    expect(await module.comptroller()).to.equal(
       "0x0000000000000000000000000000000000000000",
-    );
-    expect(await module.duoAsset()).to.equal(
       "0x0000000000000000000000000000000000000000",
-    );
+      "0x0000000000000000000000000000000000000000",
+      "0x0000000000000000000000000000000000000000",
+    ]);
   });
 
   describe("USDB Configuration", () => {
@@ -470,7 +481,19 @@ describe("LoopoorModuleD", function () {
         WRAPMINT_USDB_ADDRESS,
         ODUSDB_ADDRESS,
       );
-      return fixture;
+      const DUSDB = await ethers.getContractAt("MockERC20", DUSDB_ADDRESS);
+      const ODUSDB = await ethers.getContractAt("MockERC20", ODUSDB_ADDRESS);
+
+      const WRAPMINT = await ethers.getContractAt(
+        "IWrapMintV2",
+        WRAPMINT_USDB_ADDRESS,
+      );
+      return {
+        ...fixture,
+        DUSDB,
+        ODUSDB,
+        WRAPMINT,
+      };
     }
     it("Can view state after initialize", async function () {
       const { module } = await loadFixture(fixtureInitialized);
@@ -502,6 +525,59 @@ describe("LoopoorModuleD", function () {
       ).to.equal(true);
     });
 
+    it("Can mint fixedRate DUSDB with USDB", async function () {
+      const { module, USDB, DUSDB, signer, WRAPMINT } =
+        await loadFixture(fixtureInitialized);
+
+      await USDB.transfer(module.address, parseEther("200"));
+
+      const mintTx = module.moduleD_mintFixedRate(
+        SWAP_ROUTER_ADDRESS,
+        USDB.address,
+        parseEther("200"),
+        0,
+        0,
+        toBytes32(0),
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DUSDB,
+        module.address,
+        parseEther("200"),
+      );
+
+      const fixedRateContract = await module.fixedRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintFixedRate")
+        .withArgs(fixedRateContract, module.address, parseEther("200"), 0);
+    });
+
+    it("Can mint variableRate DUSDB with USDB", async function () {
+      const { module, USDB, DUSDB, WRAPMINT } =
+        await loadFixture(fixtureInitialized);
+
+      await USDB.transfer(module.address, parseEther("2"));
+
+      const mintTx = module.moduleD_mintVariableRate(
+        SWAP_ROUTER_ADDRESS,
+        USDB.address,
+        parseEther("2"),
+        0,
+        toBytes32(0),
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DUSDB,
+        module.address,
+        parseEther("2"),
+      );
+
+      const variableRateContract = await module.variableRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintVariableRate")
+        .withArgs(variableRateContract, module.address, parseEther("2"));
+    });
+
     it("Individual integrations for depositing USDB in boost yield", async function () {});
   });
 
@@ -515,10 +591,17 @@ describe("LoopoorModuleD", function () {
       );
       const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
       const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
+
+      const WRAPMINT = await ethers.getContractAt(
+        "IWrapMintV2",
+        WRAPMINT_ETH_ADDRESS,
+      );
+
       return {
         ...fixture,
         DETH,
         ODETH,
+        WRAPMINT,
       };
     }
     it("Can view state after initialize", async function () {
@@ -546,14 +629,122 @@ describe("LoopoorModuleD", function () {
       ).to.equal(true);
     });
 
-    it("Individual integrations for depositing ETH in boost yield", async function () {
-      const { module, WETH, ODETH, DETH } =
+    it("Can mint fixedRate DETH with WETH", async function () {
+      const { module, DETH, WETH, signer, WRAPMINT } =
         await loadFixture(fixtureInitialized);
 
-      const wrapper = await ethers.getContractAt(
-        "IWrapMintV2",
-        WRAPMINT_ETH_ADDRESS,
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.2"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.2"));
+
+      const mintTx = module.moduleD_mintFixedRate(
+        SWAP_ROUTER_ADDRESS,
+        WETH.address,
+        parseEther("0.2"),
+        0,
+        0,
+        toBytes32(0),
       );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.2"),
+      );
+
+      const fixedRateContract = await module.fixedRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintFixedRate")
+        .withArgs(fixedRateContract, module.address, parseEther("0.2"), 0);
+    });
+
+    it("Can mint fixed rate DETH with ETH", async function () {
+      const { module, DETH, WRAPMINT } = await loadFixture(fixtureInitialized);
+
+      const mintTx = module.moduleD_mintFixedRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.2"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.2"),
+        },
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.2"),
+      );
+
+      const fixedRateContract = await module.fixedRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintFixedRate")
+        .withArgs(fixedRateContract, module.address, parseEther("0.2"), 0);
+    });
+
+    it("Can mint variableRate DETH with ETH", async function () {
+      const { module, DETH, WRAPMINT } = await loadFixture(fixtureInitialized);
+      const mintTx = module.moduleD_mintVariableRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.2"),
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.2"),
+        },
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.2"),
+      );
+
+      const variableRateContract = await module.variableRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintVariableRate")
+        .withArgs(variableRateContract, module.address, parseEther("0.2"));
+    });
+
+    it("Can mint variableRate DETH with WETH", async function () {
+      const { module, DETH, WETH, signer, WRAPMINT } =
+        await loadFixture(fixtureInitialized);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.2"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.2"));
+
+      const mintTx = module.moduleD_mintVariableRate(
+        SWAP_ROUTER_ADDRESS,
+        WETH.address,
+        parseEther("0.2"),
+        0,
+        toBytes32(0),
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0.2"),
+      );
+
+      const variableRateContract = await module.variableRateContract();
+      await expect(mintTx)
+        .to.emit(WRAPMINT, "MintVariableRate")
+        .withArgs(variableRateContract, module.address, parseEther("0.2"));
+    });
+
+    it("Individual integrations for depositing ETH in boost yield", async function () {
+      const { module, WETH, ODETH, DETH, WRAPMINT } =
+        await loadFixture(fixtureInitialized);
 
       // ===== Mint DETH
       // This is the proxy contract where the principal is stored, we check we "guessed" the right one
@@ -573,8 +764,9 @@ describe("LoopoorModuleD", function () {
         module.address,
         parseEther("0.2"),
       );
+
       await expect(mintTx)
-        .to.emit(wrapper, "MintVariableRate")
+        .to.emit(WRAPMINT, "MintVariableRate")
         .withArgs(variableRateAddress, module.address, parseEther("0.2"));
 
       // ===== Supply, minting oDETH
@@ -640,7 +832,7 @@ describe("LoopoorModuleD", function () {
       );
     });
 
-    it("Looped depositing ETH in boost yield", async function () {
+    it("Looped depositing ETH in variableRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH } =
         await loadFixture(fixtureInitialized);
 

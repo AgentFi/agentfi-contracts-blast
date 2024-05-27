@@ -32,6 +32,7 @@ contract LoopooorModuleD is Blastable {
         address wrapMint;
         address oToken;
         address variableRateContract;
+        address fixedRateContract;
     }
 
     function loopooorModuleDStorage() internal pure returns (LoopooorModuleDStorage storage s) {
@@ -86,6 +87,14 @@ contract LoopooorModuleD is Blastable {
         usdb_ = _usdb;
     }
 
+    function variableRateContract() public view returns (address) {
+        return loopooorModuleDStorage().variableRateContract;
+    }
+
+    function fixedRateContract() public view returns (address) {
+        return loopooorModuleDStorage().fixedRateContract;
+    }
+
     function wrapMint() public view returns (address) {
         return loopooorModuleDStorage().wrapMint;
     }
@@ -114,17 +123,78 @@ contract LoopooorModuleD is Blastable {
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/
 
+    function moduleD_mintFixedRate(
+        address exchange,
+        address token,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 minLockedYield,
+        bytes memory data
+    ) public returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
+
+        SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
+        (fixedRateContract_, amountOut, lockedYield) = wrapper.mintFixedRate(
+            exchange,
+            token,
+            amountIn,
+            amountOutMin,
+            minLockedYield,
+            data
+        );
+
+        // Save the variable rate contract address. Need this when burning
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.fixedRateContract = fixedRateContract_;
+    }
+
+    function moduleD_mintFixedRateEth(
+        address exchange,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 minLockedYield,
+        bytes calldata data
+    ) public payable returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
+
+        (fixedRateContract_, amountOut, lockedYield) = wrapper.mintFixedRateEth{ value: amountIn }(
+            exchange,
+            amountIn,
+            amountOutMin,
+            minLockedYield,
+            data
+        );
+
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.fixedRateContract = fixedRateContract_;
+        // TODO:- Add refund (like underlying)
+    }
+    function moduleD_mintVariableRate(
+        address exchange,
+        address token,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes memory data
+    ) public returns (address variableRateContract_, uint256 amountOut) {
+        IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
+
+        SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
+        (variableRateContract_, amountOut) = wrapper.mintVariableRate(exchange, token, amountIn, amountOutMin, data);
+
+        // Save the variable rate contract address. Need this when burning
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        state.variableRateContract = variableRateContract_;
+    }
+
     function moduleD_mintVariableRateEth(
         address exchange,
         uint256 amountIn,
         uint256 amountOutMin,
         bytes memory data
-    ) public payable returns (address variableRateContract, uint256 amountOut) {
-        // IWrapMintV2 wrapper = IWrapMintV2(0x7B4b51b482e874B3109ba618B0CA9cc1A75210dF);
-
+    ) public payable returns (address variableRateContract_, uint256 amountOut) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
 
-        (variableRateContract, amountOut) = wrapper.mintVariableRateEth{ value: amountIn }(
+        (variableRateContract_, amountOut) = wrapper.mintVariableRateEth{ value: amountIn }(
             exchange,
             amountIn,
             amountOutMin,
@@ -132,8 +202,7 @@ contract LoopooorModuleD is Blastable {
         );
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
-        state.variableRateContract = variableRateContract;
-        // TODO:- Add refund (like underlying)
+        state.variableRateContract = variableRateContract_;
     }
 
     function moduleD_burnVariableRate(

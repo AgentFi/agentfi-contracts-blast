@@ -12,6 +12,25 @@ interface IWrapMintV2 {
     event UpdateVariableRateNft(address indexed nft);
     event UpdateDuoAssetToken(address indexed duoAssetToken);
 
+    /** @notice mint a fixed rate contract (represented as NFT), input with ERC20 token */
+    function mintFixedRate(
+        address exchange,
+        address token,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 minLockedYield,
+        bytes calldata data
+    ) external returns (address fixedRateContract, uint256 amountOut, uint256 lockedYield);
+
+    /** @notice mint a fixed rate contract (represented as NFT), input with ETH */
+    function mintFixedRateEth(
+        address exchange,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        uint256 minLockedYield,
+        bytes calldata data
+    ) external payable returns (address fixedRateContract, uint256 amountOut, uint256 lockedYield);
+
     /** @notice mint a variable rate contract, input with ETH */
     function mintVariableRateEth(
         address exchange,
@@ -19,6 +38,17 @@ interface IWrapMintV2 {
         uint256 amountOutMin,
         bytes calldata data
     ) external payable returns (address variableRateContract, uint256 amountOut);
+
+    /**
+     * @notice mint a variable rate contract, input with ERC20 token
+     */
+    function mintVariableRate(
+        address exchange,
+        address token,
+        uint256 amountIn,
+        uint256 amountOutMin,
+        bytes calldata data
+    ) external returns (address variableRateContract, uint256 amountOut);
 
     /**
      * @notice burn a variable rate contract, together with asset token, receiving principal and yield
