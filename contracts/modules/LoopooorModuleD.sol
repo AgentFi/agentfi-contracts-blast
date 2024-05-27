@@ -117,12 +117,36 @@ contract LoopooorModuleD is Blastable {
         return IOrbitSpaceStationV4(IOErc20Delegator(oToken_).comptroller());
     }
 
+    function supplyBalance() public view returns (uint256 supply_) {
+        IOErc20Delegator oToken_ = oToken();
+        if (address(oToken_) == address(0)) {
+            return 0;
+        }
+
+        uint256 exchangeRate = oToken_.exchangeRateStored();
+
+        supply_ = oToken_.balanceOf(address(this));
+        supply_ = Math.mulDiv(supply_, exchangeRate, 10 ** 18);
+    }
+
+    function borrowBalance() public view returns (uint256 borrow_) {
+        IOErc20Delegator oToken_ = oToken();
+        if (address(oToken_) == address(0)) {
+            return 0;
+        }
+
+        uint256 exchangeRate = oToken_.exchangeRateStored();
+
+        borrow_ = oToken_.borrowBalanceStored(address(this));
+        borrow_ = Math.mulDiv(borrow_, exchangeRate, 10 ** 18);
+    }
+
     function duoAsset() public view returns (address) {
-        address oToken_ = loopooorModuleDStorage().oToken;
-        if (oToken_ == address(0)) {
+        IOErc20Delegator oToken_ = oToken();
+        if (address(oToken_) == address(0)) {
             return address(0);
         }
-        return IOErc20Delegator(oToken_).underlying();
+        return oToken_.underlying();
     }
 
     /***************************************

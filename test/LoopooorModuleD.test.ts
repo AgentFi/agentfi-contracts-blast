@@ -22,7 +22,7 @@ import { deployContract } from "../scripts/utils/deployContract";
 import { toBytes32 } from "../scripts/utils/setStorage";
 import { calcSighash } from "../scripts/utils/diamond";
 import { BlastooorGenesisAgents } from "../typechain-types/contracts/tokens/BlastooorGenesisAgents";
-import { parse } from "path";
+import { almostEqual } from "../scripts/utils/test";
 
 /* prettier-ignore */ const BLAST_ADDRESS                 = "0x4300000000000000000000000000000000000002";
 /* prettier-ignore */ const BLAST_POINTS_ADDRESS          = "0x2fc95838c71e76ec69ff817983BFf17c710F34E0";
@@ -49,12 +49,14 @@ import { parse } from "path";
 const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
+    "borrowBalance()",
     "comptroller()",
     "duoAsset()",
     "fixedRateContract()",
     "moduleName()",
     "oToken()",
     "strategyType()",
+    "supplyBalance()",
     "underlying()",
     "variableRateContract()",
     "wrapMint()",
@@ -456,6 +458,9 @@ describe("LoopoorModuleD", function () {
     expect(await module.strategyType()).to.equal("Loopooor");
     expect(await module.moduleName()).to.equal("LoopooorModuleD");
 
+    expect(await module.borrowBalance()).to.equal(parseEther("0"));
+    expect(await module.supplyBalance()).to.equal(parseEther("0"));
+
     expect(
       await Promise.all([
         module.comptroller(),
@@ -768,8 +773,6 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Individual integrations for depositing ETH in boost yield", async function () {
-      // @ts-expect-error
-      this.retries = 3;
       const { module, WETH, ODETH, DETH, WRAPMINT } =
         await loadFixture(fixtureInitialized);
 
@@ -847,23 +850,17 @@ describe("LoopoorModuleD", function () {
         await DETH.balanceOf(module.address),
         0,
       );
-      await expect(burnTx).to.changeTokenBalance(
-        DETH,
-        module.address,
-        parseEther("-0.199999999995556265"),
-      );
-      await expect(burnTx).to.changeTokenBalance(
-        WETH,
-        module.address,
-        parseEther("0.200000004101845646"),
+
+      expect(await DETH.balanceOf(module.address)).to.equal(0);
+      almostEqual(
+        await WETH.balanceOf(module.address),
+        parseEther("0.200000004101846116"),
       );
 
       expect(await module.underlying()).to.equal(ethers.constants.AddressZero);
     });
 
     it("Looped depositing WETH in variableRate", async function () {
-      // @ts-expect-error
-      this.retries = 3;
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT, signer } =
         await loadFixture(fixtureInitialized);
 
@@ -905,27 +902,17 @@ describe("LoopoorModuleD", function () {
       ).to.equal(true);
 
       // ===== Do leverage burn
-      const burnTx = module.moduleD_withdrawBalance();
+      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
-      await expect(burnTx).to.changeTokenBalance(
-        ODETH,
-        module.address,
-        parseEther("-1249.999958010032492546"),
-      );
-
-      // parseEther("0.099999999985763471") <- DETH burned
-      await expect(burnTx).to.changeTokenBalance(
-        WETH,
-        module.address,
-        parseEther("0.100000001012337189"),
+      almostEqual(
+        await WETH.balanceOf(USER_ADDRESS),
+        parseEther("0.100000001012337307"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
     it("Looped depositing ETH in variableRate", async function () {
-      // @ts-expect-error
-      this.retries = 3;
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT, signer } =
         await loadFixture(fixtureInitialized);
 
@@ -949,20 +936,26 @@ describe("LoopoorModuleD", function () {
         parseEther("0"),
       );
 
-      await expect(mintTx).to.changeTokenBalance(
-        ODETH,
-        module.address,
+      almostEqual(
+        await ODETH.balanceOf(module.address),
         parseEther("1249.999958012369992399"),
       );
 
       await expect(mintTx).to.emit(WRAPMINT, "MintVariableRate");
 
+      expect(await module.borrowBalance()).to.equal(
+        parseEther("0.000030000000687703"),
+      );
+      expect(await module.supplyBalance()).to.equal(
+        parseEther("0.249999998999999999"),
+      );
       expect(await module.underlying()).to.equal(ETH_ADDRESS);
       expect(
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
       // ===== Do leverage burn
+      const eth = await signer.getBalance();
       const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       await expect(burnTx).to.changeTokenBalance(
@@ -970,11 +963,13 @@ describe("LoopoorModuleD", function () {
         module.address,
         parseEther("-1249.999958012369992399"),
       );
+      const gas = await burnTx
+        .then((tx) => tx.wait())
+        .then((x) => x.cumulativeGasUsed.mul(x.effectiveGasPrice));
 
-      // parseEther("0.099999999985763471") <- DETH burned
-      await expect(burnTx).to.changeEtherBalance(
-        USER_ADDRESS,
-        parseEther("0.100000000670145275"),
+      almostEqual(
+        (await signer.getBalance()).add(gas).sub(eth),
+        parseEther("0.100000001012336174"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
