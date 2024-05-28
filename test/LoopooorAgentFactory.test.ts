@@ -21,7 +21,7 @@ import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAb
 import { sign, assembleSignature, getMintFromAllowlistDigest, getMintFromAllowlistSignature } from "./../scripts/utils/signature";
 import { getERC20PermitSignature } from "./../scripts/utils/getERC20PermitSignature";
 import { convertToStruct } from "../scripts/utils/test";
-import { moduleCFunctionParams as functionParams } from "../scripts/configuration/ConcentratedLiquidityModuleC";
+import { moduleDFunctionParams as functionParams } from "../scripts/configuration/LoopooorModuleD";
 
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -52,6 +52,7 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
 
+const ETH_ADDRESS                     = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 const WETH_ADDRESS                    = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS                    = "0x4300000000000000000000000000000000000003";
 
@@ -78,6 +79,17 @@ const RING_STAKING_REWARDS_INDEX      = 3;
 
 const BLASTERSWAP_ROUTER_ADDRESS      = "0xc972FaE6b524E8A6e0af21875675bF58a3133e60";
 const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713adD";
+
+/* prettier-ignore */ const COMPTROLLER_ADDRESS           = "0xe9266ae95bB637A7Ad598CB0390d44262130F433";
+/* prettier-ignore */ const DETH_ADDRESS                  = "0x1Da40C742F32bBEe81694051c0eE07485fC630f6";
+/* prettier-ignore */ const DUSDB_ADDRESS                 = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
+/* prettier-ignore */ const ODETH_ADDRESS                 = "0xa3135b76c28b3971B703a5e6CD451531b187Eb5A";
+/* prettier-ignore */ const ODUSDB_ADDRESS                = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
+/* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
+/* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
+/* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
+/* prettier-ignore */ const WRAPMINT_ETH_ADDRESS          = "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF";
+/* prettier-ignore */ const WRAPMINT_USDB_ADDRESS         = "0xf2050acF080EE59300E3C0782B87f54FDf312525";
 
 
 const MAGIC_VALUE_0 = "0x00000000";
@@ -155,6 +167,16 @@ describe("LoopooorAgentFactory", function () {
   let blasterRouter: IBlasterswapV2Router02;
   let blasterLpToken: MockERC20;
   */
+  let pool: any;
+  let positionManager: any;
+  let comptroller: any;
+  let dusdb: any;
+  let odusdb: any;
+  let wrapMintUsdb: any;
+  let deth: any;
+  let odeth: any;
+  let wrapMintETH: any;
+
   let collectionListGenesis = []
   let collectionListStrategy = []
   let collectionListAll = []
@@ -202,6 +224,40 @@ describe("LoopooorAgentFactory", function () {
     blasterRouter = await ethers.getContractAt("IBlasterswapV2Router02", BLASTERSWAP_ROUTER_ADDRESS) as IBlasterswapV2Router02;
     blasterLpToken = await ethers.getContractAt("MockERC20Permit", BLASTERSWAP_LP_TOKEN_ADDRESS) as MockERC20;
     */
+
+    pool = new ethers.Contract(
+      POOL_ADDRESS,
+      new ethers.utils.Interface([
+        "event Swap( address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 sqrtPriceX96, uint128 liquidity, int24 tick)",
+        "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint8 feeProtocol, bool unlocked)",
+      ]),
+      deployer,
+    );
+    positionManager = await ethers.getContractAt(
+      "INonfungiblePositionManager",
+      POSITION_MANAGER_ADDRESS,
+      deployer,
+    );
+    comptroller = await ethers.getContractAt(
+      "IOrbitSpaceStationV4",
+      COMPTROLLER_ADDRESS,
+      deployer,
+    );
+    dusdb = await ethers.getContractAt("MockERC20", DUSDB_ADDRESS, deployer);
+    odusdb = await ethers.getContractAt("MockERC20", ODUSDB_ADDRESS, deployer);
+    wrapMintUsdb = await ethers.getContractAt(
+      "IWrapMintV2",
+      WRAPMINT_USDB_ADDRESS,
+      deployer,
+    );
+    deth = await ethers.getContractAt("MockERC20", DETH_ADDRESS, deployer);
+    odeth = await ethers.getContractAt("MockERC20", ODETH_ADDRESS, deployer);
+    wrapMintETH = await ethers.getContractAt(
+      "IWrapMintV2",
+      WRAPMINT_ETH_ADDRESS,
+      deployer,
+    );
+
     tokenList = [AddressZero, WETH_ADDRESS, USDB_ADDRESS]
   });
 
@@ -336,7 +392,7 @@ describe("LoopooorAgentFactory", function () {
         agentImplementation: genesisAccountImplementation.address,
         initializationCalls: [],
         isActive: true,
-        paymentToken: AddressZero,
+        paymenttoken: WETH_ADDRESS,
         paymentAmount: WeiPerEther.mul(1).div(100),
         paymentReceiver: owner.address,
         timestampAllowlistMintStart: 0,
@@ -421,9 +477,15 @@ describe("LoopooorAgentFactory", function () {
   });
 
   describe("ways to not create agents pt 1", function () {
-    const loopCount = 1
     let mintParams = {
-      loopCount
+      mode: 1, // fixed rate
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      exchange: SWAP_ROUTER_ADDRESS,
+      token: WETH_ADDRESS,
+      amountIn: WeiPerEther.div(10),
+      amountOutMin: 0,
+      minLockedYield: 0,
+      data: "0x",
     }
     let deposit = {
       token: WETH_ADDRESS,
@@ -484,9 +546,15 @@ describe("LoopooorAgentFactory", function () {
   });
 
   describe("ways to not create agents pt 2", function () {
-    const loopCount = 1
     let mintParams = {
-      loopCount
+      mode: 1, // fixed rate
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      exchange: SWAP_ROUTER_ADDRESS,
+      token: WETH_ADDRESS,
+      amountIn: WeiPerEther.div(10),
+      amountOutMin: 0,
+      minLockedYield: 0,
+      data: "0x",
     }
     let deposit = {
       token: WETH_ADDRESS,
@@ -670,7 +738,7 @@ describe("LoopooorAgentFactory", function () {
         mintParams, deposit, rootAgentAddress, {value: deposit.amount.sub(1)}
       )).to.be.revertedWithCustomError(loopooorAgentFactory, "InsufficientBalance");
     })
-    it("cannot create a loopooor agent using eth with insufficient value pt 3", async function () {
+    it("cannot create a loopooor agent using eth with insufficient value pt 2", async function () {
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
         mintParams, deposit, {value: deposit.amount.sub(1)}
       )).to.be.revertedWithCustomError(loopooorAgentFactory, "InsufficientBalance");
@@ -678,9 +746,15 @@ describe("LoopooorAgentFactory", function () {
   });
 
   describe("createLoopooorAgentForRoot()", function () {
-    const loopCount = 1
     let mintParams = {
-      loopCount
+      mode: 1, // fixed rate
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      exchange: SWAP_ROUTER_ADDRESS,
+      token: WETH_ADDRESS,
+      amountIn: WeiPerEther.div(10),
+      amountOutMin: 0,
+      minLockedYield: 0,
+      data: "0x",
     }
     let deposit = {
       token: WETH_ADDRESS,
@@ -711,9 +785,9 @@ describe("LoopooorAgentFactory", function () {
       expect(agentAddress).eq(staticRes.strategyAddress)
       let balances = await getBalances(agentAddress, true, "strategy agent")
       expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
       //expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
@@ -770,9 +844,9 @@ describe("LoopooorAgentFactory", function () {
       expect(agentAddress).eq(staticRes.strategyAddress)
       let balances = await getBalances(agentAddress, true, "strategy agent")
       expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
       //expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
@@ -829,9 +903,9 @@ describe("LoopooorAgentFactory", function () {
       expect(agentAddress).eq(staticRes.strategyAddress)
       let balances = await getBalances(agentAddress, true, "strategy agent")
       expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
       //expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
@@ -1493,7 +1567,7 @@ describe("LoopooorAgentFactory", function () {
         amount: WeiPerEther.mul(300)
       }
       deposit1 = {
-        token: AddressZero,
+        token: WETH_ADDRESS,
         amount: WeiPerEther.div(10)
       }
       let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndRefundExcess(
