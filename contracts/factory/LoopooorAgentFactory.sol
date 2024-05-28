@@ -12,10 +12,8 @@ import { IExplorerAgents } from "./../interfaces/tokens/IExplorerAgents.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
 import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
 import { ILoopooorAgentFactory } from "./../interfaces/factory/ILoopooorAgentFactory.sol";
-//import { IUniswapV2Pair } from "./../interfaces/external/UniswapV2/IUniswapV2Pair.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
-//import { LoopooorModuleC } from "./../modules/LoopooorModuleC.sol";
 import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
 
 
@@ -46,6 +44,8 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     address internal _explorerAccountImpl;
     bytes internal _strategyInitializationCall;
     bytes internal _explorerInitializationCall;
+
+    address internal constant _eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     /***************************************
     CONSTRUCTOR
@@ -133,22 +133,6 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     CREATE AGENT FUNCTIONS
     ***************************************/
 
-    // create loopooor agent for root
-    // create loopooor agent and explorer
-
-    // deposit ETH
-    // deposit WETH with erc20 approve/transferFrom
-    // deposit dETH with erc20 approve/transferFrom
-    // deposit WETH with erc2612 permit/transferFrom
-    // deposit dETH with erc2612 permit/transferFrom
-    // same with USDB & dUSDB?
-
-    // 2 * 5 = 10 functions
-    // 2 * 9 = 18 functions
-
-    // thats too many. allow the user to pass the token address
-    //
-
     /**
      * @notice Creates a new Loopooor strategy agent.
      * The new agent will be minted to an existing root agent.
@@ -226,25 +210,67 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     ) {
         // create nft
         (strategyAgentID, strategyAddress) = _createStrategyAgent();
-        // handle token deposits
-        address weth = _weth;
-        // handle token deposits
-        if(deposit.token == address(0)) {
-            Calls.sendValue(weth, deposit.amount);
-            SafeERC20.safeTransfer(IERC20(weth), strategyAddress, deposit.amount);
+        // handle token deposits and strategy initialization
+        // eth
+        if(deposit.token == address(0) || deposit.token == _eth) {
+            Calls.sendValue(strategyAddress, deposit.amount);
+            // fixed rate
+            if(mintParams.mode == ILoopooorModuleD.MODE.FIXED_RATE) {
+                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintFixedRateEth(
+                    mintParams.wrapMint,
+                    mintParams.exchange,
+                    mintParams.amountIn,
+                    mintParams.amountOutMin,
+                    mintParams.minLockedYield,
+                    mintParams.data
+                );
+            }
+            // variable rate
+            else if(mintParams.mode == ILoopooorModuleD.MODE.VARIABLE_RATE) {
+                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintVariableRateEth(
+                    mintParams.wrapMint,
+                    mintParams.exchange,
+                    mintParams.amountIn,
+                    mintParams.amountOutMin,
+                    mintParams.data
+                );
+            }
+            // invalid
+            else {
+                revert Errors.InvalidMode();
+            }
         }
+        // erc20
         else {
             SafeERC20.safeTransferFrom(IERC20(deposit.token), _msgSender(), strategyAddress, deposit.amount);
+            // fixed rate
+            if(mintParams.mode == ILoopooorModuleD.MODE.FIXED_RATE) {
+                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintFixedRate(
+                    mintParams.wrapMint,
+                    mintParams.exchange,
+                    mintParams.token,
+                    mintParams.amountIn,
+                    mintParams.amountOutMin,
+                    mintParams.minLockedYield,
+                    mintParams.data
+                );
+            }
+            // variable rate
+            else if(mintParams.mode == ILoopooorModuleD.MODE.VARIABLE_RATE) {
+                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintVariableRate(
+                    mintParams.wrapMint,
+                    mintParams.exchange,
+                    mintParams.token,
+                    mintParams.amountIn,
+                    mintParams.amountOutMin,
+                    mintParams.data
+                );
+            }
+            // invalid
+            else {
+                revert Errors.InvalidMode();
+            }
         }
-        // create the position in the strategy agent
-        /*
-        // todo
-        */
-        // ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
-        //     ILoopooorModuleD.MintParams({
-        //         loopCount: mintParams.loopCount
-        //     })
-        // );
     }
 
     /***************************************

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: none
 pragma solidity 0.8.24;
 
+import { ILoopooorModuleD } from "./../modules/ILoopooorModuleD.sol";
+
 
 /**
  * @title ILoopooorAgentFactory
@@ -49,9 +51,15 @@ interface ILoopooorAgentFactory {
     CREATE AGENT FUNCTIONS
     ***************************************/
 
-    // todo
     struct MintParams {
-        uint256 loopCount;
+        ILoopooorModuleD.MODE mode;
+        address wrapMint;
+        address exchange;
+        address token;
+        uint256 amountIn;
+        uint256 amountOutMin;
+        uint256 minLockedYield;
+        bytes data;
     }
 
     struct TokenDeposit {
