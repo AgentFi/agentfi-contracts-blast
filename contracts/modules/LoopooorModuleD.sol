@@ -27,7 +27,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     CONSTANTS
     ***************************************/
 
-    uint256 internal constant PRECISION_CF = 10 ** 18; // Precision of collatral factor from oribit
+    uint256 internal constant PRECISION_CF = 10 ** 18; // Precision of collatral factor from orbit
     uint256 internal constant PRECISION_LEVERAGE = 10 ** 18; // Precision of leverage input (10 ** 18 = 1x leverage)
     uint256 internal constant PRECISION_EXCHANGE_RATE = 10 ** 18; // Precision of exchange rate between oToken and duo asset
     uint256 internal constant PRECISION_PRICE = 10 ** 18; // Precision of price of duo asset
@@ -78,51 +78,51 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     VIEW FUNCTIONS
     ***************************************/
 
-    function moduleName() external pure returns (string memory name_) {
+    function moduleName() external pure override returns (string memory name_) {
         name_ = "LoopooorModuleD";
     }
 
-    function strategyType() external pure returns (string memory type_) {
+    function strategyType() external pure override returns (string memory type_) {
         type_ = "Loopooor";
     }
 
-    function eth() external pure returns (address) {
+    function eth() external pure override returns (address) {
         return _eth;
     }
 
-    function weth() external pure returns (address) {
+    function weth() external pure override returns (address) {
         return _weth;
     }
 
-    function mode() public view returns (MODE) {
+    function mode() public view override returns (MODE) {
         return loopooorModuleDStorage().mode;
     }
 
-    function rateContract() public view returns (address) {
+    function rateContract() public view override returns (address) {
         return loopooorModuleDStorage().rateContract;
     }
 
-    function underlying() public view returns (address) {
+    function underlying() public view override returns (address) {
         return loopooorModuleDStorage().underlying;
     }
 
-    function wrapMint() public view returns (address) {
+    function wrapMint() public view override returns (address) {
         return loopooorModuleDStorage().wrapMint;
     }
 
-    function oToken() public view returns (IOErc20Delegator) {
+    function oToken() public view override returns (IOErc20Delegator) {
         return IOErc20Delegator(loopooorModuleDStorage().oToken);
     }
 
-    function comptroller() public view returns (IOrbitSpaceStationV4) {
+    function comptroller() public view override returns (IOrbitSpaceStationV4) {
         return getComptroller(address(oToken()));
     }
 
-    function duoAsset() public view returns (IERC20) {
+    function duoAsset() public view override returns (IERC20) {
         return getDuoAssetFromOToken(address(oToken()));
     }
 
-    function supplyBalance() public view returns (uint256 supply_) {
+    function supplyBalance() public view override returns (uint256 supply_) {
         IOErc20Delegator oToken_ = oToken();
         if (address(oToken_) == address(0)) {
             return 0;
@@ -134,7 +134,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         supply_ = Math.mulDiv(supply_, exchangeRate, PRECISION_EXCHANGE_RATE);
     }
 
-    function borrowBalance() public view returns (uint256 borrow_) {
+    function borrowBalance() public view override returns (uint256 borrow_) {
         IOErc20Delegator oToken_ = oToken();
         if (address(oToken_) == address(0)) {
             return 0;
@@ -175,7 +175,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         uint256 amountOutMin,
         uint256 minLockedYield,
         bytes memory data
-    ) public returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
+    ) public payable override returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
         SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
@@ -196,7 +196,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         uint256 amountOutMin,
         uint256 minLockedYield,
         bytes calldata data
-    ) public payable returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
+    ) public payable override returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
         (fixedRateContract_, amountOut, lockedYield) = wrapper.mintFixedRateEth{ value: amountIn }(
@@ -215,7 +215,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         uint256 amountIn,
         uint256 amountOutMin,
         bytes memory data
-    ) public returns (address variableRateContract_, uint256 amountOut) {
+    ) public payable override returns (address variableRateContract_, uint256 amountOut) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
         SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
@@ -228,7 +228,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         uint256 amountIn,
         uint256 amountOutMin,
         bytes memory data
-    ) public payable returns (address variableRateContract_, uint256 amountOut) {
+    ) public payable override returns (address variableRateContract_, uint256 amountOut) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
         (variableRateContract_, amountOut) = wrapper.mintVariableRateEth{ value: amountIn }(
@@ -244,8 +244,8 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address variableRate,
         uint256 amount,
         uint256 minYield
-    ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         SafeERC20.safeIncreaseAllowance(getDuoAssetFromWrapMint(wrapMint_), wrapMint_, amount);
+    ) public payable override returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
 
         (yieldToUnlock, yieldToRelease) = IWrapMintV2(wrapMint_).burnVariableRate(variableRate, amount, minYield);
     }
@@ -254,36 +254,36 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address wrapMint_,
         address fixedRate,
         uint256 amount
-    ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         SafeERC20.safeIncreaseAllowance(getDuoAssetFromWrapMint(wrapMint_), wrapMint_, amount);
+    ) public payable override returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         (yieldToUnlock, yieldToRelease) = IWrapMintV2(wrapMint_).burnFixedRate(fixedRate, amount);
     }
 
     /***************************************
     LOW LEVEL ORBITER MUTATOR FUNCTIONS
     ***************************************/
-    function moduleD_borrow(address oToken_, uint borrowAmount) public returns (uint) {
+    function moduleD_borrow(address oToken_, uint borrowAmount) public payable override returns (uint) {
         return IOErc20Delegator(oToken_).borrow(borrowAmount);
     }
 
-    function moduleD_mint(address oToken_, uint mintAmount) public returns (uint) {
         SafeERC20.safeIncreaseAllowance(getDuoAssetFromOToken(oToken_), oToken_, mintAmount);
+    function moduleD_mint(address oToken_, uint mintAmount) public payable override returns (uint) {
         return IOErc20Delegator(oToken_).mint(mintAmount);
     }
 
-    function moduleD_repayBorrow(address oToken_, uint repayAmount) public returns (uint) {
         SafeERC20.safeIncreaseAllowance(getDuoAssetFromOToken(oToken_), oToken_, repayAmount);
+    function moduleD_repayBorrow(address oToken_, uint repayAmount) public payable override returns (uint) {
 
         return IOErc20Delegator(oToken_).repayBorrow(repayAmount);
     }
 
-    function moduleD_redeem(address oToken_, uint redeemTokens) public returns (uint) {
         SafeERC20.safeIncreaseAllowance(IERC20(oToken_), oToken_, redeemTokens);
+    function moduleD_redeem(address oToken_, uint redeemTokens) public payable override returns (uint) {
 
         return IOErc20Delegator(oToken_).redeem(redeemTokens);
     }
 
-    function moduleD_enterMarkets(address comptroller_, address[] memory oTokens) public returns (uint[] memory) {
+    function moduleD_enterMarkets(address comptroller_, address[] memory oTokens) public payable override returns (uint[] memory) {
         return IOrbitSpaceStationV4(comptroller_).enterMarkets(oTokens);
     }
 
@@ -302,7 +302,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address underlying_,
         MODE mode_,
         uint256 leverage
-    ) external payable {
+    ) external payable override {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         if (state.rateContract != address(0)) {
@@ -368,7 +368,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
-    function moduleD_withdrawBalance() public {
+    function moduleD_withdrawBalance() public payable override {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         IOErc20Delegator oToken_ = IOErc20Delegator(state.oToken);
@@ -422,13 +422,13 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
-    function moduleD_withdrawBalanceTo(address receiver) external payable {
+    function moduleD_withdrawBalanceTo(address receiver) external payable override {
         moduleD_withdrawBalance();
         moduleD_sendBalanceTo(receiver, underlying());
     }
 
     // Send funds to reciever
-    function moduleD_sendBalanceTo(address receiver, address token) public {
+    function moduleD_sendBalanceTo(address receiver, address token) public payable override {
         if (token == _eth) {
             Calls.sendValue(receiver, address(this).balance);
         } else {

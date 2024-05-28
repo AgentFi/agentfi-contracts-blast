@@ -129,7 +129,7 @@ interface ILoopooorModuleD {
         uint256 amountOutMin,
         uint256 minLockedYield,
         bytes memory data
-    ) external returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield);
+    ) external payable returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield);
 
     /**
      * @notice Mints a fixed rate position using the WrapMint contract with Ether.
@@ -170,7 +170,7 @@ interface ILoopooorModuleD {
         uint256 amountIn,
         uint256 amountOutMin,
         bytes memory data
-    ) external returns (address variableRateContract_, uint256 amountOut);
+    ) external payable returns (address variableRateContract_, uint256 amountOut);
 
     /**
      * @notice Mints a variable rate position using the WrapMint contract with Ether.
@@ -204,7 +204,7 @@ interface ILoopooorModuleD {
         address variableRate,
         uint256 amount,
         uint256 minYield
-    ) external returns (uint256 yieldToUnlock, uint256 yieldToRelease);
+    ) external payable returns (uint256 yieldToUnlock, uint256 yieldToRelease);
 
     /**
      * @notice Burns a fixed rate position using the WrapMint contract.
@@ -216,6 +216,7 @@ interface ILoopooorModuleD {
      */
     function moduleD_burnFixedRate(address wrapMint, address fixedRate, uint256 amount)
         external
+        payable
         returns (uint256 yieldToUnlock, uint256 yieldToRelease);
 
     /***************************************
@@ -228,7 +229,7 @@ interface ILoopooorModuleD {
      * @param borrowAmount The amount of tokens to be borrowed.
      * @return The amount of tokens borrowed.
      */
-    function moduleD_borrow(address oToken, uint256 borrowAmount) external returns (uint256);
+    function moduleD_borrow(address oToken, uint256 borrowAmount) external payable returns (uint256);
 
     /**
      * @notice Mints tokens in the Orbit protocol.
@@ -236,7 +237,7 @@ interface ILoopooorModuleD {
      * @param mintAmount The amount of tokens to be minted.
      * @return The amount of tokens minted.
      */
-    function moduleD_mint(address oToken, uint256 mintAmount) external returns (uint256);
+    function moduleD_mint(address oToken, uint256 mintAmount) external payable returns (uint256);
 
     /**
      * @notice Repays a borrow in the Orbit protocol.
@@ -244,7 +245,7 @@ interface ILoopooorModuleD {
      * @param repayAmount The amount of tokens to be repaid.
      * @return The amount of tokens repaid.
      */
-    function moduleD_repayBorrow(address oToken, uint256 repayAmount) external returns (uint256);
+    function moduleD_repayBorrow(address oToken, uint256 repayAmount) external payable returns (uint256);
 
     /**
      * @notice Redeems tokens from the Orbit protocol.
@@ -252,7 +253,7 @@ interface ILoopooorModuleD {
      * @param redeemTokens The amount of tokens to be redeemed.
      * @return The amount of tokens redeemed.
      */
-    function moduleD_redeem(address oToken, uint256 redeemTokens) external returns (uint256);
+    function moduleD_redeem(address oToken, uint256 redeemTokens) external payable returns (uint256);
 
     /**
      * @notice Enters the specified markets in the Orbit protocol.
@@ -260,7 +261,7 @@ interface ILoopooorModuleD {
      * @param oTokens The addresses of the oTokens to enter.
      * @return The error codes for each market entered.
      */
-    function moduleD_enterMarkets(address comptroller, address[] memory oTokens) external returns (uint256[] memory);
+    function moduleD_enterMarkets(address comptroller, address[] memory oTokens) external payable returns (uint256[] memory);
 
     /***************************************
     HIGH LEVEL AGENT MUTATOR FUNCTIONS
@@ -285,7 +286,7 @@ interface ILoopooorModuleD {
     /**
      * @notice Withdraws the balance from the Orbit protocol and burns the fixed or variable rate position.
      */
-    function moduleD_withdrawBalance() external;
+    function moduleD_withdrawBalance() external payable;
 
     /**
      * @notice Withdraws the balance from the Orbit protocol and burns the fixed or variable rate position, then sends the balance to the specified receiver.
@@ -298,5 +299,5 @@ interface ILoopooorModuleD {
      * @param receiver The address to send the balance to.
      * @param token The address of the token to be sent.
      */
-    function moduleD_sendBalanceTo(address receiver, address token) external;
+    function moduleD_sendBalanceTo(address receiver, address token) external payable;
 }
