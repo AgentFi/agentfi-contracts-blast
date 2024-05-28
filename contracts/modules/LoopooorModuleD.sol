@@ -178,7 +178,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     ) public payable override returns (address fixedRateContract_, uint256 amountOut, uint256 lockedYield) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
-        SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
+        _checkApproval(token, address(wrapper), amountIn);
         (fixedRateContract_, amountOut, lockedYield) = wrapper.mintFixedRate(
             exchange,
             token,
@@ -218,7 +218,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     ) public payable override returns (address variableRateContract_, uint256 amountOut) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint_);
 
-        SafeERC20.safeIncreaseAllowance(IERC20(token), address(wrapper), amountIn);
+        _checkApproval(token, address(wrapper), amountIn);
         (variableRateContract_, amountOut) = wrapper.mintVariableRate(exchange, token, amountIn, amountOutMin, data);
     }
 
@@ -244,8 +244,8 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address variableRate,
         uint256 amount,
         uint256 minYield
-        SafeERC20.safeIncreaseAllowance(getDuoAssetFromWrapMint(wrapMint_), wrapMint_, amount);
     ) public payable override returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
+        _checkApproval(address(getDuoAssetFromWrapMint(wrapMint_)), wrapMint_, amount);
 
         (yieldToUnlock, yieldToRelease) = IWrapMintV2(wrapMint_).burnVariableRate(variableRate, amount, minYield);
     }
@@ -254,8 +254,8 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address wrapMint_,
         address fixedRate,
         uint256 amount
-        SafeERC20.safeIncreaseAllowance(getDuoAssetFromWrapMint(wrapMint_), wrapMint_, amount);
     ) public payable override returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
+        _checkApproval(address(getDuoAssetFromWrapMint(wrapMint_)), wrapMint_, amount);
         (yieldToUnlock, yieldToRelease) = IWrapMintV2(wrapMint_).burnFixedRate(fixedRate, amount);
     }
 
@@ -266,19 +266,19 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         return IOErc20Delegator(oToken_).borrow(borrowAmount);
     }
 
-        SafeERC20.safeIncreaseAllowance(getDuoAssetFromOToken(oToken_), oToken_, mintAmount);
     function moduleD_mint(address oToken_, uint mintAmount) public payable override returns (uint) {
+        _checkApproval(address(getDuoAssetFromOToken(oToken_)), oToken_, mintAmount);
         return IOErc20Delegator(oToken_).mint(mintAmount);
     }
 
-        SafeERC20.safeIncreaseAllowance(getDuoAssetFromOToken(oToken_), oToken_, repayAmount);
     function moduleD_repayBorrow(address oToken_, uint repayAmount) public payable override returns (uint) {
+        _checkApproval(address(getDuoAssetFromOToken(oToken_)), oToken_, repayAmount);
 
         return IOErc20Delegator(oToken_).repayBorrow(repayAmount);
     }
 
-        SafeERC20.safeIncreaseAllowance(IERC20(oToken_), oToken_, redeemTokens);
     function moduleD_redeem(address oToken_, uint redeemTokens) public payable override returns (uint) {
+        _checkApproval(oToken_, oToken_, redeemTokens);
 
         return IOErc20Delegator(oToken_).redeem(redeemTokens);
     }
@@ -433,6 +433,24 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
             Calls.sendValue(receiver, address(this).balance);
         } else {
             SafeERC20.safeTransfer(IERC20(token), receiver, IERC20(token).balanceOf(address(this)));
+        }
+    }
+
+    /***************************************
+    HELPER FUNCTIONS
+    ***************************************/
+
+    /**
+     * @notice Checks the approval of an ERC20 token from this contract to another address.
+     * @param token The token to check allowance.
+     * @param recipient The address to give allowance to.
+     * @param minAmount The minimum amount of the allowance.
+     */
+    function _checkApproval(address token, address recipient, uint256 minAmount) internal {
+        // if current allowance is insufficient
+        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            // set allowance to max
+            SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
         }
     }
 }
