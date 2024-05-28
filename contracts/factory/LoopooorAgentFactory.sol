@@ -240,11 +240,11 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
         /*
         // todo
         */
-        ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
-            ILoopooorModuleD.MintParams({
-                loopCount: mintParams.loopCount
-            })
-        );
+        // ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
+        //     ILoopooorModuleD.MintParams({
+        //         loopCount: mintParams.loopCount
+        //     })
+        // );
     }
 
     /***************************************
