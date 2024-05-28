@@ -41,10 +41,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     bytes32 private constant LOOPOOR_MODULED_STORAGE_POSITION = keccak256("agentfi.storage.loopoormoduleD");
 
     struct LoopooorModuleDStorage {
-        address wrapMint;
         address oToken;
         address rateContract; // Fixed or variable storage contract
         address underlying;
+        address wrapMint;
         MODE mode;
     }
 
@@ -305,7 +305,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     ) external payable {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
-        if (!(state.oToken == address(0) || IERC20(oToken_).balanceOf(address(this)) == 0)) {
+        if (state.rateContract != address(0)) {
             revert Errors.PositionAlreadyExists();
         }
 
@@ -335,7 +335,6 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
                 new bytes(0)
             );
             state.rateContract = fixedRateContract_;
-            state.mode = MODE.FIXED_RATE;
         }
         if (mode_ == MODE.VARIABLE_RATE) {
             (address variableRateContract_, ) = moduleD_mintVariableRate(
@@ -347,7 +346,6 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
                 new bytes(0)
             );
             state.rateContract = variableRateContract_;
-            state.mode = MODE.VARIABLE_RATE;
         }
 
         moduleD_mint(oToken_, balance);
