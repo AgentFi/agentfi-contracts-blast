@@ -21,12 +21,21 @@ import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
  *
  * Designed for use on Blast Mainnet only.
  */
-// TODO:- Write interface
+/**
+TODO:-
+- [] Write interface
+- [] Remove need for initialise, do it in deposit
+- [] Don't store fixed rate contract and variable, just store single
+- [] Create high level functions for mint burn for simplier logic
+- [] Move state changes out of low level functions (mint)
+- [] Factor out 10**18
+ **/
+
 contract LoopooorModuleD is Blastable {
     enum MODE {
         INITIAL, // Initial state
-        BOOST_POINTS, //Mint Fixed Rate
-        BOOST_YIELD // Mint Variable Rate
+        FIXED_RATE, //Mint Fixed Rate
+        VARIABLE_RATE // Mint Variable Rate
     }
     /***************************************
     State
@@ -186,7 +195,7 @@ contract LoopooorModuleD is Blastable {
         // Save the variable rate contract address. Need this when burning
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.fixedRateContract = fixedRateContract_;
-        state.mode = MODE.BOOST_POINTS;
+        state.mode = MODE.FIXED_RATE;
     }
 
     function moduleD_mintFixedRateEth(
@@ -208,7 +217,7 @@ contract LoopooorModuleD is Blastable {
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.fixedRateContract = fixedRateContract_;
-        state.mode = MODE.BOOST_POINTS;
+        state.mode = MODE.FIXED_RATE;
     }
 
     function moduleD_mintVariableRate(
@@ -226,7 +235,7 @@ contract LoopooorModuleD is Blastable {
         // Save the variable rate contract address. Need this when burning
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = variableRateContract_;
-        state.mode = MODE.BOOST_YIELD;
+        state.mode = MODE.VARIABLE_RATE;
     }
 
     function moduleD_mintVariableRateEth(
@@ -246,7 +255,7 @@ contract LoopooorModuleD is Blastable {
 
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = variableRateContract_;
-        state.mode = MODE.BOOST_YIELD;
+        state.mode = MODE.VARIABLE_RATE;
     }
 
     function moduleD_burnVariableRate(
@@ -256,18 +265,19 @@ contract LoopooorModuleD is Blastable {
     ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
 
-        IERC20(duoAsset()).approve(wrapMint(), amount);
+        SafeERC20.safeIncreaseAllowance(IERC20(duoAsset()), address(wrapMint()), amount);
         (yieldToUnlock, yieldToRelease) = wrapper.burnVariableRate(variableRate, amount, minYield);
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.variableRateContract = address(0);
     }
+
     function moduleD_burnFixedRate(
         address fixedRate,
         uint256 amount
     ) public returns (uint256 yieldToUnlock, uint256 yieldToRelease) {
         IWrapMintV2 wrapper = IWrapMintV2(wrapMint());
 
-        IERC20(duoAsset()).approve(wrapMint(), amount);
+        SafeERC20.safeIncreaseAllowance(IERC20(duoAsset()), address(wrapMint()), amount);
         (yieldToUnlock, yieldToRelease) = wrapper.burnFixedRate(fixedRate, amount);
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         state.fixedRateContract = address(0);
@@ -282,19 +292,19 @@ contract LoopooorModuleD is Blastable {
 
     function moduleD_mint(uint mintAmount) public returns (uint) {
         IOErc20Delegator oToken_ = oToken();
-        IERC20(duoAsset()).approve(address(oToken_), mintAmount);
+        SafeERC20.safeIncreaseAllowance(IERC20(duoAsset()), address(oToken_), mintAmount);
         return oToken_.mint(mintAmount);
     }
 
     function moduleD_repayBorrow(uint repayAmount) public returns (uint) {
         IOErc20Delegator oToken_ = oToken();
-        IERC20(duoAsset()).approve(address(oToken_), repayAmount);
+        SafeERC20.safeIncreaseAllowance(IERC20(duoAsset()), address(oToken_), repayAmount);
         return oToken_.repayBorrow(repayAmount);
     }
 
     function moduleD_redeem(uint redeemTokens) public returns (uint) {
         IOErc20Delegator oToken_ = IOErc20Delegator(oToken());
-        IERC20(address(oToken_)).approve(address(oToken_), redeemTokens);
+        SafeERC20.safeIncreaseAllowance(IERC20(address(oToken_)), address(oToken_), redeemTokens);
         return oToken_.redeem(redeemTokens);
     }
 
@@ -306,7 +316,7 @@ contract LoopooorModuleD is Blastable {
     HIGH LEVEL AGENT MUTATOR FUNCTIONS
     ***************************************/
 
-    function moduleD_initialize(address wrapMint_, address oToken_) external {
+    function moduleD_initialize(address wrapMint_, address oToken_) public {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
         if (state.wrapMint != address(0) || state.oToken != address(0)) revert Errors.AlreadyInitialized();
         state.wrapMint = wrapMint_;
@@ -319,26 +329,36 @@ contract LoopooorModuleD is Blastable {
         moduleD_enterMarkets(oTokens);
     }
 
-    function moduleD_depositBalance(address token, MODE mode_, uint256 leverage) external payable {
+    function moduleD_depositBalance(
+        address wrapMint_,
+        address oToken_,
+        address underlying_,
+        MODE mode_,
+        uint256 leverage
+    ) external payable {
+        moduleD_initialize(wrapMint_, oToken_);
+
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        // TODO:- Change to check of balance, better mapping
         if (state.underlying != address(0)) revert Errors.PositionAlreadyExists();
-        state.underlying = token;
+
+        state.underlying = underlying_;
         state.mode = mode_;
 
         moduleD_enterMarket();
-        if (token == _eth) {
-            token = _weth;
+        if (underlying_ == _eth) {
             Calls.sendValue(_weth, address(this).balance);
+            underlying_ = _weth;
         }
 
-        uint256 balance = IERC20(token).balanceOf(address(this));
+        uint256 balance = IERC20(underlying_).balanceOf(address(this));
         uint256 total = Math.mulDiv(balance, leverage, 10 ** 18);
 
-        if (mode_ == MODE.BOOST_POINTS) {
-            moduleD_mintFixedRate(address(0), token, balance, 0, 0, new bytes(0));
+        if (mode_ == MODE.FIXED_RATE) {
+            moduleD_mintFixedRate(address(0), underlying_, balance, 0, 0, new bytes(0));
         }
-        if (mode_ == MODE.BOOST_YIELD) {
-            moduleD_mintVariableRate(address(0), token, balance, 0, new bytes(0));
+        if (mode_ == MODE.VARIABLE_RATE) {
+            moduleD_mintVariableRate(address(0), underlying_, balance, 0, new bytes(0));
         }
         moduleD_mint(balance);
         total -= balance;
@@ -395,13 +415,13 @@ contract LoopooorModuleD is Blastable {
 
         // Burn
         MODE mode_ = mode();
-        if (mode_ == MODE.BOOST_POINTS) {
+        if (mode_ == MODE.FIXED_RATE) {
             moduleD_burnFixedRate(
                 loopooorModuleDStorage().fixedRateContract,
                 IERC20(duoAsset()).balanceOf(address(this))
             );
         }
-        if (mode_ == MODE.BOOST_YIELD) {
+        if (mode_ == MODE.VARIABLE_RATE) {
             moduleD_burnVariableRate(
                 loopooorModuleDStorage().variableRateContract,
                 IERC20(duoAsset()).balanceOf(address(this)),
