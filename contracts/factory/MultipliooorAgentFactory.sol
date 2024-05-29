@@ -11,20 +11,19 @@ import { IBlastooorStrategyAgents } from "./../interfaces/tokens/IBlastooorStrat
 import { IExplorerAgents } from "./../interfaces/tokens/IExplorerAgents.sol";
 import { IERC6551Registry } from "./../interfaces/erc6551/IERC6551Registry.sol";
 import { IAgentRegistry } from "./../interfaces/utils/IAgentRegistry.sol";
-import { ILoopooorAgentFactory } from "./../interfaces/factory/ILoopooorAgentFactory.sol";
+import { IMultipliooorAgentFactory } from "./../interfaces/factory/IMultipliooorAgentFactory.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
-import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
 
 
 /**
- * @title LoopooorAgentFactory
+ * @title MultipliooorAgentFactory
  * @author AgentFi
- * @notice A factory for loopooor strategy agents.
+ * @notice A factory for multipliooor strategy agents.
  *
  * Users can use [`createAgent()`](#createagent) to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
  */
-contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Context, ILoopooorAgentFactory {
+contract MultipliooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Context, IMultipliooorAgentFactory {
 
     /***************************************
     STATE VARIABLES
@@ -134,18 +133,14 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     ***************************************/
 
     /**
-     * @notice Creates a new Loopooor strategy agent.
+     * @notice Creates a new Multipliooor strategy agent.
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
-     * @param mintParams Parameters to use to mint the position.
-     * @param deposit The token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      */
-    function createLoopooorAgentForRoot(
-        MintParams calldata mintParams,
-        TokenDeposit calldata deposit,
+    function createMultipliooorAgentForRoot(
         address rootAgentAddress
     ) external payable override returns (
         uint256 strategyAgentID,
@@ -153,26 +148,21 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     ) {
         // checks
         _createAgentForRootPrecheck(rootAgentAddress);
-        // create loopooor agent
-        (strategyAgentID, strategyAddress) = _createLoopooorAgent(mintParams, deposit);
+        // create multipliooor agent
+        (strategyAgentID, strategyAddress) = _createMultipliooorAgent();
         // transfer strategy agent to root agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
     }
 
     /**
-     * @notice Creates a new Loopooor strategy agent.
+     * @notice Creates a new Multipliooor strategy agent.
      * The new agent will be minted to a new explorer agent.
-     * @param mintParams Parameters to use to mint the position.
-     * @param deposit The token and amount to deposit.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      * @return explorerAgentID The ID of the newly created explorer agent.
      * @return explorerAddress The address of the newly created explorer agent.
      */
-    function createLoopooorAgentAndExplorer(
-        MintParams calldata mintParams,
-        TokenDeposit calldata deposit
-    ) external payable override returns (
+    function createMultipliooorAgentAndExplorer() external payable override returns (
         uint256 strategyAgentID,
         address strategyAddress,
         uint256 explorerAgentID,
@@ -182,9 +172,9 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
         if(!_isActive) revert Errors.CreationSettingsPaused();
         // create explorer agent
         (explorerAgentID, explorerAddress) = _createExplorerAgent();
-        // create loopooor agent
-        (strategyAgentID, strategyAddress) = _createLoopooorAgent(mintParams, deposit);
-        // transfer loopooor agent to explorer agent
+        // create multipliooor agent
+        (strategyAgentID, strategyAddress) = _createMultipliooorAgent();
+        // transfer multipliooor agent to explorer agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
         IExplorerAgents(_explorerAgentNft).transferFrom(address(this), _msgSender(), explorerAgentID);
@@ -195,37 +185,22 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     ***************************************/
 
     /**
-     * @notice Creates a new Loopooor agent.
-     * @param mintParams Parameters to use to mint the position.
-     * @param deposit The token and amount to deposit.
+     * @notice Creates a new Multipliooor agent.
      * @return strategyAgentID The ID of the newly created strategy agent.
      * @return strategyAddress The address of the newly created strategy agent.
      */
-    function _createLoopooorAgent(
-        MintParams calldata mintParams,
-        TokenDeposit calldata deposit
-    ) internal returns (
+    function _createMultipliooorAgent() internal returns (
         uint256 strategyAgentID,
         address strategyAddress
     ) {
         // create nft
         (strategyAgentID, strategyAddress) = _createStrategyAgent();
-        // handle token deposits and strategy initialization
-        // eth
-        if(deposit.token == address(0) || deposit.token == _eth) {
-            Calls.sendValue(strategyAddress, deposit.amount);
+        // handle eth deposit
+        uint256 balance = address(this).balance;
+        if(balance > 0) {
+            Calls.sendValue(strategyAddress, balance);
         }
-        // erc20
-        else {
-            SafeERC20.safeTransferFrom(IERC20(deposit.token), _msgSender(), strategyAddress, deposit.amount);
-        }
-        ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
-            mintParams.wrapMint,
-            mintParams.otoken,
-            mintParams.underlying,
-            mintParams.mode,
-            mintParams.leverage
-        );
+        // no need to initialize the strategy
     }
 
     /***************************************
