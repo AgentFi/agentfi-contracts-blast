@@ -14,7 +14,6 @@ const allowlistSignerAddress = accounts.allowlistSigner.address
 
 import { Agents, BlastooorAgentAccount, AgentFactory01, AgentFactory02, AgentFactory03, IBlast, ContractFactory, GasCollector, BalanceFetcher, BlastooorStrategyAgents, BlastooorStrategyFactory, BlastooorStrategyAgentAccount, Dispatcher, IBlastPoints } from "../../typechain-types";
 
-import { moduleCFunctionParams as functionParams } from "../configuration/ConcentratedLiquidityModuleC";
 import { delay, deduplicateArray } from "./../utils/misc";
 import { isDeployed, expectDeployed } from "./../utils/expectDeployed";
 import { logContractAddress } from "./../utils/logContractAddress";
