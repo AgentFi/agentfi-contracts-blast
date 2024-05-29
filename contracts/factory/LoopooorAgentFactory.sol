@@ -214,63 +214,18 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
         // eth
         if(deposit.token == address(0) || deposit.token == _eth) {
             Calls.sendValue(strategyAddress, deposit.amount);
-            // fixed rate
-            if(mintParams.mode == ILoopooorModuleD.MODE.FIXED_RATE) {
-                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintFixedRateEth(
-                    mintParams.wrapMint,
-                    mintParams.exchange,
-                    mintParams.amountIn,
-                    mintParams.amountOutMin,
-                    mintParams.minLockedYield,
-                    mintParams.data
-                );
-            }
-            // variable rate
-            else if(mintParams.mode == ILoopooorModuleD.MODE.VARIABLE_RATE) {
-                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintVariableRateEth(
-                    mintParams.wrapMint,
-                    mintParams.exchange,
-                    mintParams.amountIn,
-                    mintParams.amountOutMin,
-                    mintParams.data
-                );
-            }
-            // invalid
-            else {
-                revert Errors.InvalidMode();
-            }
         }
         // erc20
         else {
             SafeERC20.safeTransferFrom(IERC20(deposit.token), _msgSender(), strategyAddress, deposit.amount);
-            // fixed rate
-            if(mintParams.mode == ILoopooorModuleD.MODE.FIXED_RATE) {
-                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintFixedRate(
-                    mintParams.wrapMint,
-                    mintParams.exchange,
-                    mintParams.token,
-                    mintParams.amountIn,
-                    mintParams.amountOutMin,
-                    mintParams.minLockedYield,
-                    mintParams.data
-                );
-            }
-            // variable rate
-            else if(mintParams.mode == ILoopooorModuleD.MODE.VARIABLE_RATE) {
-                ILoopooorModuleD(payable(strategyAddress)).moduleD_mintVariableRate(
-                    mintParams.wrapMint,
-                    mintParams.exchange,
-                    mintParams.token,
-                    mintParams.amountIn,
-                    mintParams.amountOutMin,
-                    mintParams.data
-                );
-            }
-            // invalid
-            else {
-                revert Errors.InvalidMode();
-            }
         }
+        ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
+            mintParams.wrapMint,
+            mintParams.otoken,
+            mintParams.underlying,
+            mintParams.mode,
+            mintParams.leverage
+        );
     }
 
     /***************************************

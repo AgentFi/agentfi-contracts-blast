@@ -52,14 +52,11 @@ interface ILoopooorAgentFactory {
     ***************************************/
 
     struct MintParams {
-        ILoopooorModuleD.MODE mode;
         address wrapMint;
-        address exchange;
-        address token;
-        uint256 amountIn;
-        uint256 amountOutMin;
-        uint256 minLockedYield;
-        bytes data;
+        address otoken;
+        address underlying;
+        ILoopooorModuleD.MODE mode;
+        uint256 leverage;
     }
 
     struct TokenDeposit {

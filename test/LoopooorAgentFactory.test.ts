@@ -478,14 +478,12 @@ describe("LoopooorAgentFactory", function () {
 
   describe("ways to not create agents pt 1", function () {
     let mintParams = {
-      mode: 1, // fixed rate
       wrapMint: WRAPMINT_ETH_ADDRESS,
-      exchange: SWAP_ROUTER_ADDRESS,
-      token: WETH_ADDRESS,
-      amountIn: WeiPerEther.div(10),
-      amountOutMin: 0,
-      minLockedYield: 0,
-      data: "0x",
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther,
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
     let deposit = {
       token: WETH_ADDRESS,
@@ -547,14 +545,12 @@ describe("LoopooorAgentFactory", function () {
 
   describe("ways to not create agents pt 2", function () {
     let mintParams = {
-      mode: 1, // fixed rate
       wrapMint: WRAPMINT_ETH_ADDRESS,
-      exchange: SWAP_ROUTER_ADDRESS,
-      token: WETH_ADDRESS,
-      amountIn: WeiPerEther.div(10),
-      amountOutMin: 0,
-      minLockedYield: 0,
-      data: "0x",
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther,
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
     let deposit = {
       token: WETH_ADDRESS,
@@ -747,14 +743,12 @@ describe("LoopooorAgentFactory", function () {
 
   describe("createLoopooorAgentForRoot()", function () {
     let mintParams = {
-      mode: 1, // fixed rate
       wrapMint: WRAPMINT_ETH_ADDRESS,
-      exchange: SWAP_ROUTER_ADDRESS,
-      token: WETH_ADDRESS,
-      amountIn: WeiPerEther.div(10),
-      amountOutMin: 0,
-      minLockedYield: 0,
-      data: "0x",
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther,
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
     let deposit = {
       token: WETH_ADDRESS,
