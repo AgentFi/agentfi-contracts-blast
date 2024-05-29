@@ -44,6 +44,8 @@ interface IDexBalancerModuleA {
 
     function moduleA_depositBalance() external payable;
 
+    function moduleA_depositBalanceAndRefundTo(address receiver) external payable;
+
     function moduleA_withdrawBalance() external payable;
 
     function moduleA_withdrawBalanceTo(address receiver) external payable;
