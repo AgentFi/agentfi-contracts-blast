@@ -29,4 +29,10 @@ interface IOrbitSpaceStationV4 {
 
     //isListed, collateralFactorMantissa, isComped
     function markets(address oTokenAddress) external view returns (bool, uint, bool);
+
+    /**
+     * @notice Claim all the incentive tokens accrued by holder in all markets
+     * @param holder The address to claim tokens for
+     */
+    function claimOrb(address holder) external;
 }

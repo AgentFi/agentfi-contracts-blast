@@ -90,6 +90,7 @@ const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
 /* prettier-ignore */ const WRAPMINT_ETH_ADDRESS          = "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF";
 /* prettier-ignore */ const WRAPMINT_USDB_ADDRESS         = "0xf2050acF080EE59300E3C0782B87f54FDf312525";
+/* prettier-ignore */ const ORBIT_ADDRESS                 = "0x42E12D42b3d6C4A74a88A61063856756Ea2DB357";
 
 
 const MAGIC_VALUE_0 = "0x00000000";
@@ -154,6 +155,7 @@ describe("LoopooorAgentFactory", function () {
   let odeth: MockERC20;
   let dusd: MockERC20;
   let odusd: MockERC20;
+  let orbit: MockERC20;
 
 
   let thrusterRouter_030: IThrusterRouter;
@@ -230,6 +232,7 @@ describe("LoopooorAgentFactory", function () {
     odeth = await ethers.getContractAt("MockERC20", ODETH_ADDRESS) as MockERC20;
     dusd = await ethers.getContractAt("MockERC20", DUSD_ADDRESS) as MockERC20;
     odusd = await ethers.getContractAt("MockERC20", ODUSD_ADDRESS) as MockERC20;
+    orbit = await ethers.getContractAt("MockERC20", ORBIT_ADDRESS) as MockERC20;
 
     thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
     /*
@@ -349,7 +352,7 @@ describe("LoopooorAgentFactory", function () {
       collectionListAll = [genesisAgentNft.address, strategyAgentNft.address]
     });
     it("can deploy BlastooorStrategyAgentAccount implementation", async function () {
-      strategyAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccount;
+      strategyAccountImplementation = await deployContract(deployer, "BlastooorStrategyAgentAccountV2", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as BlastooorGenesisAgentAccountV2;
       await expectDeployed(strategyAccountImplementation.address);
       l1DataFeeAnalyzer.register("deploy BlastooorStrategyAgentAccount impl", strategyAccountImplementation.deployTransaction);
     });
@@ -394,6 +397,12 @@ describe("LoopooorAgentFactory", function () {
   });
 
   describe("genesis agent creation", function () {
+    it("calcSighashes", async function () {
+      //let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', true)
+      //let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', true)
+      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', true)
+      let sighashes4 = calcSighashes(moduleD, 'LoopooorModuleD', true)
+    });
     it("owner can whitelist", async function () {
       let whitelist = [
         {
@@ -855,6 +864,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -898,6 +908,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -955,6 +966,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -998,6 +1010,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -1056,6 +1069,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).eq(0)
       expect(balances.dusd).eq(0)
       expect(balances.odusd).gt(0) // only one with balance
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -1111,6 +1125,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -1166,6 +1181,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).gt(0) // only one with balance
       expect(balances.dusd).eq(0)
       expect(balances.odusd).eq(0)
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -1221,6 +1237,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.odeth).eq(0)
       expect(balances.dusd).eq(0)
       expect(balances.odusd).gt(0) // only one with balance
+      expect(balances.orbit).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
@@ -1232,6 +1249,103 @@ describe("LoopooorAgentFactory", function () {
       expect(strategyType).eq("Loopooor")
       // creates an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(3)
+    })
+  })
+
+  describe("withdraw", function () {
+    let strategyAgentID = 8
+    let agent: any;
+    let agentModule: any;
+    let agentAddress: any;
+    let balancesA1:any
+    let balancesA2:any
+    let balancesU1:any
+    let balancesU2:any
+    it("can get strategy agent", async function () {
+      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(tbas.length).eq(1)
+      agentAddress = tbas[0].agentAddress
+      agent = await ethers.getContractAt("BlastooorStrategyAgentAccountV2", agentAddress) as BlastooorStrategyAgentAccountV2
+      agentModule = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
+    })
+    it("can get overrides", async function () {
+      for(let func of functionParams) {
+        let { selector, requiredRole } = func
+        let ov = await agent.overrides(selector)
+        //console.log(selector)
+        //console.log(ov.implementation)
+        //console.log(ov.requiredRole)
+        //console.log(requiredRole)
+        expect(ov.implementation).eq(moduleD.address)
+        expect(ov.requiredRole).eq(requiredRole)
+      }
+    })
+    it("owner can execute", async function () {
+      await agent.connect(user1).execute(user1.address, 0, "0x", 0)
+    })
+    it("non owner cannot execute", async function () {
+      await expect(agent.connect(user2).execute(user2.address, 0, "0x", 0)).to.be.revertedWithCustomError(agent, "NotAuthorized")
+    })
+    it("non owner cannot withdraw", async function () {
+      await expect(agentModule.connect(user2).moduleD_withdrawBalanceTo(user2.address)).to.be.revertedWithCustomError(agent, "NotAuthorized")
+    })
+    it("can withdraw full", async function () {
+      let tx = await agentModule.connect(user1).moduleD_withdrawBalanceTo(user1.address)
+      balancesA1 = await getBalances(agentAddress, true, "strategy agent")
+      expect(balancesA1.eth).eq(0)
+      expect(balancesA1.weth).eq(0)
+      expect(balancesA1.usdb).eq(0)
+      expect(balancesA1.deth).eq(0)
+      expect(balancesA1.odeth).eq(0)
+      expect(balancesA1.dusd).eq(0)
+      expect(balancesA1.odusd).eq(0)
+      expect(balancesA1.orbit).eq(0)
+      expect(balancesA1.genesisAgents).eq(0)
+      expect(balancesA1.strategyAgents).eq(0)
+      expect(balancesA1.explorerAgents).eq(0)
+      balancesU1 = await getBalances(user1.address, true, "user1")
+      expect(balancesU1.eth).gt(0) // user has eth weth and usdb
+      expect(balancesU1.weth).gt(0)
+      expect(balancesU1.usdb).gt(0)
+      expect(balancesU1.deth).eq(0)
+      expect(balancesU1.odeth).eq(0)
+      expect(balancesU1.dusd).eq(0)
+      expect(balancesU1.odusd).eq(0)
+      expect(balancesU1.orbit).gt(0)
+      expect(balancesU1.genesisAgents).gt(0)
+      expect(balancesU1.strategyAgents).eq(0)
+      expect(balancesU1.explorerAgents).gt(0)
+    })
+    it("reverts double withdraw from moon pool", async function () {
+      await expect(agentModule.connect(user1).moduleD_withdrawBalanceTo(user1.address)).to.be.reverted
+    })
+    it("can withdraw zero", async function () {
+      let tx = await agentModule.connect(user1).moduleD_sendBalanceTo(user1.address, ETH_ADDRESS)
+      balancesA2 = await getBalances(agentAddress, true, "strategy agent")
+      expect(balancesA2.eth).eq(0)
+      expect(balancesA2.weth).eq(0)
+      expect(balancesA2.usdb).eq(0)
+      expect(balancesA2.deth).eq(0)
+      expect(balancesA2.odeth).eq(0)
+      expect(balancesA2.dusd).eq(0)
+      expect(balancesA2.odusd).eq(0)
+      expect(balancesA2.orbit).eq(0)
+      expect(balancesA2.genesisAgents).eq(0)
+      expect(balancesA2.strategyAgents).eq(0)
+      expect(balancesA2.explorerAgents).eq(0)
+      balancesU2 = await getBalances(user1.address, true, "user1")
+      expect(balancesU2.eth).lt(balancesU1.eth) // minus gas cost
+      expect(balancesU2.weth).eq(balancesU1.weth) // all else equal
+      expect(balancesU2.usdb).eq(balancesU1.usdb)
+      expect(balancesU2.deth).eq(balancesU1.deth)
+      expect(balancesU2.odeth).eq(balancesU1.odeth)
+      expect(balancesU2.dusd).eq(balancesU1.dusd)
+      expect(balancesU2.odusd).eq(balancesU1.odusd)
+      expect(balancesU2.orbit).eq(balancesU1.orbit)
+      expect(balancesU2.genesisAgents).gt(0)
+      expect(balancesU2.strategyAgents).eq(0)
+      expect(balancesU2.explorerAgents).gt(0)
+
     })
   })
 
@@ -1312,6 +1426,7 @@ describe("LoopooorAgentFactory", function () {
       odeth: await odeth.balanceOf(account),
       dusd: await dusd.balanceOf(account),
       odusd: await odusd.balanceOf(account),
+      orbit: await orbit.balanceOf(account),
 
       genesisAgents: await genesisAgentNft.balanceOf(account),
       strategyAgents: await strategyAgentNft.balanceOf(account),
@@ -1327,6 +1442,7 @@ describe("LoopooorAgentFactory", function () {
         odeth: formatUnits(res.odeth),
         dusd: formatUnits(res.dusd),
         odusdt: formatUnits(res.odusd),
+        orbit: formatUnits(res.orbit),
         genesisAgents: res.genesisAgents.toString(),
         strategyAgents: res.strategyAgents.toString(),
         explorerAgents: res.explorerAgents.toString(),

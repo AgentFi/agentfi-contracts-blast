@@ -44,6 +44,7 @@ import { moduleDFunctionParams as functionParams } from "../scripts/configuratio
 /* prettier-ignore */ const ETH_ADDRESS                   = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
 /* prettier-ignore */ const WRAPMINT_ETH_ADDRESS          = "0xD89dcC88AcFC6EF78Ef9602c2Bf006f0026695eF";
 /* prettier-ignore */ const WRAPMINT_USDB_ADDRESS         = "0xf2050acF080EE59300E3C0782B87f54FDf312525";
+/* prettier-ignore */ const ORBIT_ADDRESS                 = "0x42E12D42b3d6C4A74a88A61063856756Ea2DB357";
 
 /* prettier-ignore */ const OWNER_ADDRESS                 = "0xA214a4fc09C42202C404E2976c50373fE5F5B789";
 /* prettier-ignore */ const USER_ADDRESS                  = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
@@ -69,7 +70,8 @@ const permissions = Object.entries({
   ],
 
   // AgentFi + Owner
-  [toBytes32(9)]: ["moduleD_withdrawBalance()"],
+  //[toBytes32(9)]: [],
+  // none
 
   // Owner Only:
   [toBytes32(1)]: [
@@ -85,6 +87,7 @@ const permissions = Object.entries({
     "moduleD_redeem(address,uint256)",
     "moduleD_repayBorrow(address,uint256)",
     "moduleD_sendBalanceTo(address,address)",
+    "moduleD_withdrawBalance()",
     "moduleD_withdrawBalanceTo(address)",
   ],
 }).reduce(

@@ -14,6 +14,7 @@ import { IPriceOracle } from "./../interfaces/external/Orbit/IPriceOracle.sol";
 import { IOrbitSpaceStationV4 } from "./../interfaces/external/Orbit/IOrbitSpaceStationV4.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
+
 /**
  * @title LoopooorModuleD
  * @author AgentFi
@@ -34,6 +35,9 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
     address internal constant _eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant _weth = 0x4300000000000000000000000000000000000004; // wrapped eth
+
+    address internal constant _spaceStation = 0xe9266ae95bB637A7Ad598CB0390d44262130F433;
+    address internal constant _orbit        = 0x42E12D42b3d6C4A74a88A61063856756Ea2DB357;
 
     /***************************************
     STATE
@@ -420,6 +424,9 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
             uint256 balance = IERC20(_weth).balanceOf(address(this));
             IWETH(_weth).withdraw(balance);
         }
+
+        // claim orbit token
+        IOrbitSpaceStationV4(_spaceStation).claimOrb(address(this));
     }
 
     function moduleD_withdrawBalanceTo(address receiver) external payable override {
@@ -434,6 +441,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         } else {
             SafeERC20.safeTransfer(IERC20(token), receiver, IERC20(token).balanceOf(address(this)));
         }
+
+        // withdraw orbit
+        uint256 balance = IERC20(_orbit).balanceOf(address(this));
+        if(balance > 0) SafeERC20.safeTransfer(IERC20(_orbit), receiver, balance);
     }
 
     /***************************************
