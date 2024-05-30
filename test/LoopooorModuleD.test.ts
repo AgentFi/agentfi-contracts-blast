@@ -5,6 +5,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
+const { AddressZero, MaxUint256, WeiPerEther } = ethers.constants;
 import chai from "chai";
 const { expect } = chai;
 
@@ -30,11 +31,11 @@ import { moduleDFunctionParams as functionParams } from "../scripts/configuratio
 /* prettier-ignore */ const BLAST_POINTS_OPERATOR_ADDRESS = "0x454c0C1CF7be9341d82ce0F16979B8689ED4AAD0";
 /* prettier-ignore */ const COMPTROLLER_ADDRESS           = "0xe9266ae95bB637A7Ad598CB0390d44262130F433";
 /* prettier-ignore */ const DETH_ADDRESS                  = "0x1Da40C742F32bBEe81694051c0eE07485fC630f6";
-/* prettier-ignore */ const DUSDB_ADDRESS                 = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
+/* prettier-ignore */ const DUSD_ADDRESS                  = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
 /* prettier-ignore */ const ENTRY_POINT_ADDRESS           = "0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789";
 /* prettier-ignore */ const ERC6551_REGISTRY_ADDRESS      = "0x000000006551c19487814612e58FE06813775758";
 /* prettier-ignore */ const ODETH_ADDRESS                 = "0xa3135b76c28b3971B703a5e6CD451531b187Eb5A";
-/* prettier-ignore */ const ODUSDB_ADDRESS                = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
+/* prettier-ignore */ const ODUSD_ADDRESS                 = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 /* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
@@ -166,7 +167,7 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
       ENTRY_POINT_ADDRESS,
       multicallForwarder.address,
       ERC6551_REGISTRY_ADDRESS,
-      ethers.constants.AddressZero,
+      AddressZero,
     ],
   )) as BlastooorGenesisAgentAccount;
 
@@ -230,7 +231,7 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
       ENTRY_POINT_ADDRESS,
       multicallForwarder.address,
       ERC6551_REGISTRY_ADDRESS,
-      ethers.constants.AddressZero,
+      AddressZero,
     ],
   );
 
@@ -263,8 +264,8 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
     agentImplementation: genesisAccountImplementation.address,
     initializationCalls: [],
     isActive: true,
-    // paymentToken: ethers.constants.AddressZero,
-    paymentAmount: ethers.constants.WeiPerEther.mul(1).div(100),
+    // paymentToken: AddressZero,
+    paymentAmount: WeiPerEther.mul(1).div(100),
     paymentReceiver: OWNER_ADDRESS,
     timestampAllowlistMintStart: 0,
     timestampAllowlistMintEnd: 1,
@@ -348,7 +349,7 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
   // Create agent
   await genesisFactory
     .connect(signer)
-    .blastooorPublicMint(1, { value: ethers.constants.WeiPerEther.div(100) });
+    .blastooorPublicMint(1, { value: WeiPerEther.div(100) });
 
   await agentRegistry.connect(owner).setOperators([
     {
@@ -451,8 +452,8 @@ describe("LoopoorModuleD", function () {
       COMPTROLLER_ADDRESS,
     );
 
-    const DUSDB = await ethers.getContractAt("MockERC20", DUSDB_ADDRESS);
-    const ODUSDB = await ethers.getContractAt("MockERC20", ODUSDB_ADDRESS);
+    const DUSD = await ethers.getContractAt("MockERC20", DUSD_ADDRESS);
+    const ODUSD = await ethers.getContractAt("MockERC20", ODUSD_ADDRESS);
     const WRAPMINT_USDB = await ethers.getContractAt(
       "IWrapMintV2",
       WRAPMINT_USDB_ADDRESS,
@@ -469,8 +470,8 @@ describe("LoopoorModuleD", function () {
       ...fixture,
       COMPTROLLER,
       WRAPMINT_USDB,
-      DUSDB,
-      ODUSDB,
+      DUSD,
+      ODUSD,
       DETH,
       ODETH,
       WRAPMINT_ETH,
@@ -511,20 +512,20 @@ describe("LoopoorModuleD", function () {
       await USDB.transfer(module.address, parseEther("200"));
       await module.moduleD_depositBalance(
         WRAPMINT_USDB_ADDRESS,
-        ODUSDB_ADDRESS,
+        ODUSD_ADDRESS,
         USDB_ADDRESS,
         MODE.BOOST_POINTS,
         parseEther("2.499"), // 2.5 is max based on 60% LTV
       );
 
-      expect(await module.oToken()).to.equal(ODUSDB_ADDRESS);
+      expect(await module.oToken()).to.equal(ODUSD_ADDRESS);
       expect(await module.wrapMint()).to.equal(WRAPMINT_USDB_ADDRESS);
       expect(await module.comptroller()).to.equal(COMPTROLLER_ADDRESS);
-      expect(await module.duoAsset()).to.equal(DUSDB_ADDRESS);
+      expect(await module.duoAsset()).to.equal(DUSD_ADDRESS);
     });
 
-    it("Can mint fixedRate DUSDB with USDB", async function () {
-      const { module, USDB, DUSDB, signer, WRAPMINT_USDB } =
+    it("Can mint fixedRate DUSD with USDB", async function () {
+      const { module, USDB, DUSD, signer, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
 
       await USDB.transfer(module.address, parseEther("200"));
@@ -540,7 +541,7 @@ describe("LoopoorModuleD", function () {
       );
 
       await expect(mintTx).to.changeTokenBalance(
-        DUSDB,
+        DUSD,
         module.address,
         parseEther("200"),
       );
@@ -555,8 +556,8 @@ describe("LoopoorModuleD", function () {
         );
     });
 
-    it("Can mint variableRate DUSDB with USDB", async function () {
-      const { module, USDB, DUSDB, WRAPMINT_USDB } =
+    it("Can mint variableRate DUSD with USDB", async function () {
+      const { module, USDB, DUSD, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
 
       await USDB.transfer(module.address, parseEther("2"));
@@ -571,7 +572,7 @@ describe("LoopoorModuleD", function () {
       );
 
       await expect(mintTx).to.changeTokenBalance(
-        DUSDB,
+        DUSD,
         module.address,
         parseEther("2"),
       );
@@ -586,12 +587,12 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Looped depositing USDB in fixedRate", async function () {
-      const { module, ODUSDB, DUSDB, COMPTROLLER, USDB, WRAPMINT_USDB } =
+      const { module, ODUSD, DUSD, COMPTROLLER, USDB, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
 
       // Confirm Initial stage
       expect(
-        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(false);
 
       await USDB.transfer(module.address, parseEther("100"));
@@ -599,14 +600,14 @@ describe("LoopoorModuleD", function () {
       // ===== Do leverage mint
       const mintTx = module.moduleD_depositBalance(
         WRAPMINT_USDB_ADDRESS,
-        ODUSDB_ADDRESS,
+        ODUSD_ADDRESS,
         USDB_ADDRESS,
         MODE.BOOST_POINTS,
         parseEther("2.499"), // 2.5 is max based on 60% LTV
       );
 
       await expect(mintTx).to.changeTokenBalance(
-        DUSDB,
+        DUSD,
         module.address,
         parseEther("0"),
       );
@@ -614,13 +615,13 @@ describe("LoopoorModuleD", function () {
       await expect(mintTx).to.emit(WRAPMINT_USDB, "MintFixedRate");
 
       almostEqual(
-        await ODUSDB.balanceOf(module.address),
+        await ODUSD.balanceOf(module.address),
         parseEther("1249991.679098100761621992"),
       );
 
       expect(await module.underlying()).to.equal(USDB_ADDRESS);
       expect(
-        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
       // ===== Do leverage burn
@@ -632,16 +633,16 @@ describe("LoopoorModuleD", function () {
         parseEther("99.999999953036711437"),
       );
 
-      expect(await ODUSDB.balanceOf(module.address)).to.equal(parseEther("0"));
+      expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
     it("Looped depositing USDB in variableRate", async function () {
-      const { module, ODUSDB, DUSDB, COMPTROLLER, WRAPMINT_USDB, USDB } =
+      const { module, ODUSD, DUSD, COMPTROLLER, WRAPMINT_USDB, USDB } =
         await loadFixture(fixtureDeployed);
 
       // Confirm Initial stage
       expect(
-        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(false);
 
       await USDB.transfer(module.address, parseEther("100"));
@@ -649,20 +650,20 @@ describe("LoopoorModuleD", function () {
       // ===== Do leverage mint
       const mintTx = module.moduleD_depositBalance(
         WRAPMINT_USDB_ADDRESS,
-        ODUSDB_ADDRESS,
+        ODUSD_ADDRESS,
         USDB_ADDRESS,
         MODE.BOOST_YIELD,
         parseEther("2.499"), // 2.5 is max based on 60% LTV
       );
 
       await expect(mintTx).to.changeTokenBalance(
-        DUSDB,
+        DUSD,
         module.address,
         parseEther("0"),
       );
 
       almostEqual(
-        await ODUSDB.balanceOf(module.address),
+        await ODUSD.balanceOf(module.address),
         parseEther("1249991.679098100761621992"),
       );
 
@@ -670,7 +671,7 @@ describe("LoopoorModuleD", function () {
 
       expect(await module.underlying()).to.equal(USDB_ADDRESS);
       expect(
-        await COMPTROLLER.checkMembership(module.address, ODUSDB_ADDRESS),
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
       // ===== Do leverage burn
@@ -682,7 +683,7 @@ describe("LoopoorModuleD", function () {
         parseEther("99.999999953036711437"),
       );
 
-      expect(await ODUSDB.balanceOf(module.address)).to.equal(parseEther("0"));
+      expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
     });
   });
 
@@ -932,7 +933,7 @@ describe("LoopoorModuleD", function () {
 
       // == Repay borrow
       await expect(
-        module.moduleD_repayBorrow(ODETH_ADDRESS, ethers.constants.MaxUint256),
+        module.moduleD_repayBorrow(ODETH_ADDRESS, MaxUint256),
       ).to.changeTokenBalance(
         DETH,
         module.address,
@@ -966,8 +967,20 @@ describe("LoopoorModuleD", function () {
         parseEther("0.200000004101846116"),
       );
 
-      expect(await module.underlying()).to.equal(ethers.constants.AddressZero);
+      expect(await module.underlying()).to.equal(AddressZero);
     });
+
+    it("cannot burn with invalid wrapMint", async function () {
+      const { module, WETH, ODETH, DETH, WRAPMINT_ETH } =
+        await loadFixture(fixtureDeployed);
+      const variableRateContract = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
+      await expect(module.moduleD_burnVariableRate(
+        AddressZero,
+        variableRateContract,
+        await DETH.balanceOf(module.address),
+        0,
+      )).to.be.reverted;
+    })
 
     it("Looped depositing WETH in fixedRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =

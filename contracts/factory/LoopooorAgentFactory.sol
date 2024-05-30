@@ -210,7 +210,7 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
     ) {
         // create nft
         (strategyAgentID, strategyAddress) = _createStrategyAgent();
-        // handle token deposits and strategy initialization
+        // handle token deposits
         // eth
         if(deposit.token == address(0) || deposit.token == _eth) {
             Calls.sendValue(strategyAddress, deposit.amount);
@@ -219,6 +219,7 @@ contract LoopooorAgentFactory is Blastable, Ownable2Step, MulticallableERC2771Co
         else {
             SafeERC20.safeTransferFrom(IERC20(deposit.token), _msgSender(), strategyAddress, deposit.amount);
         }
+        // create the positions in the strategy agent
         ILoopooorModuleD(payable(strategyAddress)).moduleD_depositBalance(
             mintParams.wrapMint,
             mintParams.otoken,

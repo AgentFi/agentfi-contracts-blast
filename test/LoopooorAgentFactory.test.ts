@@ -82,9 +82,9 @@ const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713
 
 /* prettier-ignore */ const COMPTROLLER_ADDRESS           = "0xe9266ae95bB637A7Ad598CB0390d44262130F433";
 /* prettier-ignore */ const DETH_ADDRESS                  = "0x1Da40C742F32bBEe81694051c0eE07485fC630f6";
-/* prettier-ignore */ const DUSDB_ADDRESS                 = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
+/* prettier-ignore */ const DUSD_ADDRESS                  = "0x1A3D9B2fa5c6522c8c071dC07125cE55dF90b253";
 /* prettier-ignore */ const ODETH_ADDRESS                 = "0xa3135b76c28b3971B703a5e6CD451531b187Eb5A";
-/* prettier-ignore */ const ODUSDB_ADDRESS                = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
+/* prettier-ignore */ const ODUSD_ADDRESS                 = "0x4ADF85E2e760c9211894482DF74BA535BCae50A4";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
 /* prettier-ignore */ const POSITION_MANAGER_ADDRESS      = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
 /* prettier-ignore */ const SWAP_ROUTER_ADDRESS           = "0x337827814155ECBf24D20231fCA4444F530C0555";
@@ -150,6 +150,10 @@ describe("LoopooorAgentFactory", function () {
 
   let weth: MockERC20;
   let usdb: MockERC20;
+  let deth: MockERC20;
+  let odeth: MockERC20;
+  let dusd: MockERC20;
+  let odusd: MockERC20;
 
 
   let thrusterRouter_030: IThrusterRouter;
@@ -170,11 +174,7 @@ describe("LoopooorAgentFactory", function () {
   let pool: any;
   let positionManager: any;
   let comptroller: any;
-  let dusdb: any;
-  let odusdb: any;
   let wrapMintUsdb: any;
-  let deth: any;
-  let odeth: any;
   let wrapMintETH: any;
 
   let collectionListGenesis = []
@@ -189,6 +189,20 @@ describe("LoopooorAgentFactory", function () {
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
   before(async function () {
+    // reset back to blast
+    const blockNumber = parseInt(process.env.BLAST_FORK_BLOCK);
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.BLAST_URL,
+            blockNumber,
+          },
+        },
+      ],
+    });
+
     [deployer, owner, strategyManager, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
     chainID = (await provider.getNetwork()).chainId;
     networkSettings = getNetworkSettings(chainID);
@@ -203,11 +217,19 @@ describe("LoopooorAgentFactory", function () {
     await expectDeployed(THRUSTER_POOL_WETH_USDB_030_ADDRESS);
     await expectDeployed(WETH_ADDRESS);
     await expectDeployed(USDB_ADDRESS);
+    await expectDeployed(DETH_ADDRESS);
+    await expectDeployed(ODETH_ADDRESS);
+    await expectDeployed(DUSD_ADDRESS);
+    await expectDeployed(ODUSD_ADDRESS);
 
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
 
     weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS) as MockERC20;
     usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS) as MockERC20;
+    deth = await ethers.getContractAt("MockERC20", DETH_ADDRESS) as MockERC20;
+    odeth = await ethers.getContractAt("MockERC20", ODETH_ADDRESS) as MockERC20;
+    dusd = await ethers.getContractAt("MockERC20", DUSD_ADDRESS) as MockERC20;
+    odusd = await ethers.getContractAt("MockERC20", ODUSD_ADDRESS) as MockERC20;
 
     thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
     /*
@@ -243,8 +265,8 @@ describe("LoopooorAgentFactory", function () {
       COMPTROLLER_ADDRESS,
       deployer,
     );
-    dusdb = await ethers.getContractAt("MockERC20", DUSDB_ADDRESS, deployer);
-    odusdb = await ethers.getContractAt("MockERC20", ODUSDB_ADDRESS, deployer);
+    dusd = await ethers.getContractAt("MockERC20", DUSD_ADDRESS, deployer);
+    odusd = await ethers.getContractAt("MockERC20", ODUSD_ADDRESS, deployer);
     wrapMintUsdb = await ethers.getContractAt(
       "IWrapMintV2",
       WRAPMINT_USDB_ADDRESS,
@@ -457,7 +479,7 @@ describe("LoopooorAgentFactory", function () {
   });
 
   describe("initial values", function () {
-    it("static addresses are set properly", async function () {
+    it("factory static addresses are set properly", async function () {
       let res = await loopooorAgentFactory.getStaticAddresses()
       expect(res.erc6551Registry_).eq(erc6551Registry.address)
       expect(res.agentRegistry_).eq(agentRegistry.address)
@@ -466,7 +488,11 @@ describe("LoopooorAgentFactory", function () {
       expect(res.explorerAgentNft_).eq(explorerAgentNft.address)
       expect(res.weth_).eq(weth.address)
     })
-    it("creation settings are initially empty", async function () {
+    it("module static addresses are set properly", async function () {
+      expect(await moduleD.eth()).eq(ETH_ADDRESS)
+      expect(await moduleD.weth()).eq(WETH_ADDRESS)
+    })
+    it("factory creation settings are initially empty", async function () {
       let res = await loopooorAgentFactory.getAgentCreationSettings()
       expect(res.strategyAccountImpl_).eq(AddressZero)
       expect(res.explorerAccountImpl_).eq(AddressZero)
@@ -604,7 +630,7 @@ describe("LoopooorAgentFactory", function () {
       ]
       await agentRegistry.connect(user5).registerAgents(registerAgentParams)
     })
-    it("cannot create a loopooor agent for not an agent pt 7", async function () {
+    it("cannot create a loopooor agent for not an agent pt 4", async function () {
       let rootAgentAddress = user1.address
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
         mintParams, deposit, rootAgentAddress
@@ -620,6 +646,38 @@ describe("LoopooorAgentFactory", function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
         mintParams, deposit, rootAgentAddress
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient balance pt 2", async function () {
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient balance pt 3", async function () {
+      deposit.token = USDB_ADDRESS
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient balance pt 4", async function () {
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient balance pt 5", async function () {
+      deposit.token = AddressZero
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress, {value: deposit.amount.sub(1)}
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient balance pt 6", async function () {
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit, {value: deposit.amount.sub(1)}
       )).to.be.reverted
     })
     it("get tokens", async function () {
@@ -642,12 +700,25 @@ describe("LoopooorAgentFactory", function () {
       expect(await usdb.balanceOf(user1.address)).gte(amountOutMin)
     })
     it("cannot create a loopooor agent with insufficient allowance pt 1", async function () {
+      deposit.token = WETH_ADDRESS
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
         mintParams, deposit, rootAgentAddress
       )).to.be.reverted
     })
     it("cannot create a loopooor agent with insufficient allowance pt 2", async function () {
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient allowance pt 3", async function () {
+      deposit.token = USDB_ADDRESS
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
+      await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )).to.be.reverted
+    })
+    it("cannot create a loopooor agent with insufficient allowance pt 4", async function () {
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
         mintParams, deposit
       )).to.be.reverted
@@ -662,7 +733,7 @@ describe("LoopooorAgentFactory", function () {
         mintParams, deposit, rootAgentAddress
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
     })
-    it("cannot create a loopooor agent if factory is not whitelisted for strategy agents pt 3", async function () {
+    it("cannot create a loopooor agent if factory is not whitelisted for strategy agents pt 2", async function () {
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
         mintParams, deposit
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
@@ -708,7 +779,7 @@ describe("LoopooorAgentFactory", function () {
         mintParams, deposit, rootAgentAddress
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
-    it("cannot create agent if factory is not registry operator pt 3", async function () {
+    it("cannot create agent if factory is not registry operator pt 2", async function () {
       await expect(loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
         mintParams, deposit
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
@@ -741,30 +812,29 @@ describe("LoopooorAgentFactory", function () {
     })
   });
 
-  describe("createLoopooorAgentForRoot()", function () {
+  describe("createLoopooorAgentForRoot() with ETH", function () {
     let mintParams = {
       wrapMint: WRAPMINT_ETH_ADDRESS,
       otoken: ODETH_ADDRESS,
       underlying: ETH_ADDRESS,
       mode: 1, // fixed rate
-      leverage: WeiPerEther,
+      leverage: WeiPerEther.mul(2), // 2x leverage
       //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
     let deposit = {
-      token: WETH_ADDRESS,
+      token: ETH_ADDRESS,
       amount: WeiPerEther.div(10)
     }
-
-    it("can create a loopooor agent for a root agent you do own", async function () {
+    it("can create a loopooor agent using eth pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       // create
       let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRoot(
-        mintParams, deposit, rootAgentAddress
+        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
       )
       let strategyAgentID = 1
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
-        mintParams, deposit, rootAgentAddress
+        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
       )
       l1DataFeeAnalyzer.register("createLoopooorAgentForRoot", tx);
       await watchTxForEvents(tx)
@@ -781,42 +851,26 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
-      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      //expect(balances.blasterLpToken).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      //expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
+      // has module overrides
       let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
       let moduleName = await moduleContract.moduleName()
       expect(moduleName).eq("LoopooorModuleD")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Loopooor")
-      //let manager = await moduleContract.manager()
-      //expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      //let pool = await moduleContract.pool()
-      //expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      //let tokenId = await moduleContract.tokenId()
-      //expect(tokenId).gt(0)
-      //expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      //let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      //let position = await moduleContract.position()
-      //console.log(`position`, position)
-      //expect(position.token0).eq(USDB_ADDRESS)
-      //expect(position.token1).eq(WETH_ADDRESS)
-      //expect(position.fee).eq(3000)
-      //expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
     })
-    it("can create a loopooor agent using eth pt 1", async function () {
+    it("can create a loopooor agent using eth pt 2", async function () {
+      deposit.token = AddressZero
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       // create
-      deposit.token = AddressZero
       let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRoot(
         mintParams, deposit, rootAgentAddress, {value: deposit.amount}
       )
@@ -840,54 +894,95 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
-      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      //expect(balances.blasterLpToken).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      //expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
+      // has module overrides
       let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
       let moduleName = await moduleContract.moduleName()
       expect(moduleName).eq("LoopooorModuleD")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Loopooor")
-      //let manager = await moduleContract.manager()
-      //expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      //let pool = await moduleContract.pool()
-      //expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      //let tokenId = await moduleContract.tokenId()
-      //expect(tokenId).gt(0)
-      //expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      //let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      //let position = await moduleContract.position()
-      //console.log(`position`, position)
-      //expect(position.token0).eq(USDB_ADDRESS)
-      //expect(position.token1).eq(WETH_ADDRESS)
-      //expect(position.fee).eq(3000)
-      //expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
     })
-    it("can create a loopooor agent using eth pt 2", async function () {
-      let genesisAgentID = 2
-      let strategyAgentID = 3
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
+  })
+
+  describe("createLoopooorAgentForRoot() with WETH", function () {
+    let mintParams = {
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther.mul(2), // 2x leverage
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+    }
+    let deposit = {
+      token: WETH_ADDRESS,
+      amount: WeiPerEther.div(10)
+    }
+    it("can create a loopooor agent using weth pt 1", async function () {
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       // create
       let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRoot(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
+        mintParams, deposit, rootAgentAddress
       )
+      let strategyAgentID = 3
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
+        mintParams, deposit, rootAgentAddress
       )
       l1DataFeeAnalyzer.register("createLoopooorAgentForRoot", tx);
       await watchTxForEvents(tx)
       // created a new agent
       expect(await strategyAgentNft.totalSupply()).eq(3)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(3)
+      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(tbas.length).eq(1)
+      let agentAddress = tbas[0].agentAddress
+      await expectDeployed(agentAddress)
+      expect(agentAddress).eq(staticRes.strategyAddress)
+      let balances = await getBalances(agentAddress, true, "strategy agent")
+      expect(balances.eth).eq(0)
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
+      expect(balances.genesisAgents).eq(0)
+      expect(balances.strategyAgents).eq(0)
+      expect(balances.explorerAgents).eq(0)
+      // has module overrides
+      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("LoopooorModuleD")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Loopooor")
+      // does not create an explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(0)
+    })
+    it("can create a loopooor agent using weth pt 2", async function () {
+      let genesisAgentID = 2
+      let strategyAgentID = 4
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
+      // create
+      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )
+      l1DataFeeAnalyzer.register("createLoopooorAgentForRoot", tx);
+      await watchTxForEvents(tx)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(4)
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
       expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
       let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
@@ -899,385 +994,165 @@ describe("LoopooorAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
-      //expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      //expect(balances.blasterLpToken).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      //expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
+      // has module overrides
       let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
       let moduleName = await moduleContract.moduleName()
       expect(moduleName).eq("LoopooorModuleD")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Loopooor")
-      //let manager = await moduleContract.manager()
-      //expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      //let pool = await moduleContract.pool()
-      //expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      //let tokenId = await moduleContract.tokenId()
-      //expect(tokenId).gt(0)
-      //expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      //let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      //let position = await moduleContract.position()
-      //console.log(`position`, position)
-      //expect(position.token0).eq(USDB_ADDRESS)
-      //expect(position.token1).eq(WETH_ADDRESS)
-      //expect(position.fee).eq(3000)
-      //expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
     })
   });
-  /*
-  describe("createLoopooorAgentAndExplorer()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+
+  describe("createLoopooorAgentForRoot() with USDB", function () {
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
+      wrapMint: WRAPMINT_USDB_ADDRESS,
+      otoken: ODUSD_ADDRESS,
+      underlying: USDB_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther.mul(2), // 2x leverage
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
-    let deposit0 = {
+    let deposit = {
+      token: USDB_ADDRESS,
+      amount: WeiPerEther.mul(100)
+    }
+    it("can create a loopooor agent using usdb pt 1", async function () {
+      let genesisAgentID = 1
+      let strategyAgentID = 5
+      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
+      // create
+      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRoot(
+        mintParams, deposit, rootAgentAddress
+      )
+      l1DataFeeAnalyzer.register("createLoopooorAgentForRoot", tx);
+      await watchTxForEvents(tx)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(5)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(4)
+      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(tbas.length).eq(1)
+      let agentAddress = tbas[0].agentAddress
+      await expectDeployed(agentAddress)
+      expect(agentAddress).eq(staticRes.strategyAddress)
+      let balances = await getBalances(agentAddress, true, "strategy agent")
+      expect(balances.eth).eq(0)
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).eq(0)
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).gt(0) // only one with balance
+      expect(balances.genesisAgents).eq(0)
+      expect(balances.strategyAgents).eq(0)
+      expect(balances.explorerAgents).eq(0)
+      // has module overrides
+      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("LoopooorModuleD")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Loopooor")
+      // does not create an explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(0)
+    })
+  })
+
+  describe("createLoopooorAgentAndExplorer() with ETH", function () {
+    let mintParams = {
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther.mul(2), // 2x leverage
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+    }
+    let deposit = {
+      token: ETH_ADDRESS,
+      amount: WeiPerEther.div(10)
+    }
+    it("can create a loopooor agent using eth pt 1", async function () {
+      let strategyAgentID = 6
+      // create
+      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorer(
+        mintParams, deposit, {value: deposit.amount}
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit, {value: deposit.amount}
+      )
+      l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorer", tx);
+      await watchTxForEvents(tx)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(6)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(tbas.length).eq(1)
+      let agentAddress = tbas[0].agentAddress
+      await expectDeployed(agentAddress)
+      expect(agentAddress).eq(staticRes.strategyAddress)
+      let balances = await getBalances(agentAddress, true, "strategy agent")
+      expect(balances.eth).eq(0)
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
+      expect(balances.genesisAgents).eq(0)
+      expect(balances.strategyAgents).eq(0)
+      expect(balances.explorerAgents).eq(0)
+      // has module overrides
+      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("LoopooorModuleD")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Loopooor")
+      // creates an explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(1)
+    })
+  })
+
+  describe("createLoopooorAgentAndExplorer() with WETH", function () {
+    let mintParams = {
+      wrapMint: WRAPMINT_ETH_ADDRESS,
+      otoken: ODETH_ADDRESS,
+      underlying: ETH_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther.mul(2), // 2x leverage
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
+    }
+    let deposit = {
       token: WETH_ADDRESS,
       amount: WeiPerEther.div(10)
     }
-    let deposit1 = {
-      token: USDB_ADDRESS,
-      amount: WeiPerEther.mul(300)
-    }
-
-    it("can create a loopooor agent and new explorer agent", async function () {
+    it("can create a loopooor agent using weth pt 1", async function () {
+      let strategyAgentID = 7
       // create
-      let strategyAgentID = 4
-      let explorerAgentID = 1
       let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorer(
         mintParams, deposit
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
       let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
         mintParams, deposit
       )
       l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorer", tx);
       await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(1)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(1)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(4)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).gte(0)
-      expect(strategyBalances.usdb).gte(0)
-      expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", strategyAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-    })
-  });
-
-  describe("ways to not create agents pt 3", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("cannot migrate zero balance pt 1", async function () {
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
-      await expect(loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("cannot migrate zero balance pt 2", async function () {
-      await expect(loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("can deposit liquidity", async function () {
-      await usdb.connect(user1).approve(THRUSTER_ROUTER_ADDRESS_030, MaxUint256)
-      await thrusterRouter_030.connect(user1).addLiquidityETH(USDB_ADDRESS, WeiPerEther.mul(100), 0, 0, user1.address, MaxUint256, {value: WeiPerEther.div(30)})
-      expect(await thrusterLpToken.balanceOf(user1.address)).gt(0)
-    })
-    it("cannot migrate with insufficient allowance pt 1", async function () {
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
-      await expect(loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("cannot migrate with insufficient allowance pt 2", async function () {
-      await expect(loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("can approve liquidity", async function () {
-      await thrusterLpToken.connect(user1).approve(loopooorAgentFactory.address, MaxUint256)
-    })
-  })
-
-  describe("createLoopooorAgentForRootAndMigrate()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a loopooor agent for a root agent you do own", async function () {
-      let genesisAgentID = 3
-      let strategyAgentID = 5
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // create
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentForRootAndMigrate", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(5)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(1)
-    })
-  })
-
-  describe("createLoopooorAgentAndExplorerAndMigrate()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a loopooor agent and new explorer agent", async function () {
-      // create
-      let strategyAgentID = 6
-      let explorerAgentID = 2
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorerAndMigrate", tx);
-      await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(2)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(2)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(6)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).gte(0)
-      expect(strategyBalances.usdb).gte(0)
-      expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", strategyAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-    })
-  })
-
-  describe("createLoopooorAgentForRootAndMigrateWithPermit()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a loopooor agent for a root agent you do own", async function () {
-      let genesisAgentID = 4
-      let strategyAgentID = 7
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // sign
-      let { v, r, s } = await getERC20PermitSignature(user1, loopooorAgentFactory.address, thrusterLpToken, depositLpToken.amount, MaxUint256, MaxUint256, 81457);
-      let deadline = MaxUint256
-      // create
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndMigrateWithPermit(
-        mintParams, depositLpToken, rootAgentAddress, deadline, v, r, s
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRootAndMigrateWithPermit(
-        mintParams, depositLpToken, rootAgentAddress, deadline, v, r, s
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentForRootAndMigrateWithPermit", tx);
-      await watchTxForEvents(tx)
       // created a new agent
       expect(await strategyAgentNft.totalSupply()).eq(7)
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
       let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       expect(tbas.length).eq(1)
       let agentAddress = tbas[0].agentAddress
@@ -1285,434 +1160,81 @@ describe("LoopooorAgentFactory", function () {
       expect(agentAddress).eq(staticRes.strategyAddress)
       let balances = await getBalances(agentAddress, true, "strategy agent")
       expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).gt(0) // only one with balance
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
+      // has module overrides
       let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
       let moduleName = await moduleContract.moduleName()
       expect(moduleName).eq("LoopooorModuleD")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
+      // creates an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(2)
     })
   })
 
-  describe("createLoopooorAgentAndExplorerAndMigrateWithPermit()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+  describe("createLoopooorAgentAndExplorer() with USDB", function () {
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
+      wrapMint: WRAPMINT_USDB_ADDRESS,
+      otoken: ODUSD_ADDRESS,
+      underlying: USDB_ADDRESS,
+      mode: 1, // fixed rate
+      leverage: WeiPerEther.mul(2), // 2x leverage
+      //leverage: parseEther("2.499999999000000000"), // 2.5 is max based on 60% LTV
     }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
+    let deposit = {
+      token: USDB_ADDRESS,
+      amount: WeiPerEther.mul(100)
     }
-
-    it("can create a loopooor agent and new explorer agent", async function () {
-      // create
+    it("can create a loopooor agent using weth pt 1", async function () {
       let strategyAgentID = 8
-      let explorerAgentID = 3
-      let { v, r, s } = await getERC20PermitSignature(user1, loopooorAgentFactory.address, thrusterLpToken, depositLpToken.amount, MaxUint256, MaxUint256, 81457);
-      let deadline = MaxUint256
       // create
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorerAndMigrateWithPermit(
-        mintParams, depositLpToken, deadline, v, r, s
+      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorer(
+        mintParams, deposit
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorerAndMigrateWithPermit(
-        mintParams, depositLpToken, deadline, v, r, s
+      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorer(
+        mintParams, deposit
       )
-      l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorerAndMigrateWithPermit", tx);
+      l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorer", tx);
       await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(3)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
       // created a new agent
       expect(await strategyAgentNft.totalSupply()).eq(8)
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).gte(0)
-      expect(strategyBalances.usdb).gte(0)
-      expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", strategyAddress) as LoopooorModuleD
+      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(tbas.length).eq(1)
+      let agentAddress = tbas[0].agentAddress
+      await expectDeployed(agentAddress)
+      expect(agentAddress).eq(staticRes.strategyAddress)
+      let balances = await getBalances(agentAddress, true, "strategy agent")
+      expect(balances.eth).eq(0)
+      expect(balances.weth).eq(0)
+      expect(balances.usdb).eq(0)
+      expect(balances.deth).eq(0)
+      expect(balances.odeth).eq(0)
+      expect(balances.dusd).eq(0)
+      expect(balances.odusd).gt(0) // only one with balance
+      expect(balances.genesisAgents).eq(0)
+      expect(balances.strategyAgents).eq(0)
+      expect(balances.explorerAgents).eq(0)
+      // has module overrides
+      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
       let moduleName = await moduleContract.moduleName()
       expect(moduleName).eq("LoopooorModuleD")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
+      // creates an explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(3)
     })
   })
 
-  describe("createLoopooorAgentForRootAndRefundExcess()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let deposit0 = {
-      token: WETH_ADDRESS,
-      amount: WeiPerEther.div(10)
-    }
-    let deposit1 = {
-      token: USDB_ADDRESS,
-      amount: WeiPerEther.mul(300)
-    }
-
-    it("can create a loopooor agent for a root agent you do own", async function () {
-      let genesisAgentID = 5
-      let strategyAgentID = 9
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // create
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentForRootAndRefundExcess", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).eq(0) // should not keep dust amounts
-      expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
-    })
-    it("can create a loopooor agent using eth pt 1", async function () {
-      let genesisAgentID = 5
-      let strategyAgentID = 10
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // create
-      deposit.token = AddressZero
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentForRootAndRefundExcess", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(2)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).eq(0) // should not keep dust amounts
-      expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
-    })
-    it("can create a loopooor agent using eth pt 2", async function () {
-      let genesisAgentID = 5
-      let strategyAgentID = 11
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // create
-      deposit0 = {
-        token: USDB_ADDRESS,
-        amount: WeiPerEther.mul(300)
-      }
-      deposit1 = {
-        token: WETH_ADDRESS,
-        amount: WeiPerEther.div(10)
-      }
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentForRootAndRefundExcess(
-        mintParams, deposit, rootAgentAddress, {value: deposit.amount}
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentForRootAndRefundExcess", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(3)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).eq(0) // should not keep dust amounts
-      expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", agentAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
-    })
-  });
-
-  describe("createLoopooorAgentAndExplorerAndRefundExcess()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let deposit0 = {
-      token: WETH_ADDRESS,
-      amount: WeiPerEther.div(10)
-    }
-    let deposit1 = {
-      token: USDB_ADDRESS,
-      amount: WeiPerEther.mul(300)
-    }
-
-    it("can create a loopooor agent and new explorer agent", async function () {
-      // create
-      let strategyAgentID = 12
-      let explorerAgentID = 4
-      let staticRes = await loopooorAgentFactory.connect(user1).callStatic.createLoopooorAgentAndExplorerAndRefundExcess(
-        mintParams, deposit
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
-      let tx = await loopooorAgentFactory.connect(user1).createLoopooorAgentAndExplorerAndRefundExcess(
-        mintParams, deposit
-      )
-      l1DataFeeAnalyzer.register("createLoopooorAgentAndExplorerAndRefundExcess", tx);
-      await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(explorerAgentID)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(explorerAgentID)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).eq(0) // should not keep dust amounts
-      expect(strategyBalances.usdb).eq(0)
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("LoopooorModuleD", strategyAddress) as LoopooorModuleD
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("LoopooorModuleD")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Loopooor")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-    })
-  });
-  */
   async function watchTxForEvents(tx:any) {
     //console.log("tx:", tx);
     console.log("tx:", tx.hash);
@@ -1786,13 +1308,14 @@ describe("LoopooorAgentFactory", function () {
       eth: await provider.getBalance(account),
       weth: await weth.balanceOf(account),
       usdb: await usdb.balanceOf(account),
+      deth: await deth.balanceOf(account),
+      odeth: await odeth.balanceOf(account),
+      dusd: await dusd.balanceOf(account),
+      odusd: await odusd.balanceOf(account),
 
       genesisAgents: await genesisAgentNft.balanceOf(account),
       strategyAgents: await strategyAgentNft.balanceOf(account),
       explorerAgents: await explorerAgentNft.balanceOf(account),
-
-      //blasterLpToken: await blasterLpToken.balanceOf(account),
-      //thrusterPositions: await thrusterPositionManager.balanceOf(account),
     }
     if(log) {
       console.log(`Balances of ${accountName || account}`)
@@ -1800,11 +1323,13 @@ describe("LoopooorAgentFactory", function () {
         eth: formatUnits(res.eth),
         weth: formatUnits(res.weth),
         usdb: formatUnits(res.usdb),
-        //blasterLpToken: formatUnits(res.blasterLpToken),
+        deth: formatUnits(res.deth),
+        odeth: formatUnits(res.odeth),
+        dusd: formatUnits(res.dusd),
+        odusdt: formatUnits(res.odusd),
         genesisAgents: res.genesisAgents.toString(),
         strategyAgents: res.strategyAgents.toString(),
         explorerAgents: res.explorerAgents.toString(),
-        //thrusterPositions: res.thrusterPositions.toString(),
       })
     }
     return res
