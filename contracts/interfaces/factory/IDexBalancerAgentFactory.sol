@@ -7,7 +7,7 @@ pragma solidity 0.8.24;
  * @author AgentFi
  * @notice A factory for dex balancer strategy agents.
  *
- * Users can use [`createAgent()`](#createagent) to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
+ * Agent operators can use one of the create methods to create a new agent. The agent will be created based on settings stored in the factory by the contract owner. These settings can be viewed via [`getAgentCreationSettings()`](#getagentcreationsettings).
  */
 interface IDexBalancerAgentFactory {
 
