@@ -50,6 +50,7 @@ import { moduleDFunctionParams as functionParams } from "../scripts/configuratio
 /* prettier-ignore */ const USER_ADDRESS                  = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 
 enum MODE {
+  DIRECT = 0,
   BOOST_POINTS = 1,
   BOOST_YIELD = 2,
 }
@@ -93,7 +94,7 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func, true), requiredRole });
+      acc.push({ selector: calcSighash(func, false), requiredRole });
     });
 
     return acc;
@@ -449,21 +450,30 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
 describe("LoopoorModuleD", function () {
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("LoopooorModuleD");
+    const { signer } = fixture;
 
     const COMPTROLLER = await ethers.getContractAt(
       "IOrbitSpaceStationV4",
       COMPTROLLER_ADDRESS,
     );
 
-    const DUSD = await ethers.getContractAt("MockERC20", DUSD_ADDRESS);
-    const ODUSD = await ethers.getContractAt("MockERC20", ODUSD_ADDRESS);
+    const DUSD = await ethers.getContractAt("MockERC20", DUSD_ADDRESS, signer);
+    const ODUSD = await ethers.getContractAt(
+      "MockERC20",
+      ODUSD_ADDRESS,
+      signer,
+    );
     const WRAPMINT_USDB = await ethers.getContractAt(
       "IWrapMintV2",
       WRAPMINT_USDB_ADDRESS,
     );
 
-    const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS);
-    const ODETH = await ethers.getContractAt("MockERC20", ODETH_ADDRESS);
+    const DETH = await ethers.getContractAt("MockERC20", DETH_ADDRESS, signer);
+    const ODETH = await ethers.getContractAt(
+      "MockERC20",
+      ODETH_ADDRESS,
+      signer,
+    );
 
     const WRAPMINT_ETH = await ethers.getContractAt(
       "IWrapMintV2",
@@ -589,6 +599,63 @@ describe("LoopoorModuleD", function () {
         );
     });
 
+    it("Looped depositing DUSDB directly", async function () {
+      const { module, ODUSD, DUSD, COMPTROLLER, USDB, WRAPMINT_USDB, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Confirm Initial stage
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
+      ).to.equal(false);
+
+      await USDB.approve(WRAPMINT_USDB_ADDRESS, parseEther("100"));
+
+      await WRAPMINT_USDB.connect(signer).mintFixedRate(
+        SWAP_ROUTER_ADDRESS,
+        USDB_ADDRESS,
+        parseEther("100"),
+        0,
+        0,
+        toBytes32(0),
+      );
+
+      await DUSD.transfer(module.address, parseEther("100"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODUSD_ADDRESS,
+        DUSD_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DUSD,
+        module.address,
+        parseEther("-100"),
+      );
+
+      almostEqual(
+        await ODUSD.balanceOf(module.address),
+        parseEther("1249991.679098100761621992"),
+      );
+
+      expect(await module.underlying()).to.equal(DUSD_ADDRESS);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
+      ).to.equal(true);
+
+      // ===== Do leverage burn
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DUSD.balanceOf(USER_ADDRESS),
+        parseEther("99.999999953036711437"),
+      );
+
+      expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
+    });
     it("Looped depositing USDB in fixedRate", async function () {
       const { module, ODUSD, DUSD, COMPTROLLER, USDB, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
@@ -1034,6 +1101,62 @@ describe("LoopoorModuleD", function () {
 
       almostEqual(
         await WETH.balanceOf(USER_ADDRESS),
+        parseEther("0.100000001012337307"),
+      );
+
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
+    });
+
+    it("Looped depositing DETH directly", async function () {
+      const { module, ODETH, DETH, COMPTROLLER, WRAPMINT_ETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.1"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await DETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.1"),
+      );
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.999958011201242472"),
+      );
+
+      expect(await module.mode()).to.equal(0);
+
+      expect(await module.underlying()).to.equal(DETH_ADDRESS);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+
+      // ===== Do leverage burn
+      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DETH.balanceOf(USER_ADDRESS),
         parseEther("0.100000001012337307"),
       );
 

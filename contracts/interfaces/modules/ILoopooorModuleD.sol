@@ -17,7 +17,7 @@ interface ILoopooorModuleD {
     ***************************************/
 
     enum MODE {
-        INITIAL, // Initial state
+        DIRECT, // Direct 
         FIXED_RATE, // Mint Fixed Rate
         VARIABLE_RATE // Mint Variable Rate
     }
