@@ -12,6 +12,7 @@ import { IHyperlockStaking } from "./../interfaces/external/Hyperlock/IHyperlock
 import { IRingSwapV2Router } from "./../interfaces/external/RingProtocol/IRingSwapV2Router.sol";
 import { IFixedStakingRewards } from "./../interfaces/external/RingProtocol/IFixedStakingRewards.sol";
 import { IBlasterswapV2Router02 } from "./../interfaces/external/Blaster/IBlasterswapV2Router02.sol";
+import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
 
 /**
@@ -115,18 +116,18 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
         _depositBalance();
     }
 
+    function moduleA_depositBalanceAndRefundTo(address receiver) external payable override {
+        _depositBalance();
+        _withdrawFreeBalance(receiver);
+    }
+
     function moduleA_withdrawBalance() external payable override {
         _withdrawBalance();
     }
 
     function moduleA_withdrawBalanceTo(address receiver) external payable override {
         _withdrawBalance();
-        uint256 balance = address(this).balance;
-        if(balance > 0) Calls.sendValue(receiver, balance);
-        balance = IERC20(_weth).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_weth), receiver, balance);
-        balance = IERC20(_usdb).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
+        _withdrawFreeBalance(receiver);
     }
 
     /***************************************
@@ -210,7 +211,7 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
     ***************************************/
 
     /**
-     * @notice Deposits tokens from all pools.
+     * @notice Withdraws tokens from all pools.
      * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
      */
     function _withdrawBalance() internal {
@@ -220,7 +221,7 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
     }
 
     /**
-     * @notice Deposits tokens from Hyperlock staking and Thruster liquidity pool.
+     * @notice Withdraws tokens from Hyperlock staking and Thruster liquidity pool.
      * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
      */
     function _withdrawThruster() internal {
@@ -238,7 +239,7 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
     }
 
     /**
-     * @notice Deposits tokens from Ring staking and liquidity pool.
+     * @notice Withdraws tokens from Ring staking and liquidity pool.
      * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
      */
     function _withdrawRingProtocol() internal {
@@ -263,7 +264,7 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
     }
 
     /**
-     * @notice Deposits tokens from Blasterswap liquidity pool.
+     * @notice Withdraws tokens from Blasterswap liquidity pool.
      * Will attempt to withdraw all known tokens and hold the WETH and USDB in the TBA.
      */
     function _withdrawBlasterswap() internal {
@@ -273,6 +274,23 @@ contract DexBalancerModuleA is Blastable, IDexBalancerModuleA {
           _checkApproval(_blasterswapLpToken, _blasterswapRouter, balance);
           IBlasterswapV2Router02(_blasterswapRouter).removeLiquidity(_weth, _usdb, balance, 0, 0, address(this), type(uint256).max);
       }
+    }
+
+    /**
+     * @notice Withdraws any balances not currently deposited in liquidity pools.
+     * Returns ETH and USDB to receiver.
+     * @param receiver The address to receive the tokens.
+     */
+    function _withdrawFreeBalance(address receiver) internal {
+        // withdraw usdb
+        uint256 balance = IERC20(_usdb).balanceOf(address(this));
+        if(balance > 0) SafeERC20.safeTransfer(IERC20(_usdb), receiver, balance);
+        // unwrap weth
+        balance = IERC20(_weth).balanceOf(address(this));
+        if(balance > 0) IWETH(_weth).withdraw(balance);
+        // transfer eth last
+        balance = address(this).balance;
+        if(balance > 0) Calls.sendValue(receiver, balance);
     }
 
     /***************************************

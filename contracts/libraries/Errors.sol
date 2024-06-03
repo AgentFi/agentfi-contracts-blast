@@ -157,6 +157,10 @@ library Errors {
     error InvalidSlippageParam(); // Throw if slippage params is invalid
     error InvalidManagerParam(); // Throw if nfp manager param is invalid
 
+    // ModuleD errors
+    /// @notice Thrown when creating an agent with an invalid mode.
+    error InvalidMode();
+
     // processing errors
     /// @notice Thrown when processing an empty queue.
     error NoMoreItemsInQueue();

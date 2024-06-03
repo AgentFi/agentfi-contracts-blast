@@ -121,7 +121,7 @@ const config: HardhatUserConfig = {
     timeout: 3600000, // one hour
   },
   gasReporter: {
-    enabled: true,
+    enabled: process.env.REPORT_GAS ? !(process.env.REPORT_GAS === "false") : true,
     currency: "USD",
     gasPrice: 1, // really should be ~0.001 gwei, but this doesnt support decimals
     coinmarketcap: process.env.CMC_API_KEY || "",

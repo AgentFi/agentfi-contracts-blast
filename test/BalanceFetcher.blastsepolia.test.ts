@@ -40,6 +40,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
   let agentFetcher: AgentFetcher;
 
   before(async function () {
+    // use blast sepolia with set fork block
     const blockNumber = 3372360;
     await hre.network.provider.request({
       method: "hardhat_reset",
@@ -79,6 +80,20 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
 
   after(async function () {
     await provider.send("evm_revert", [snapshot]);
+
+    // reset back to blast
+    const blockNumber = parseInt(process.env.BLAST_FORK_BLOCK);
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.BLAST_URL,
+            blockNumber,
+          },
+        },
+      ],
+    });
   });
 
   const erc20s = [
