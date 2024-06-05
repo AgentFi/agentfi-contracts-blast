@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { ConcentratedLiquidityModuleC } from "./ConcentratedLiquidityModuleC.sol";
+import { IConcentratedLiquidityGatewayModuleC } from "./../interfaces/modules/IConcentratedLiquidityGatewayModuleC.sol";
 
 /**
  * @title ConcentratedLiquidityGatewayModuleC
@@ -14,7 +15,7 @@ import { ConcentratedLiquidityModuleC } from "./ConcentratedLiquidityModuleC.sol
  * Designed for use on Blast Mainnet only.
  */
 
-contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
+contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC, IConcentratedLiquidityGatewayModuleC {
     address internal constant _weth = 0x4300000000000000000000000000000000000004;
 
     /**
@@ -31,7 +32,7 @@ contract ConcentratedLiquidityGatewayModuleC is ConcentratedLiquidityModuleC {
         address pointsOperator_
     ) ConcentratedLiquidityModuleC(blast_, gasCollector_, blastPoints_, pointsOperator_) {}
 
-    function moduleC_wrap() public payable {
+    function moduleC_wrap() public payable override {
         uint256 ethAmount = address(this).balance;
         if (ethAmount > 0) {
             Calls.sendValue(_weth, ethAmount);
