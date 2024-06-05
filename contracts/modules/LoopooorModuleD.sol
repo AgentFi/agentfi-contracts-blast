@@ -36,9 +36,6 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     address internal constant _eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant _weth = 0x4300000000000000000000000000000000000004; // wrapped eth
 
-    address internal constant _spaceStation = 0xe9266ae95bB637A7Ad598CB0390d44262130F433;
-    address internal constant _orbit        = 0x42E12D42b3d6C4A74a88A61063856756Ea2DB357;
-
     /***************************************
     STATE
     ***************************************/
@@ -294,6 +291,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
     /***************************************
     HIGH LEVEL AGENT MUTATOR FUNCTIONS
     ***************************************/
+    function moduleD_claim() internal {
+        comptroller().claimOrb(address(this));
+    }
+
     function moduleD_enterMarket() internal {
         address[] memory oTokens = new address[](1);
         oTokens[0] = address(oToken());
@@ -426,12 +427,14 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
 
         // claim orbit token
-        IOrbitSpaceStationV4(_spaceStation).claimOrb(address(this));
+        moduleD_claim();
     }
 
     function moduleD_withdrawBalanceTo(address receiver) external payable override {
         moduleD_withdrawBalance();
         moduleD_sendBalanceTo(receiver, underlying());
+        // Send any orbit.
+        moduleD_sendBalanceTo(receiver, comptroller().getTokenAddress());
     }
 
     // Send funds to reciever
@@ -441,10 +444,14 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         } else {
             SafeERC20.safeTransfer(IERC20(token), receiver, IERC20(token).balanceOf(address(this)));
         }
+    }
 
-        // withdraw orbit
-        uint256 balance = IERC20(_orbit).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_orbit), receiver, balance);
+    function moduleD_claimTo(address receiver) public {
+        // Claim all orbs first
+        moduleD_claim();
+
+        // Send balance. Note in the event comptroller is empty, might not get full claim
+        moduleD_sendBalanceTo(receiver, comptroller().getTokenAddress());
     }
 
     /***************************************

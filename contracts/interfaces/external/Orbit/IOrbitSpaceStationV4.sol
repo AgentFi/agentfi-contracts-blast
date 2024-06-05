@@ -35,4 +35,10 @@ interface IOrbitSpaceStationV4 {
      * @param holder The address to claim tokens for
      */
     function claimOrb(address holder) external;
+
+    /**
+     * @notice Return the address of the tokens token
+     * @return The address of tokens
+     */
+    function getTokenAddress() external view returns (address);
 }
