@@ -398,10 +398,10 @@ describe("LoopooorAgentFactory", function () {
 
   describe("genesis agent creation", function () {
     it("calcSighashes", async function () {
-      //let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', true)
-      //let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', true)
-      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', true)
-      let sighashes4 = calcSighashes(moduleD, 'LoopooorModuleD', true)
+      //let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', false)
+      //let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', false)
+      //let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', false)
+      //let sighashes4 = calcSighashes(moduleD, 'LoopooorModuleD', false)
     });
     it("owner can whitelist", async function () {
       let whitelist = [
@@ -558,7 +558,6 @@ describe("LoopooorAgentFactory", function () {
       let setOverridesCalldata = strategyAccountImplementation.interface.encodeFunctionData("setOverrides", [overrides])
       let txdatas = [blastConfigureCalldata, setOverridesCalldata]
       let multicallCalldata = strategyAccountImplementation.interface.encodeFunctionData("multicall", [txdatas])
-      console.log((blastConfigureCalldata.length-2)/2, (setOverridesCalldata.length-2)/2, (multicallCalldata.length-2)/2)
       let settings1 = {
         strategyAccountImpl: strategyAccountImplementation.address,
         explorerAccountImpl: explorerAccountImplementation.address,
@@ -856,7 +855,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -900,7 +899,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -958,7 +957,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1002,7 +1001,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1061,7 +1060,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1117,7 +1116,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1173,7 +1172,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1229,7 +1228,7 @@ describe("LoopooorAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1291,7 +1290,7 @@ describe("LoopooorAgentFactory", function () {
     })
     it("can withdraw full", async function () {
       let tx = await agentModule.connect(user1).moduleD_withdrawBalanceTo(user1.address)
-      balancesA1 = await getBalances(agentAddress, true, "strategy agent")
+      balancesA1 = await getBalances(agentAddress, false, "strategy agent")
       expect(balancesA1.eth).eq(0)
       expect(balancesA1.weth).eq(0)
       expect(balancesA1.usdb).eq(0)
@@ -1303,7 +1302,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balancesA1.genesisAgents).eq(0)
       expect(balancesA1.strategyAgents).eq(0)
       expect(balancesA1.explorerAgents).eq(0)
-      balancesU1 = await getBalances(user1.address, true, "user1")
+      balancesU1 = await getBalances(user1.address, false, "user1")
       expect(balancesU1.eth).gt(0) // user has eth weth and usdb
       expect(balancesU1.weth).gt(0)
       expect(balancesU1.usdb).gt(0)
@@ -1321,7 +1320,7 @@ describe("LoopooorAgentFactory", function () {
     })
     it("can withdraw zero", async function () {
       let tx = await agentModule.connect(user1).moduleD_sendBalanceTo(user1.address, ETH_ADDRESS)
-      balancesA2 = await getBalances(agentAddress, true, "strategy agent")
+      balancesA2 = await getBalances(agentAddress, false, "strategy agent")
       expect(balancesA2.eth).eq(0)
       expect(balancesA2.weth).eq(0)
       expect(balancesA2.usdb).eq(0)
@@ -1333,7 +1332,7 @@ describe("LoopooorAgentFactory", function () {
       expect(balancesA2.genesisAgents).eq(0)
       expect(balancesA2.strategyAgents).eq(0)
       expect(balancesA2.explorerAgents).eq(0)
-      balancesU2 = await getBalances(user1.address, true, "user1")
+      balancesU2 = await getBalances(user1.address, false, "user1")
       expect(balancesU2.eth).lt(balancesU1.eth) // minus gas cost
       expect(balancesU2.weth).eq(balancesU1.weth) // all else equal
       expect(balancesU2.usdb).eq(balancesU1.usdb)
@@ -1349,17 +1348,18 @@ describe("LoopooorAgentFactory", function () {
     })
   })
 
-  async function watchTxForEvents(tx:any) {
+  async function watchTxForEvents(tx:any, debug=false) {
     //console.log("tx:", tx);
-    console.log("tx:", tx.hash);
+    if(debug) console.log("tx:", tx.hash);
     let receipt = await tx.wait(networkSettings.confirmations);
     //let receipt = await tx.wait(0);
-    console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+    //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
     if(!receipt || !receipt.logs || receipt.logs.length == 0) {
       console.log(receipt)
       //throw new Error("events not found");
       console.log("No events found")
     }
+    if(!debug) return
     /*
     console.log('logs:')
     for(let i = 0; i < receipt.logs.length; i++) {

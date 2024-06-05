@@ -335,8 +335,6 @@ describe("BalanceFetcher", function () {
         gasBurner2.address, // configured with mock blast
       ]
       let res = await balanceFetcher.callStatic.fetchBlastableGasQuotes(addresses);
-      console.log('res')
-      console.log(res)
       expect(res.length).eq(addresses.length)
       expect(res[0].quoteAmountAllGas).eq(0)
       expect(res[0].quoteAmountMaxGas).eq(0)

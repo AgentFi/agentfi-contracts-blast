@@ -494,7 +494,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[1]", tx);
     });
     it("genesis nft owner can create account pt 2", async function () {
@@ -530,7 +530,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[2]", tx);
     });
     it("owner can postAgentCreationSettings pt 2", async function () {
@@ -617,7 +617,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[3]", tx);
     });
     it("reverts if including call to protected function via factory", async function () {
@@ -674,7 +674,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[4]", tx);
     });
     it("can call to protected function via MulticallForwarder and transfer in gas", async function () {
@@ -730,7 +730,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(nftInfo.agentID).eq(agentID)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount[5]", tx);
     });
     it("non owner cannot setActiveStatus", async function () {
@@ -917,7 +917,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await strategyFactory.getCreateCount(tbaccountG1C.address)).eq(1)
       tbaccountS1 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[1]", tx);
     });
     it("cannot create with paused settingsID pt 1", async function () {
@@ -1020,7 +1020,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS2 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[2]", tx);
     });
     it("cannot deposit erc20 with insufficient balance", async function () {
@@ -1138,7 +1138,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS3 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[3]", tx);
     });
     it("can create strategy agent pt 4", async function () {
@@ -1216,7 +1216,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS4 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[4]", tx);
     });
     it("can create strategy agent pt 5", async function () {
@@ -1275,7 +1275,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS5 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[5]", tx);
     });
     it("owner can postAgentCreationSettings pt 2", async function () {
@@ -1388,7 +1388,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS6 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[6]", tx);
     });
     it("can swap eth for usdb in thruster", async function () {
@@ -1476,7 +1476,7 @@ describe("BlastooorStrategyAgents", function () {
 
       tbaccountS7 = await ethers.getContractAt("BlastooorStrategyAgentAccount", res3) as BlastooorStrategyAgentAccount;
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createStrategyAgent[7]", tx);
     });
     it("can fetch balances 3", async function () {
@@ -1818,7 +1818,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(true)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount pt 2 [0]", tx);
     })
     it("can create accounts with multicall forwarder and multicall", async function () {
@@ -1881,7 +1881,7 @@ describe("BlastooorStrategyAgents", function () {
       expect(await agentRegistry.isTbaRegisteredAgent(res0)).eq(true)
       expect(await agentRegistry.isTbaRegisteredAgent(res1)).eq(true)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       l1DataFeeAnalyzer.register("createGenesisAccount pt 2 [1]", tx);
     })
     it("cannot spoof address", async function () {
