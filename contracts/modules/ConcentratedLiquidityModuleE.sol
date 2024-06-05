@@ -490,13 +490,25 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleE_rebalance(RebalanceParams memory params) external payable override {
         console.log("in moduleE_rebalance() 1");
+        (, , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
+        console.log("Starting at ticks");
+        console.logInt(int256(tickLower));
+        console.logInt(int256(tickUpper));
+        console.log("Rebalancing to ticks");
+        console.logInt(int256(params.tickLower));
+        console.logInt(int256(params.tickUpper));
         IAlgebraPool pool_ = IAlgebraPool(pool());
+        (, int24 poolTick, , , , , ) = pool_.safelyGetStateOfAMM();
+        console.log("Current pool tick");
+        console.logInt(int256(poolTick));
         address token0 = pool_.token0();
         address token1 = pool_.token1();
+        console.log("balances start:");
         console.log(IERC20(token0).balanceOf(address(this)));
         console.log(IERC20(token1).balanceOf(address(this)));
         moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
         console.log("in moduleE_rebalance() 2");
+        console.log("balances after full withdraw to self:");
         console.log(IERC20(token0).balanceOf(address(this)));
         console.log(IERC20(token1).balanceOf(address(this)));
 
@@ -506,9 +518,10 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             params.tickUpper
         );
         console.log("in moduleE_rebalance() 3");
-        console.log(tokenIn);
-        console.log(tokenOut);
-        console.log(amountIn);
+        //console.log(tokenIn);
+        //console.log(tokenOut);
+        //console.log(amountIn);
+        console.log("swap", amountIn, tokenIn==token0 ? "zero for one" : "one for zero");
         _performSwap(
             PerformSwapParams({
                 router: params.router,
@@ -520,6 +533,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             })
         );
         console.log("in moduleE_rebalance() 4");
+        console.log("balances after swap:");
         console.log(IERC20(token0).balanceOf(address(this)));
         console.log(IERC20(token1).balanceOf(address(this)));
 
@@ -535,6 +549,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             })
         );
         console.log("in moduleE_rebalance() 5");
+        console.log("balances after deposit:");
         console.log(IERC20(token0).balanceOf(address(this)));
         console.log(IERC20(token1).balanceOf(address(this)));
     }
@@ -568,10 +583,16 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         uint256 p = uint256(sqrtPriceX96);
         uint256 pa = uint256(TickMath.getSqrtRatioAtTick(tickLower));
         uint256 pb = uint256(TickMath.getSqrtRatioAtTick(tickUpper));
+        console.log("in _getSwapForNewRange() 2");
+        console.log(p);
+        console.log(pa);
+        console.log(pb);
 
         if (pb <= p) {
+            console.log("in _getSwapForNewRange() branch A");
             return (token0, token1, amount0);
         } else if (pa >= p) {
+            console.log("in _getSwapForNewRange() branch B");
             return (token1, token0, amount1);
         } else {
             uint256 SCALE = 10 ** 18; // Scale  to avoid zero values
@@ -579,9 +600,11 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             ratio = Math.mulDiv(ratio, SCALE, 2 ** 192);
 
             if (Math.mulDiv(amount0, ratio, 10 ** 18) > amount1) {
+                console.log("in _getSwapForNewRange() branch C");
                 uint256 amountIn = (amount0 - Math.mulDiv(amount1, SCALE, ratio)) / 2;
                 return (token0, token1, amountIn);
             } else {
+                console.log("in _getSwapForNewRange() branch D");
                 uint256 amountIn = (amount1 - Math.mulDiv(amount0, ratio, SCALE)) / 2;
                 return (token1, token0, amountIn);
             }
@@ -597,7 +620,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
 
         uint256 amountOutMinimum;
-        /*
+
         //sqrtPrice, slippageSwap, fee, router
         if (params.tokenIn < params.tokenOut) {
             amountOutMinimum = Math.mulDiv(params.amountIn, uint256(params.sqrtPriceX96) ** 2, 2 ** 192);
@@ -606,7 +629,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         }
 
         amountOutMinimum = Math.mulDiv(amountOutMinimum, SLIPPAGE_SCALE - params.slippageSwap, SLIPPAGE_SCALE);
-        */
+
         // Perform Swap
         moduleE_exactInputSingle(
             params.router,
