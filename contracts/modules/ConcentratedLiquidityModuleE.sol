@@ -13,6 +13,7 @@ import { Errors } from "./../libraries/Errors.sol";
 import { LiquidityAmounts } from "./../libraries/LiquidityAmounts.sol";
 import { TickMath } from "./../libraries/TickMath.sol";
 import { Blastable } from "./../utils/Blastable.sol";
+import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
 
 /**
@@ -23,6 +24,8 @@ import { Blastable } from "./../utils/Blastable.sol";
  */
 contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModuleE {
     uint24 internal constant SLIPPAGE_SCALE = 1_000_000; // 100%
+    address public immutable override weth;
+
     /***************************************
     State
     ***************************************/
@@ -56,13 +59,17 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
      * @param gasCollector_ The address of the gas collector.
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
+     * @param weth_ The address of wrapped ether.
      */
     constructor(
         address blast_,
         address gasCollector_,
         address blastPoints_,
-        address pointsOperator_
-    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {}
+        address pointsOperator_,
+        address weth_
+    ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
+        weth = weth_;
+    }
 
     /***************************************
     VIEW FUNCTIONS
@@ -143,6 +150,22 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         if (state.tokenId == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
         return manager_.positions(state.tokenId);
+    }
+
+    function moduleE_wrap() public payable override {
+        if(weth == address(0)) return;
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            Calls.sendValue(weth, balance);
+        }
+    }
+
+    function moduleE_unwrap() public payable override {
+        if(weth == address(0)) return;
+        uint256 balance = IERC20(weth).balanceOf(address(this));
+        if (balance > 0) {
+            IWETH(weth).withdraw(balance);
+        }
     }
 
     /// @notice Creates a new position wrapped in a NFT
@@ -304,7 +327,16 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             address token = tokens[i];
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance > 0) {
-                SafeERC20.safeTransfer(IERC20(token), receiver, balance);
+                // return weth as eth
+                if(token == weth) {
+                    IWETH(weth).withdraw(balance);
+                    balance = address(this).balance;
+                    Calls.sendValue(receiver, balance);
+                }
+                // return ERC20
+                else {
+                    SafeERC20.safeTransfer(IERC20(token), receiver, balance);
+                }
             }
         }
     }
@@ -314,6 +346,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         MintBalanceParams memory params
     ) public payable virtual override returns (uint256, uint128, uint256, uint256) {
         if (params.slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
+        moduleE_wrap();
 
         IAlgebraPool pool_ = IAlgebraPool(params.pool);
         uint256 amount0Desired = IERC20(pool_.token0()).balanceOf(address(this));
@@ -369,6 +402,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         uint24 slippageLiquidity
     ) public payable virtual override returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         if (slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
+        moduleE_wrap();
 
         (, , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
         (uint256 amount0Desired, uint256 amount1Desired) = _balance();
@@ -478,6 +512,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleE_rebalance(RebalanceParams memory params) external payable override {
         moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
+        moduleE_wrap();
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
             params.sqrtPriceX96,

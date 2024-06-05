@@ -46,6 +46,8 @@ interface IConcentratedLiquidityModuleE {
     /// @notice The pool tick spacing
     function tickSpacing() external view returns (int24 spacing);
 
+    function weth() external view returns (address weth_);
+
     /***************************************
     Wrapper functions around NonfungiblePositionManager
     ***************************************/
@@ -69,6 +71,10 @@ interface IConcentratedLiquidityModuleE {
             uint128 tokensOwed0,
             uint128 tokensOwed1
         );
+
+    function moduleE_wrap() external payable;
+
+    function moduleE_unwrap() external payable;
 
     struct MintParams {
         address manager;

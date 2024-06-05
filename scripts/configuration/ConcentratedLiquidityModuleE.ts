@@ -40,6 +40,11 @@ export const moduleEFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   {
+    selector: "0x3fc8cef3",
+    signature: "weth()",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
     selector: "0x852bd5a4",
     signature: "moduleE_burn()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
@@ -107,6 +112,11 @@ export const moduleEFunctionParams = [
   {
     selector: "0x02a2fc9d",
     signature: "moduleE_wrap()",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
+  },
+  {
+    selector: "0xaf8e0c2d",
+    signature: "moduleE_unwrap()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
   },
   {

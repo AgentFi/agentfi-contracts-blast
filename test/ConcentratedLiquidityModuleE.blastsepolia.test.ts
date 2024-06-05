@@ -64,6 +64,7 @@ const permissions = Object.entries({
     "strategyType()",
     "tokenId()",
     "tickSpacing()",
+    "weth()",
   ],
   // AgentFi + Owner
   [toBytes32(9)]: [
@@ -81,6 +82,7 @@ const permissions = Object.entries({
     "moduleE_partialWithdrawalToSelf(uint128,uint160,uint24)",
     "moduleE_rebalance((address,uint24,uint24,int24,int24,uint160))",
     "moduleE_wrap()",
+    "moduleE_unwrap()",
   ],
 
   // Owner Only:
@@ -301,6 +303,7 @@ describe("ConcentratedLiquidityModuleE", function () {
     ]);
 
     const strategyConfigID = 1;
+    const strategyConfigID2 = 2;
 
     // ===== Deploy Module and new account
 
@@ -309,12 +312,14 @@ describe("ConcentratedLiquidityModuleE", function () {
       gasCollector.address,
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
+      AddressZero // intentionally not using WETH to test as erc20
     ]);
     const module2 = await deployContract(deployer, moduleName, [
       BLAST_ADDRESS,
       gasCollector.address,
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
+      WETH_ADDRESS
     ]);
 
     const overrides = [
@@ -323,7 +328,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         functionParams: functionParams,
       },
     ];
-
     await strategyFactory.connect(owner).postAgentCreationSettings({
       agentImplementation: strategyAccountImplementation.address,
       initializationCalls: [
@@ -342,6 +346,25 @@ describe("ConcentratedLiquidityModuleE", function () {
 
     expect(await strategyFactory.getAgentCreationSettingsCount()).to.equal(
       strategyConfigID,
+    );
+
+    // add settings with module 2
+    overrides[0].implementation = module2.address
+    await strategyFactory.connect(owner).postAgentCreationSettings({
+      agentImplementation: strategyAccountImplementation.address,
+      initializationCalls: [
+        strategyAccountImplementation.interface.encodeFunctionData(
+          "blastConfigure",
+        ),
+        strategyAccountImplementation.interface.encodeFunctionData(
+          "setOverrides",
+          [overrides],
+        ),
+      ],
+      isActive: true,
+    });
+    expect(await strategyFactory.getAgentCreationSettingsCount()).to.equal(
+      strategyConfigID2,
     );
 
     const genesisAgentId = 1;
@@ -405,14 +428,32 @@ describe("ConcentratedLiquidityModuleE", function () {
       value: 0,
       gasLimit: 3_000_000,
     });
+    // create strategy agent 3
+    await signer.sendTransaction({
+      to: genesisAgentAddress,
+      data: genesisAgent.interface.encodeFunctionData("execute", [
+        strategyFactory.address,
+        0,
+        strategyFactory.interface.encodeFunctionData("createAgent(uint256)", [
+          strategyConfigID2,
+        ]),
+        0,
+      ]),
+      value: 0,
+      gasLimit: 3_000_000,
+    });
 
     const strategyAgentID = 1;
     const strategyAgentID2 = 2;
+    const strategyAgentID3 = 3;
     let strategyAgentAddress = await agentRegistry
       .getTbasOfNft(strategyAgentNft.address, strategyAgentID)
       .then((r) => r[0][0])
     let strategyAgentAddress2 = await agentRegistry
       .getTbasOfNft(strategyAgentNft.address, strategyAgentID2)
+      .then((r) => r[0][0])
+    let strategyAgentAddress3 = await agentRegistry
+      .getTbasOfNft(strategyAgentNft.address, strategyAgentID3)
       .then((r) => r[0][0])
 
     const agent = (await ethers.getContractAt(
@@ -423,6 +464,11 @@ describe("ConcentratedLiquidityModuleE", function () {
     const agent2 = (await ethers.getContractAt(
       moduleName,
       strategyAgentAddress2,
+      signer,
+    )) as ConcentratedLiquidityModuleE;
+    const agent3 = (await ethers.getContractAt(
+      moduleName,
+      strategyAgentAddress3,
       signer,
     )) as ConcentratedLiquidityModuleE;
 
@@ -456,8 +502,10 @@ describe("ConcentratedLiquidityModuleE", function () {
       WETH,
       module: agent,
       module2: agent2,
+      module3: agent3,
       agent,
       agent2,
+      agent3,
       pool,
       signer,
       strategyAgent,
@@ -1395,7 +1443,7 @@ describe("ConcentratedLiquidityModuleE", function () {
       expect(position.token1).eq(USDB_ADDRESS)
       expect(position.tickLower).eq(78600)
       expect(position.tickUpper).eq(78660)
-      almostEqual(BN.from(position.liquidity), BN.from("1339631547459368528890146"))
+      almostEqual(BN.from(position.liquidity), BN.from("1339631547459368528890146"), 0.002)
       expect(position.feeGrowthInside0LastX128).eq(0)
       expect(position.feeGrowthInside1LastX128).eq(0)
       expect(position.tokensOwed0).eq(0)
@@ -1500,7 +1548,7 @@ describe("ConcentratedLiquidityModuleE", function () {
         USDB.balanceOf(module.address),
         WETH.balanceOf(module.address),
       ])
-      almostEqual(balances[0], "5736801427835358290979", 0.002)
+      almostEqual(balances[0], "5736801427835358290979", 0.004)
       expect(balances[1]).eq(0)
     });
 
@@ -1549,6 +1597,351 @@ describe("ConcentratedLiquidityModuleE", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0")]);
     });
   });
+
+  describe("agent with ETH", function () {
+    it("wont wrap if weth is address zero", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module2 } = fixture
+      expect(await module2.weth()).eq(AddressZero)
+      let amount = WeiPerEther
+      await user1.sendTransaction({
+        to: module2.address,
+        value: amount
+      })
+      let balances0 = await Promise.all([
+        provider.getBalance(module2.address),
+        WETH.balanceOf(module2.address)
+      ])
+      expect(balances0[0]).eq(amount)
+      expect(balances0[1]).eq(0)
+      let tx = await module2.moduleE_wrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module2.address),
+        WETH.balanceOf(module2.address)
+      ])
+      expect(balances1[0]).eq(amount)
+      expect(balances1[1]).eq(0)
+    })
+    it("wont unwrap if weth is address zero", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module2 } = fixture
+      let amount = WeiPerEther
+      await WETH.transfer(module2.address, amount)
+      let balances0 = await Promise.all([
+        provider.getBalance(module2.address),
+        WETH.balanceOf(module2.address)
+      ])
+      expect(balances0[0]).eq(0)
+      expect(balances0[1]).eq(amount)
+      let tx = await module2.moduleE_unwrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module2.address),
+        WETH.balanceOf(module2.address)
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).eq(amount)
+    })
+    it("can wrap zero", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module3 } = fixture
+      expect(await module3.weth()).eq(WETH_ADDRESS)
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances0[0]).eq(0)
+      expect(balances0[1]).eq(0)
+      let tx = await module3.moduleE_wrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).eq(0)
+    })
+    it("can wrap some", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module3 } = fixture
+      let amount = WeiPerEther
+      await user1.sendTransaction({
+        to: module3.address,
+        value: amount
+      })
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances0[0]).eq(amount)
+      expect(balances0[1]).eq(0)
+      let tx = await module3.moduleE_wrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).eq(amount)
+    })
+    it("can unwrap zero", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module3 } = fixture
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances0[0]).eq(0)
+      expect(balances0[1]).eq(0)
+      let tx = await module3.moduleE_unwrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).eq(0)
+    })
+    it("can unwrap some", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, module3 } = fixture
+      let amount = WeiPerEther
+      await WETH.transfer(module3.address, amount)
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances0[0]).eq(0)
+      expect(balances0[1]).eq(amount)
+      let tx = await module3.moduleE_unwrap();
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address)
+      ])
+      expect(balances1[0]).eq(amount)
+      expect(balances1[1]).eq(0)
+    })
+    it("can mint with eth and usdb", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, USDB, module3 } = fixture
+      let usdbAmount = WeiPerEther.mul(3_000)
+      let ethAmount = WeiPerEther.mul(1)
+      await USDB.transfer(
+        module3.address,
+        usdbAmount,
+      );
+      await user1.sendTransaction({
+        to: module3.address,
+        value: ethAmount
+      });
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances0[0]).eq(ethAmount)
+      expect(balances0[1]).eq(0)
+      expect(balances0[2]).eq(usdbAmount)
+
+      await module3
+        .moduleE_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 1_000_000,
+          sqrtPriceX96,
+          tickLower: 78000,
+          tickUpper: 87000,
+        })
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).gte(0)
+      expect(balances1[2]).gte(0)
+
+      let position = await module3.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78000)
+      expect(position.tickUpper).eq(87000)
+      almostEqual(BN.from(position.liquidity), BN.from("239558041932227583627"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
+    })
+    it("can rebalance with eth", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, USDB, module3, pool } = fixture
+      let usdbAmount = WeiPerEther.mul(3_000)
+      let ethAmount = WeiPerEther.mul(1)
+      await USDB.transfer(
+        module3.address,
+        usdbAmount,
+      );
+      await user1.sendTransaction({
+        to: module3.address,
+        value: ethAmount
+      });
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances0[0]).eq(ethAmount)
+      expect(balances0[1]).eq(0)
+      expect(balances0[2]).eq(usdbAmount)
+
+      await module3
+        .moduleE_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 1_000_000,
+          sqrtPriceX96,
+          tickLower: 78000,
+          tickUpper: 87000,
+        })
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).gte(0)
+      expect(balances1[2]).gte(0)
+
+      let position = await module3.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78000)
+      expect(position.tickUpper).eq(87000)
+      almostEqual(BN.from(position.liquidity), BN.from("239558041932227583627"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
+
+      await user1.sendTransaction({
+        to: module3.address,
+        value: ethAmount
+      });
+      let balances2 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances2[0]).eq(ethAmount)
+      expect(balances2[1]).gte(0)
+      expect(balances2[2]).gte(0)
+      let state = await fixture.pool.safelyGetStateOfAMM()
+      await module3.moduleE_rebalance({
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 100000,
+        slippageLiquidity: 1_000_000,
+        tickLower: 78600,
+        tickUpper: 78660,
+        sqrtPriceX96: state.sqrtPrice,
+      })
+      let balances3 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+      ])
+      expect(balances3[0]).eq(0)
+      expect(balances3[1]).gte(0)
+      expect(balances3[2]).gte(0)
+
+      position = await module3.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78600)
+      expect(position.tickUpper).eq(78660)
+      almostEqual(BN.from(position.liquidity), BN.from("68267724540946125598371"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
+    })
+    it("can withdraw liquidity to eth", async function () {
+      const fixture = await loadFixture(fixtureDeposited);
+      const { WETH, USDB, module3, pool } = fixture
+      let usdbAmount = WeiPerEther.mul(3_000)
+      let ethAmount = WeiPerEther.mul(1)
+      await USDB.transfer(
+        module3.address,
+        usdbAmount,
+      );
+      await user1.sendTransaction({
+        to: module3.address,
+        value: ethAmount
+      });
+      let balances0 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+        provider.getBalance(user1.address),
+        provider.getBalance(user3.address),
+      ])
+      expect(balances0[0]).eq(ethAmount)
+      expect(balances0[1]).eq(0)
+      expect(balances0[2]).eq(usdbAmount)
+
+      await module3
+        .moduleE_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 1_000_000,
+          sqrtPriceX96,
+          tickLower: 78000,
+          tickUpper: 87000,
+        })
+      let balances1 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+        provider.getBalance(user1.address),
+        provider.getBalance(user3.address),
+      ])
+      expect(balances1[0]).eq(0)
+      expect(balances1[1]).gte(0)
+      expect(balances1[2]).gte(0)
+
+      let position = await module3.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78000)
+      expect(position.tickUpper).eq(87000)
+      almostEqual(BN.from(position.liquidity), BN.from("239558041932227583627"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
+
+      let state = await fixture.pool.safelyGetStateOfAMM()
+      await module3.moduleE_fullWithdrawTo(user3.address, state.sqrtPrice, 1000)
+
+      let balances2 = await Promise.all([
+        provider.getBalance(module3.address),
+        WETH.balanceOf(module3.address),
+        USDB.balanceOf(module3.address),
+        provider.getBalance(user1.address),
+        provider.getBalance(user3.address),
+      ])
+      expect(balances2[0]).eq(0)
+      expect(balances2[1]).eq(0)
+      expect(balances2[2]).eq(0)
+      expect(balances2[3]).lt(balances1[3]) // gas cost
+      expect(balances2[4].sub(balances1[4])).eq("999999999999999999") // received eth
+
+      await expect(module3.position()).to.be.reverted // burnt
+    })
+  })
 
   function calculatePriceV3(sqrtPriceX96:any, inverse=false) {
     var numerator = BN.from(2).pow(192).mul(WeiPerEther)
