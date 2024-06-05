@@ -84,7 +84,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
 
     const signer = await provider.getSigner(whale);
     const router = await ethers.getContractAt(
-      "ISwapRouter",
+      "contracts/interfaces/external/Thruster/ISwapRouter.sol:ISwapRouter",
       ROUTER_ADDRESS,
       signer,
     );

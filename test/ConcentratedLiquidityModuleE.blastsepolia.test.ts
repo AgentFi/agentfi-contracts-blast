@@ -1486,7 +1486,7 @@ describe("ConcentratedLiquidityModuleE", function () {
 
     it("Can reject with slippage", async () => {
       const { module } = await loadFixture(fixtureDeposited);
-      expect(
+      await expect(
         module.moduleE_partialWithdrawTo(
           user1.address,
           BN.from("16983715425639545311351").div(2),
@@ -1792,16 +1792,15 @@ describe("ConcentratedLiquidityModuleE", function () {
       expect(position.tickLower).eq(78000)
       expect(position.tickUpper).eq(87000)
 
-      await expect(
-        module.moduleE_rebalance({
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: 78000,
-          tickUpper: 87000,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleE_rebalance({
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: 78000,
+        tickUpper: 87000,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1852,16 +1851,15 @@ describe("ConcentratedLiquidityModuleE", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("11"));
 
-      await expect(
-        module.moduleE_rebalance({
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 10_000, // 1%
-          tickLower: -82020,
-          tickUpper: -79620,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = module.moduleE_rebalance({
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 10_000, // 1%
+        tickLower: -82020,
+        tickUpper: -79620,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,

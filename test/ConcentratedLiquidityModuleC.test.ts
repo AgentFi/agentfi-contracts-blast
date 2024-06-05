@@ -1241,17 +1241,16 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can rebalance with range below spot", async () => {
       const { module, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -81480,
-          tickUpper: -80880,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -81480,
+        tickUpper: -80880,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1298,17 +1297,16 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can rebalance with range above spot", async () => {
       const { module, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -80760,
-          tickUpper: -80160,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -80760,
+        tickUpper: -80160,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1361,17 +1359,16 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -82920,
-          tickUpper: -76020,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1422,17 +1419,16 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 10_000, // 1%
-          tickLower: -82020,
-          tickUpper: -79620,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 10_000, // 1%
+        tickLower: -82020,
+        tickUpper: -79620,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
