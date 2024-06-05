@@ -131,9 +131,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         )
     {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId = state.tokenId;
+        if (tokenId == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        return manager_.positions(state.tokenId);
+        return manager_.positions(tokenId);
     }
 
     struct MintParams {
@@ -168,8 +169,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
         state.manager = params.manager;
         state.pool = params.pool;
 
-        _setApproval(params.token0, state.manager, params.amount0Desired);
-        _setApproval(params.token1, state.manager, params.amount1Desired);
+        _checkApproval(params.token0, state.manager, params.amount0Desired);
+        _checkApproval(params.token1, state.manager, params.amount1Desired);
 
         (tokenId_, liquidity, amount0, amount1) = INonfungiblePositionManager(params.manager).mint(
             INonfungiblePositionManager.MintParams({
@@ -217,10 +218,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
-
-        _setApproval(token0, state.manager, params.amount0Desired);
-        _setApproval(token1, state.manager, params.amount1Desired);
+        _checkApproval(token0, state.manager, params.amount0Desired);
+        _checkApproval(token1, state.manager, params.amount1Desired);
 
         (liquidity, amount0, amount1) = manager_.increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
@@ -246,12 +245,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         DecreaseLiquidityParams memory params
     ) public payable virtual returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        uint256 tokenId = state.tokenId;
+        if (tokenId == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: state.tokenId,
+                tokenId: tokenId,
                 liquidity: params.liquidity,
                 amount0Min: params.amount0Min,
                 amount1Min: params.amount1Min,
@@ -270,12 +270,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         CollectParams memory params
     ) public payable virtual returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        uint256 tokenId = state.tokenId;
+        if (tokenId == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.collect(
             INonfungiblePositionManager.CollectParams({
-                tokenId: state.tokenId,
+                tokenId: tokenId,
                 recipient: address(this),
                 amount0Max: params.amount0Max,
                 amount1Max: params.amount1Max
@@ -285,10 +286,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
 
     function moduleC_burn() public payable virtual {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId = state.tokenId;
+        if (tokenId == 0) revert Errors.NoPositionFound();
 
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        manager_.burn(state.tokenId);
+        manager_.burn(tokenId);
         state.tokenId = 0;
     }
 
@@ -312,7 +314,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ISwapRouter swapRouter = ISwapRouter(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountIn);
+        _checkApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
@@ -347,7 +349,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         ISwapRouter02 swapRouter = ISwapRouter02(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountIn);
+        _checkApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter02.ExactInputSingleParams({
@@ -800,7 +802,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         amount1 = IERC20(token1).balanceOf(address(this));
     }
 
-    function _setApproval(address token, address spender, uint256 value) internal {
-        SafeERC20.safeIncreaseAllowance(IERC20(token), spender, value);
+    /**
+     * @notice Checks the approval of an ERC20 token from this contract to another address.
+     * @param token The token to check allowance.
+     * @param recipient The address to give allowance to.
+     * @param minAmount The minimum amount of the allowance.
+     */
+    function _checkApproval(address token, address recipient, uint256 minAmount) internal {
+        // if current allowance is insufficient
+        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            // set allowance to max
+            SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
+        }
     }
 }

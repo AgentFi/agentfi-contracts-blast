@@ -22,7 +22,23 @@ import { almostEqual, convertToStruct } from "../scripts/utils/test";
 
 const user = "0x3E0770C75c0D5aFb1CfA3506d4b0CaB11770a27a";
 describe("ConcentratedLiquidityGatewayModuleC", function () {
+  let deployer: SignerWithAddress;
+  let owner: SignerWithAddress;
+  let strategyManager: SignerWithAddress;
+  let user1: SignerWithAddress;
+  let user2: SignerWithAddress;
+  let user3: SignerWithAddress;
+  let user4: SignerWithAddress;
+  let user5: SignerWithAddress;
+  let user6: SignerWithAddress;
+  let user7: SignerWithAddress;
+
   const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+
+  before(async function () {
+    [deployer, owner, strategyManager, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
+  })
+
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("ConcentratedLiquidityGatewayModuleC");
 
@@ -176,7 +192,7 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
   });
 
   describe("Partial Deposit flow", () => {
-    it("Rejects partial deposit when no position exists", async () => {
+    it("Rejects partial deposit when no position exists pt 1", async () => {
       const { module, USDB, signer } = await loadFixture(fixtureDeployed);
 
       // Sent remaining ETH, leaving some gas
@@ -190,6 +206,19 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000),
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
+    });
+    it("Rejects partial deposit when no position exists pt 2", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_increaseLiquidity({
+          amount0Desired: 0,
+          amount1Desired: 0,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: 0,
+        }),
       ).to.be.revertedWithCustomError(module, "NoPositionFound");
     });
 
@@ -307,6 +336,30 @@ describe("ConcentratedLiquidityGatewayModuleC", function () {
         await Promise.all([USDB.balanceOf(user), WETH.balanceOf(user)]),
       ).to.deep.equal([BN.from("413026157656739951683271"), BN.from("0")]);
     });
+
+    it("can withdraw zero eth", async function () {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
+      expect(
+        await Promise.all([
+          USDB.balanceOf(module.address),
+          WETH.balanceOf(module.address),
+        ]),
+      ).to.deep.equal([BN.from("11"), BN.from("21231891579154171837")]);
+      let bal10 = await WETH.balanceOf(user3.address)
+      let bal20 = await provider.getBalance(user3.address)
+      // withdraw current balance
+      await module.moduleC_sendBalanceTo(user3.address)
+      let bal11 = await WETH.balanceOf(user3.address)
+      let bal21 = await provider.getBalance(user3.address)
+      expect(bal11).eq(bal10)
+      expect(bal21).eq(bal20.add("21231891579154171837"))
+      // withdraw 100% of zero
+      await module.moduleC_sendBalanceTo(user3.address)
+      let bal12 = await WETH.balanceOf(user3.address)
+      let bal22 = await provider.getBalance(user3.address)
+      expect(bal12).eq(bal11)
+      expect(bal22).eq(bal21)
+    })
   });
 
   describe("Partial Withdrawal test suite", () => {
