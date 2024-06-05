@@ -259,7 +259,7 @@ describe("LoopooorAgentFactory", function () {
       deployer,
     );
     positionManager = await ethers.getContractAt(
-      "INonfungiblePositionManager",
+      "contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager",
       POSITION_MANAGER_ADDRESS,
       deployer,
     );

@@ -94,7 +94,7 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func, false), requiredRole });
+      acc.push({ selector: calcSighash(func, false), signature: func, requiredRole });
     });
 
     return acc;
@@ -428,7 +428,7 @@ export async function fixtureSetup(moduleName: "LoopooorModuleD") {
     deployer,
   );
   const PositionManager = await ethers.getContractAt(
-    "INonfungiblePositionManager",
+    "contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager",
     POSITION_MANAGER_ADDRESS,
     signer,
   );

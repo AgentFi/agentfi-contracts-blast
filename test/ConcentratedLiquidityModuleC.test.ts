@@ -90,7 +90,7 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func, true), requiredRole });
+      acc.push({ selector: calcSighash(func, false), signature: func, requiredRole });
     });
 
     return acc;
@@ -429,7 +429,7 @@ export async function fixtureSetup(
     deployer,
   );
   const PositionManager = await ethers.getContractAt(
-    "INonfungiblePositionManager",
+    "contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager",
     POSITION_MANAGER_ADDRESS,
     signer,
   );
@@ -504,7 +504,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const signer = await provider.getSigner(whale);
     const router = await ethers.getContractAt(
-      "ISwapRouter",
+      "contracts/interfaces/external/Thruster/ISwapRouter.sol:ISwapRouter",
       SWAP_ROUTER_ADDRESS,
       signer,
     );
@@ -630,8 +630,8 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can handle too low slippage", async function () {
       const { module, USDB, WETH, signer } = await loadFixture(fixtureDeployed);
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await expect(
@@ -650,8 +650,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
@@ -680,7 +680,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
       await WETH.transfer(module.address, BN.from("59265494520598039751")); // Found emperically
 
       // Trigger the deposit
@@ -732,8 +732,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await module
@@ -796,8 +796,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await module
@@ -856,8 +856,8 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Rejects partial deposit when no position exists", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
 
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000),
@@ -867,8 +867,8 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can handle too low slippageSwap", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(
@@ -882,8 +882,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
 
       // Position to be minted
       expect(convertToStruct(await module.position())).to.deep.equal({
@@ -951,8 +951,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
 
       const tokenId = await module.tokenId();
 
