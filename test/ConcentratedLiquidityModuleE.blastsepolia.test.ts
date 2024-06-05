@@ -125,52 +125,8 @@ describe("ConcentratedLiquidityModuleE", function () {
     moduleName:
       | "ConcentratedLiquidityModuleE"
   ) {
-    console.log(`in fixtureSetup(${moduleName}) 1`)
-    //const [deployer, user1, user2, user3] = await ethers.getSigners();
-    console.log(`in fixtureSetup() 2`)
-    /*
-    const blockNumber = 2178591;
-    // Run tests against forked network
-    await hre.network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.BLAST_URL,
-            blockNumber,
-          },
-        },
-      ],
-    });
-    */
-    /*
-    // use blast sepolia with set fork block
-    const blockNumber = 3372360;
-    await hre.network.provider.request({
-      method: "hardhat_reset",
-      params: [
-        {
-          forking: {
-            jsonRpcUrl: process.env.BLAST_SEPOLIA_URL,
-            blockNumber,
-          },
-        },
-      ],
-    });
-    */
-    // console.log(Object.keys(module.functions).filter((x) => x.includes("(")));
 
     // ======= Setup
-    /*
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [OWNER_ADDRESS],
-    });
-    */
-    console.log(`in fixtureSetup() 3`)
-
-    //const owner = await provider.getSigner(owner.address);
-    console.log(`in fixtureSetup() 4`)
 
     const gasCollector = await deployContract(deployer, "GasCollector", [
       owner.address,
@@ -178,7 +134,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
     ]);
-    console.log(`in fixtureSetup() 5`)
 
     const genesisAgentNft = (await deployContract(
       deployer,
@@ -192,7 +147,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         ERC6551_REGISTRY_ADDRESS,
       ],
     )) as BlastooorGenesisAgents;
-    console.log(`in fixtureSetup() 6`)
 
     const multicallForwarder = await deployContract(
       deployer,
@@ -204,7 +158,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         BLAST_POINTS_OPERATOR_ADDRESS,
       ],
     );
-    console.log(`in fixtureSetup() 7`)
 
     // Deploy genesis account implementation
     const genesisAccountImplementation = (await deployContract(
@@ -221,7 +174,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         ethers.constants.AddressZero,
       ],
     )) as BlastooorGenesisAgentAccount;
-    console.log(`in fixtureSetup() 8`)
 
     const genesisFactory = (await deployContract(
       deployer,
@@ -235,7 +187,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         genesisAgentNft.address,
       ],
     )) as BlastooorGenesisFactory;
-    console.log(`in fixtureSetup() 9`)
 
     const agentRegistry = (await deployContract(deployer, "AgentRegistry", [
       owner.address,
@@ -244,7 +195,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
     ])) as AgentRegistry;
-    console.log(`in fixtureSetup() 10`)
 
     const genesisAccountFactory = (await deployContract(
       deployer,
@@ -261,7 +211,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         ERC6551_REGISTRY_ADDRESS,
       ],
     )) as BlastooorAccountFactory;
-    console.log(`in fixtureSetup() 11`)
 
     const strategyAgentNft = (await deployContract(
       deployer,
@@ -274,7 +223,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         BLAST_POINTS_OPERATOR_ADDRESS,
       ],
     )) as BlastooorStrategyAgents;
-    console.log(`in fixtureSetup() 12`)
 
     const strategyAccountImplementation = await deployContract(
       deployer,
@@ -290,7 +238,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         ethers.constants.AddressZero,
       ],
     );
-    console.log(`in fixtureSetup() 13`)
 
     const strategyFactory = (await deployContract(
       deployer,
@@ -307,7 +254,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         agentRegistry.address,
       ],
     )) as BlastooorStrategyFactory;
-    console.log(`in fixtureSetup() 14`)
 
     // Whitelist Factory
     await genesisAgentNft.connect(owner).setWhitelist([
@@ -316,7 +262,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         shouldWhitelist: true,
       },
     ]);
-    console.log(`in fixtureSetup() 15`)
 
     // Create genesis settings
     await genesisFactory.connect(owner).postAgentCreationSettings({
@@ -330,7 +275,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       timestampAllowlistMintEnd: 1,
       timestampPublicMintStart: 0,
     });
-    console.log(`in fixtureSetup() 16`)
 
     await agentRegistry.connect(owner).setOperators([
       {
@@ -338,7 +282,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         isAuthorized: true,
       },
     ]);
-    console.log(`in fixtureSetup() 17`)
 
     await genesisAccountFactory.connect(owner).postAgentCreationSettings({
       agentImplementation: genesisAccountImplementation.address,
@@ -349,7 +292,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       ],
       isActive: true,
     });
-    console.log(`in fixtureSetup() 18`)
 
     await strategyAgentNft.connect(owner).setWhitelist([
       {
@@ -357,7 +299,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         shouldWhitelist: true,
       },
     ]);
-    console.log(`in fixtureSetup() 19`)
 
     const strategyConfigID = 1;
 
@@ -375,7 +316,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
     ]);
-    console.log(`in fixtureSetup() 20`)
 
     const overrides = [
       {
@@ -399,33 +339,20 @@ describe("ConcentratedLiquidityModuleE", function () {
       ],
       isActive: true,
     });
-    console.log(`in fixtureSetup() 21`)
 
     expect(await strategyFactory.getAgentCreationSettingsCount()).to.equal(
       strategyConfigID,
     );
 
     const genesisAgentId = 1;
-    //let genesisAgentAddress = "0xca92eF05e9dC0804d3BD6216E29B6E7B39F6a45a";
-    console.log(`in fixtureSetup() 22`)
 
     // ===== Mint the strategy agent
-    /*
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [USER_ADDRESS],
-    });
-    */
-    console.log(`in fixtureSetup() 23`)
-    //const signer = await provider.getSigner(USER_ADDRESS);
     const signer = user1
-    console.log(`in fixtureSetup() 24`)
 
     // Create agent
     await genesisFactory
       .connect(signer)
       .blastooorPublicMint(1, { value: ethers.constants.WeiPerEther.div(100) });
-    console.log(`in fixtureSetup() 25`)
 
     await agentRegistry.connect(owner).setOperators([
       {
@@ -433,39 +360,23 @@ describe("ConcentratedLiquidityModuleE", function () {
         isAuthorized: true,
       },
     ]);
-    console.log(`in fixtureSetup() 26`)
 
     await genesisAccountFactory.connect(owner).setMaxCreationsPerAgent(999);
-    console.log(`in fixtureSetup() 27`)
     await genesisAccountFactory
       .connect(signer)
       ["createAccount(uint256,uint256)"](1, 1);
-    console.log(`in fixtureSetup() 28`)
 
     await strategyFactory.connect(owner).setMaxCreationsPerGenesisAgent(999);
-    console.log(`in fixtureSetup() 29`)
-    /*
-    console.log(genesisAgentAddress)
-    console.log(await agentRegistry
-      .getTbasOfNft(genesisAgentNft.address, genesisAgentId)
-      .then((x) => x[0][0]))
-    expect(
-      await agentRegistry
-        .getTbasOfNft(genesisAgentNft.address, genesisAgentId)
-        .then((x) => x[0][0]),
-    ).to.equal(genesisAgentAddress);
-    */
+
     let genesisAgentAddress = await agentRegistry
       .getTbasOfNft(genesisAgentNft.address, genesisAgentId)
       .then((x) => x[0][0]);
-    console.log(`in fixtureSetup() 29.1`)
 
     const genesisAgent = await ethers.getContractAt(
       "BlastooorGenesisAgentAccount",
       genesisAgentAddress,
       owner,
     );
-    console.log(`in fixtureSetup() 30`)
     // create strategy agent 1
     await signer.sendTransaction({
       to: genesisAgentAddress,
@@ -494,7 +405,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       value: 0,
       gasLimit: 3_000_000,
     });
-    console.log(`in fixtureSetup() 31`)
 
     const strategyAgentID = 1;
     const strategyAgentID2 = 2;
@@ -504,15 +414,7 @@ describe("ConcentratedLiquidityModuleE", function () {
     let strategyAgentAddress2 = await agentRegistry
       .getTbasOfNft(strategyAgentNft.address, strategyAgentID2)
       .then((r) => r[0][0])
-    /*
-    const strategyAgentAddress = "0x8C6A882eA6998F0f6617567628AAF90e50e76d52";
 
-    expect(
-      await agentRegistry
-        .getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-        .then((r) => r[0][0]),
-    ).to.equal(strategyAgentAddress);
-    */
     const agent = (await ethers.getContractAt(
       moduleName,
       strategyAgentAddress,
@@ -533,7 +435,6 @@ describe("ConcentratedLiquidityModuleE", function () {
     // ===== Setup user
 
     // ===== Load already deployed contracts
-    console.log(`in fixtureSetup() 32`)
     const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
     const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
     const pool = await ethers.getContractAt(
@@ -546,7 +447,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       POSITION_MANAGER_ADDRESS,
       signer,
     );
-    console.log(`in fixtureSetup() 33`)
 
     // ======= Create the agent
 
@@ -611,12 +511,9 @@ describe("ConcentratedLiquidityModuleE", function () {
   })
 
   const sqrtPriceX96 = BN.from("24096096288366883792913047239");
-  //const sqrtPriceX96_2 = BN.from("24096096288366883792913047239");
 
   async function fixtureDeployed() {
-    console.log("in fixtureDeployed() 1")
     const fixture = await fixtureSetup("ConcentratedLiquidityModuleE");
-    console.log("in fixtureDeployed() 2")
     // Wrap existing ETH to WETH, leaving some gas
     await fixture.signer
       .sendTransaction({
@@ -630,11 +527,9 @@ describe("ConcentratedLiquidityModuleE", function () {
         value: WeiPerEther.mul(300),
       })
       .then((x) => x.wait());
-    console.log("in fixtureDeployed() 3")
 
     // mint some usdb
     let slot = 0; //await findERC20BalanceOfSlot(USDB_ADDRESS)
-    //console.log(`slot ${slot}`)
     let desiredBalance = WeiPerEther.mul(1_000_000)
     await manipulateERC20BalanceOf(USDB_ADDRESS, slot, user1.address, desiredBalance)
     await manipulateERC20BalanceOf(USDB_ADDRESS, slot, user3.address, desiredBalance)
@@ -643,32 +538,14 @@ describe("ConcentratedLiquidityModuleE", function () {
   }
 
   async function fixtureDeposited() {
-    console.log("in fixtureDeposited() 1")
     const fixture = await loadFixture(fixtureDeployed);
-    console.log("in fixtureDeposited() 2")
     const { USDB, module, WETH } = fixture;
-    //console.log(await USDB.balanceOf(user1.address))
-    //console.log(await WETH.balanceOf(user1.address))
 
     const signer = user1
 
     // swap pool to reasonable price
-
-    //console.log(await fixture.pool.globalState())
-    //console.log(fixture.pool.safelyGetStateOfAMM)
-    //console.log(fixture.pool.safelyGetStateOfAMM())
-    //console.log(await fixture.pool.safelyGetStateOfAMM())
-
-    console.log("in fixtureDeposited() 2.1")
     let state = await fixture.pool.safelyGetStateOfAMM()
-    console.log(`state`)
-    console.log(state)
     let price = calculatePriceV3(state.sqrtPrice, true)
-    console.log(`price`)
-    console.log(price)
-    console.log(`The current price of ETH is 1 ETH = ${formatNumber2(price)} USDB`)
-
-    console.log("in fixtureDeposited() 2.2")
     const router = await ethers.getContractAt(
       "contracts/interfaces/external/Algebra/ISwapRouter.sol:ISwapRouter",
       SWAP_ROUTER_ADDRESS,
@@ -676,10 +553,6 @@ describe("ConcentratedLiquidityModuleE", function () {
     );
     await USDB.approve(SWAP_ROUTER_ADDRESS, MaxUint256)
     await WETH.approve(SWAP_ROUTER_ADDRESS, MaxUint256)
-    //if(price < 3800) console.log(`need to swap usdb for weth`)
-    //else if(price > 3800) console.log(`need to swap usdb for weth`)
-    //else console.log(`no swap required`)
-    console.log("in fixtureDeposited() 2.3")
     let swapAmount = WeiPerEther.div(10).mul(19)
     await router.exactInputSingle({
       amountIn: swapAmount,
@@ -692,66 +565,21 @@ describe("ConcentratedLiquidityModuleE", function () {
     });
     state = await fixture.pool.safelyGetStateOfAMM()
     price = calculatePriceV3(state.sqrtPrice, true)
-    console.log(`The current price of ETH is 1 ETH = ${formatNumber2(price)} USDB`)
-    console.log(`state`)
-    console.log(state)
-    console.log(`price`)
-    console.log(price)
     expect(state.sqrtPrice).eq("4905481270181304529126937729524")
     expect(state.tick).eq(82519)
     expect(price).eq(3833.5759888105804)
-    console.log("in fixtureDeposited() 2.4")
-    //let swapAmountSum = Zero
-    /*
-    while(price < 3800) {
-      swapAmountSum = swapAmountSum.add(swapAmount)
-      await router.exactInputSingle({
-        amountIn: swapAmount,
-        amountOutMinimum: 0,
-        deadline: MaxUint256,
-        recipient: user1.address,
-        limitSqrtPrice: 0,
-        tokenIn: USDB_ADDRESS,
-        tokenOut: WETH_ADDRESS,
-      });
-      state = await fixture.pool.safelyGetStateOfAMM()
-      price = calculatePriceV3(state.sqrtPrice, true)
-      console.log(`The current price of ETH is 1 ETH = ${formatNumber2(price)} USDB`)
-    }
-    */
-    /*
-    await router.exactInputSingle({
-      amountIn: (await WETH.balanceOf(user1.address)).div(4),
-      amountOutMinimum: 0,
-      deadline: MaxUint256,
-      recipient: user1.address,
-      limitSqrtPrice: 0,
-      tokenIn: WETH_ADDRESS,
-      tokenOut: USDB_ADDRESS,
-    });
-    */
-    console.log("in fixtureDeposited() 3.0")
 
-    console.log(await USDB.balanceOf(user1.address))
-    console.log(await WETH.balanceOf(user1.address))
-    console.log("in fixtureDeposited() 3")
-    let usdbAmount = WeiPerEther.mul(100_000)//(await USDB.balanceOf(user1.address)).div(2)
-    let wethAmount = WeiPerEther.mul(30)//(await WETH.balanceOf(user1.address)).sub(ethers.utils.parseEther("10"))
-    console.log(`usdb amount: ${formatNumber2(usdbAmount)}`)
-    console.log(`weth amount: ${formatNumber2(wethAmount)}`)
-    //expect(usdbAmount).gt(WeiPerEther.mul(1000))
-    //expect(wethAmount).gt(WeiPerEther)
+    let usdbAmount = WeiPerEther.mul(100_000)
+    let wethAmount = WeiPerEther.mul(30)
     await USDB.transfer(
       module.address,
       usdbAmount,
     );
-    console.log("in fixtureDeposited() 4")
     await WETH.transfer(
       module.address,
       wethAmount,
     );
 
-    console.log("in fixtureDeposited() 5")
     await module
       .moduleE_mintWithBalance({
         manager: POSITION_MANAGER_ADDRESS,
@@ -763,43 +591,27 @@ describe("ConcentratedLiquidityModuleE", function () {
       })
       .then((tx) => tx.wait());
 
-    console.log("in fixtureDeposited() 6")
     return fixture;
   }
 
   async function fixtureWithFees() {
-    console.log("in fixtureWithFees() 1")
     const fixture = await loadFixture(fixtureDeposited);
-    console.log("in fixtureWithFees() 2")
-    /*
-    const whale = "0xE7cbfb8c70d423202033aD4C51CE94ce9E21CfA2";
-    await hre.network.provider.request({
-      method: "hardhat_impersonateAccount",
-      params: [whale],
-    });
-    //const signer = await provider.getSigner(whale);
-    */
     const signer = user3
     const router = await ethers.getContractAt(
       "contracts/interfaces/external/Algebra/ISwapRouter.sol:ISwapRouter",
       SWAP_ROUTER_ADDRESS,
       signer,
     );
-    console.log("in fixtureWithFees() 3")
 
     const USDB = await ethers.getContractAt("MockERC20", USDB_ADDRESS, signer);
     const WETH = await ethers.getContractAt("MockERC20", WETH_ADDRESS, signer);
 
-    console.log("in fixtureWithFees() 4")
     await USDB.approve(router.address, ethers.constants.MaxUint256);
     await WETH.approve(router.address, ethers.constants.MaxUint256);
 
     // Swap back and forth to generate fees on both sides
-    console.log("in fixtureWithFees() 5")
     let usdbAmount = await USDB.balanceOf(user3.address)
     let wethAmount = await WETH.balanceOf(user3.address)
-    console.log(`usdb amount: ${formatNumber2(usdbAmount)}`)
-    console.log(`weth amount: ${formatNumber2(wethAmount)}`)
     expect(usdbAmount).gt(1)
     expect(wethAmount).gt(1)
     await router.exactInputSingle({
@@ -811,7 +623,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       tokenIn: USDB_ADDRESS,
       tokenOut: WETH_ADDRESS,
     });
-    console.log("in fixtureWithFees() 6")
 
     await router.exactInputSingle({
       amountIn: wethAmount,
@@ -822,35 +633,23 @@ describe("ConcentratedLiquidityModuleE", function () {
       tokenIn: WETH_ADDRESS,
       tokenOut: USDB_ADDRESS,
     });
-    console.log("in fixtureWithFees() 7")
 
     return fixture;
   }
 
   it("Verify initial pool state", async () => {
-    console.log("in Verify initial pool state 1")
     const { pool, module } = await loadFixture(fixtureDeployed);
-    console.log("in Verify initial pool state 2")
     const [sqrtPriceX96, tick] = await pool.safelyGetStateOfAMM();
-    console.log("in Verify initial pool state 3")
     const price = sqrtPriceX96ToPrice1(BigInt(sqrtPriceX96.toString()));
-    console.log("in Verify initial pool state 4")
 
     expect(sqrtPriceX96).to.equal(BN.from("24096096288366883792913047239"));
-    console.log(tick)
-    console.log(1 / tickToPrice0(tick))
-    console.log(price)
     expect(tick).to.equal(BN.from(-23807));
-    console.log("in Verify initial pool state 5")
 
     expect(1 / tickToPrice0(tick)).to.equal(10.811182043898635);
     expect(price).to.equal(10);
-    console.log("in Verify initial pool state 6")
 
     let poolSpacing = await pool.tickSpacing()
-    console.log("in Verify initial pool state 7")
     expect(poolSpacing).eq(60)
-    console.log("in Verify initial pool state 8")
   });
 
   it("View initial state", async function () {
@@ -941,8 +740,7 @@ describe("ConcentratedLiquidityModuleE", function () {
         manager: POSITION_MANAGER_ADDRESS,
         pool: POOL_ADDRESS,
         slippageLiquidity: 10, /// 0.001%
-        //sqrtPriceX96: sqrtPriceX96.mul(111).div(100), // Can't use pool price if we want slippage
-        sqrtPriceX96: state.sqrtPrice.mul(111).div(100), // Can't use pool price if we want slippage
+        sqrtPriceX96: state.sqrtPrice.mul(111).div(100),
         tickLower: price0ToTick(2000),
         tickUpper: price0ToTick(4000),
       })
@@ -953,8 +751,7 @@ describe("ConcentratedLiquidityModuleE", function () {
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
           slippageLiquidity: 10, /// 0.001%
-          //sqrtPriceX96: sqrtPriceX96.mul(111).div(100), // Can't use pool price if we want slippage
-          sqrtPriceX96: state.sqrtPrice.mul(111).div(100), // Can't use pool price if we want slippage
+          sqrtPriceX96: state.sqrtPrice.mul(111).div(100),
           tickLower: price0ToTick(2000),
           tickUpper: price0ToTick(4000),
         }),
@@ -987,10 +784,8 @@ describe("ConcentratedLiquidityModuleE", function () {
     });
 
     it("Can deposit optimally WETH", async function () {
-      console.log("in Can deposit optimally WETH 1")
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeployed);
-      console.log("in Can deposit optimally WETH 2")
       // Expect no assets in tba
       expect(
         await Promise.all([
@@ -999,19 +794,15 @@ describe("ConcentratedLiquidityModuleE", function () {
           WETH.balanceOf(module.address),
         ]),
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
-      console.log("in Can deposit optimally WETH 3")
 
       // Transfer assets to tba
       await USDB.transfer(module.address, (await USDB.balanceOf(user1.address)).div(3));
-      console.log("in Can deposit optimally WETH 4")
       await WETH.transfer(module.address, (await WETH.balanceOf(user1.address)).div(3));
-      console.log("in Can deposit optimally WETH 5")
       let balances = await Promise.all([
         provider.getBalance(module.address),
         USDB.balanceOf(module.address),
         WETH.balanceOf(module.address),
       ])
-      //console.log(balances)
       expect(balances[0]).eq(0)
       expect(balances[1]).gt(1)
       expect(balances[2]).gt(1)
@@ -1030,7 +821,6 @@ describe("ConcentratedLiquidityModuleE", function () {
           tickUpper,
         })
         .then((tx) => tx.wait());
-      console.log("in Can deposit optimally WETH 6")
 
       const tokenId = await module.tokenId();
 
@@ -1050,7 +840,6 @@ describe("ConcentratedLiquidityModuleE", function () {
         tokensOwed0: BN.from("0"),
         tokensOwed1: BN.from("0"),
       });
-      console.log("in Can deposit optimally WETH 7")
 
       // Only leftover on one side
       expect(
@@ -1059,7 +848,6 @@ describe("ConcentratedLiquidityModuleE", function () {
           WETH.balanceOf(module.address),
         ]),
       ).to.deep.equal([BN.from("0"), BN.from("20254879613151063904")]);
-      console.log("in Can deposit optimally WETH 8")
     });
 
     it("Can deposit with WETH and refund", async function () {
@@ -1205,7 +993,6 @@ describe("ConcentratedLiquidityModuleE", function () {
 
       await expect(
         module.moduleE_increaseLiquidityWithBalance(
-          //sqrtPriceX96.mul(101).div(100),
           state.sqrtPrice.mul(101).div(100),
           0,
         ),
@@ -1389,30 +1176,25 @@ describe("ConcentratedLiquidityModuleE", function () {
 
   describe("Collect test suite", () => {
     it("Can collect unclaimed tokens to contract", async () => {
-      console.log("in Can collect unclaimed tokens to contract 1")
       const { module, USDB, WETH } = await loadFixture(fixtureWithFees);
-      console.log("in Can collect unclaimed tokens to contract 2")
 
       const usdb = await USDB.balanceOf(module.address);
       const weth = await WETH.balanceOf(module.address);
-      console.log("in Can collect unclaimed tokens to contract 3")
 
       // need to generate some fees
       await module.moduleE_collectToSelf();
-      console.log("in Can collect unclaimed tokens to contract 4")
 
       // todo: why do these change sometimes? like 1/20 tests fail
       // sometimes this == 1174417377205697108481
       // Expect balances to have increased
-      expect((await USDB.balanceOf(module.address)).sub(usdb)).to.equal(
+      const usdbDiff = (await USDB.balanceOf(module.address)).sub(usdb)
+      const wethDiff = (await WETH.balanceOf(module.address)).sub(weth)
+      expect(usdbDiff).to.equal(
         "807641315561607090946",
       );
-      console.log("in Can collect unclaimed tokens to contract 5")
-
-      expect((await WETH.balanceOf(module.address)).sub(weth)).to.equal(
+      expect(wethDiff).to.equal(
         "892109139311301935"
       );
-      console.log("in Can collect unclaimed tokens to contract 6")
     });
 
     it("Can collect unclaimed tokens to user", async () => {
@@ -1524,24 +1306,17 @@ describe("ConcentratedLiquidityModuleE", function () {
   describe("Rebalance tests", () => {
     async function addMoreLiquidity(module2:any, USDB:any, WETH:any) {
 
-      console.log("in addMoreLiquidity() 1")
-      let usdbAmount = WeiPerEther.mul(1_000_000)//(await USDB.balanceOf(user1.address)).div(2)
-      let wethAmount = WeiPerEther.mul(300)//(await WETH.balanceOf(user1.address)).sub(ethers.utils.parseEther("10"))
-      console.log(`usdb amount: ${formatNumber2(usdbAmount)}`)
-      console.log(`weth amount: ${formatNumber2(wethAmount)}`)
-      //expect(usdbAmount).gt(WeiPerEther.mul(1000))
-      //expect(wethAmount).gt(WeiPerEther)
+      let usdbAmount = WeiPerEther.mul(1_000_000)
+      let wethAmount = WeiPerEther.mul(300)
       await USDB.connect(user3).transfer(
         module2.address,
         usdbAmount,
       );
-      console.log("in addMoreLiquidity() 4")
       await WETH.connect(user3).transfer(
         module2.address,
         wethAmount,
       );
 
-      console.log("in addMoreLiquidity() 5")
       await module2
         .moduleE_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
@@ -1552,17 +1327,12 @@ describe("ConcentratedLiquidityModuleE", function () {
           tickUpper: 120000,
         })
         .then((tx) => tx.wait());
-      console.log("in addMoreLiquidity() 6")
     }
 
     it("Can reject invalid tick range", async () => {
       const { module } = await loadFixture(fixtureDeposited);
-      console.log("in Can reject invalid tick range")
       let tickLower = -80880
       let tickUpper = -81480
-      //console.log(tickLower)
-      //console.log(tickUpper)
-      //console.log(tickLower >= tickUpper)
       expect(tickLower >= tickUpper).to.be.true
       await expect(
         module.moduleE_rebalance({
@@ -1596,9 +1366,7 @@ describe("ConcentratedLiquidityModuleE", function () {
       const { module, module2, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
       await addMoreLiquidity(module2, USDB, WETH)
 
-      console.log("in Can rebalance with range below spot 1")
       let state = await pool.safelyGetStateOfAMM()
-      //console.log(state.tick)
       expect(state.tick).eq(82519)
       expect(state.sqrtPrice).to.equal(
         BN.from("4905481270181304529126937729524"),
@@ -1606,34 +1374,7 @@ describe("ConcentratedLiquidityModuleE", function () {
       let position = await module.position()
       expect(position.tickLower).eq(78000)
       expect(position.tickUpper).eq(87000)
-      /*
-      await expect(
-        module.moduleE_rebalance({
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          //tickLower: -81480,
-          //tickUpper: -80880,
-          //tickLower: 90000, // technically above but is below because ordering
-          //tickUpper: 90060,
-          //tickLower: 86040,
-          //tickUpper: 86100,
-          tickLower: 78600,
-          tickUpper: 78660,
-          sqrtPriceX96: state.sqrtPrice,
-        }),
-      )
-        .to.emit(pool, "Swap")
-        .withArgs(
-          SWAP_ROUTER_ADDRESS,
-          module.address,
-          BN.from("29999999999999999999"),
-          BN.from("-104846458459981954886641"),
-          BN.from("4526928811615173530901926576656"),
-          BN.from("21943569674271089645050"),
-          80913,
-        );
-      */
+
       await module.moduleE_rebalance({
         router: SWAP_ROUTER_ADDRESS,
         slippageSwap: 100000,
@@ -1642,30 +1383,23 @@ describe("ConcentratedLiquidityModuleE", function () {
         tickUpper: 78660,
         sqrtPriceX96: state.sqrtPrice,
       })
-      //event Swap(address indexed sender, address indexed recipient, int256 amount0, int256 amount1, uint160 price, uint128 liquidity, int24 tick);
-      console.log("in Can rebalance with range below spot 2")
 
       state = await pool.safelyGetStateOfAMM()
-      //expect(state.tick ==).eq(80913) // or 80915 ???
       almostEqual(state.tick, 80913)
       almostEqual(state.sqrtPrice, "4526928811615173530901926576656")
-      //expect(state.sqrtPrice).to.equal(
-        //BN.from("4526928811615173530901926576656"),
-      //);
 
-      expect(convertToStruct(await module.position())).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: AddressZero,
-        token0: WETH_ADDRESS,
-        token1: USDB_ADDRESS,
-        tickLower: 78600,
-        tickUpper: 78660,
-        liquidity: BN.from("1339631547459368528890146"),
-        feeGrowthInside0LastX128: BN.from("0"),
-        feeGrowthInside1LastX128: BN.from("0"),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
+      position = await module.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78600)
+      expect(position.tickUpper).eq(78660)
+      almostEqual(BN.from(position.liquidity), BN.from("1339631547459368528890146"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
 
       // Only leftover on one side
       expect(
@@ -1677,10 +1411,8 @@ describe("ConcentratedLiquidityModuleE", function () {
     });
 
     it("Can rebalance with range above spot", async () => {
-      console.log("in Can rebalance with range above spot 1")
       const { module, module2, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
       await addMoreLiquidity(module2, USDB, WETH)
-      console.log("in Can rebalance with range above spot 2")
       let state = await pool.safelyGetStateOfAMM()
       expect(state.tick).eq(82519)
       expect(state.sqrtPrice).to.equal(
@@ -1689,36 +1421,6 @@ describe("ConcentratedLiquidityModuleE", function () {
       let position = await module.position()
       expect(position.tickLower).eq(78000)
       expect(position.tickUpper).eq(87000)
-      console.log("in Can rebalance with range above spot 3")
-      /*
-      await expect(
-        module.moduleE_rebalance({
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          //tickLower: -80760,
-          //tickUpper: -80160,
-          //tickLower: 78000, // technically below but is above with ordering
-          //tickUpper: 78060,
-          tickLower: 86040,
-          tickUpper: 86100,
-          sqrtPriceX96: state.sqrtPrice,
-        }),
-        //tickLower: 78000,
-        //tickUpper: 87000,
-      )
-        .to.emit(pool, "Swap")
-        .withArgs(
-          SWAP_ROUTER_ADDRESS,
-          module.address,
-          BN.from("-23984907629889965563"),
-          BN.from("99999999999999999999999"),
-          BN.from("5262161220103827343239738254948"),
-          BN.from("21943569674271089645050"),
-          83921,
-        );
-      */
-      console.log("in Can rebalance with range above spot 4")
       await module.moduleE_rebalance({
         router: SWAP_ROUTER_ADDRESS,
         slippageSwap: 100000,
@@ -1727,49 +1429,9 @@ describe("ConcentratedLiquidityModuleE", function () {
         tickUpper: 86100,
         sqrtPriceX96: state.sqrtPrice,
       })
-      console.log("in Can rebalance with range above spot 5")
       state = await pool.safelyGetStateOfAMM()
-      console.log("in Can rebalance with range above spot 6")
-      // todo: why does this result change sometimes?
-      console.log(state.tick)
-      //expect(state.tick).eq(83921)
-      //expect(state.tick).eq(83923)
-      //expect(state.sqrtPrice).to.equal(BN.from("5262161220103827343239738254948"));
-      expect(state.tick == 83921 || state.tick == 83923).to.be.true
-      expect(state.sqrtPrice.eq(BN.from("5261561148155400924256703306069")) || state.sqrtPrice.eq(BN.from("5262161220103827343239738254948"))).to.be.true
-      console.log("in Can rebalance with range above spot 7")
-
-      /*
-      expect(convertToStruct(await module.position())).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: AddressZero,
-        token0: WETH_ADDRESS,
-        token1: USDB_ADDRESS,
-        tickLower: -80760,
-        tickUpper: -80160,
-        liquidity: BN.from("1330655148507960373398231"),
-        feeGrowthInside0LastX128: BN.from("0"),
-        feeGrowthInside1LastX128: BN.from("0"),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
-      */
-      /*
-      expect(convertToStruct(await module.position())).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: AddressZero,
-        token0: WETH_ADDRESS,
-        token1: USDB_ADDRESS,
-        tickLower: 86040,
-        tickUpper: 86100,
-        liquidity: BN.from("1330655148507960373398231"), // or 1331583910792820199874517
-        feeGrowthInside0LastX128: BN.from("0"),
-        feeGrowthInside1LastX128: BN.from("0"),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
-      */
-      console.log("test 0")
+      almostEqual(state.tick, 83921)
+      almostEqual(state.sqrtPrice, "5261561148155400924256703306069")
       position = await module.position()
       expect(position.nonce).eq(0)
       expect(position.operator).eq(AddressZero)
@@ -1777,16 +1439,7 @@ describe("ConcentratedLiquidityModuleE", function () {
       expect(position.token1).eq(USDB_ADDRESS)
       expect(position.tickLower).eq(86040)
       expect(position.tickUpper).eq(86100)
-      console.log("test 0.0")
-      //expect(position.liquidity).eq()
-      console.log("test 1")
-      console.log(BN.from(position.liquidity))
-      console.log("test 2")
-      console.log(BN.from("1330655148507960373398231"))
-      console.log("test 3")
       almostEqual(BN.from(position.liquidity), BN.from("1330655148507960373398231"))
-      //1330655148507960373398231
-      //1331583910792820199874517
       expect(position.feeGrowthInside0LastX128).eq(0)
       expect(position.feeGrowthInside1LastX128).eq(0)
       expect(position.tokensOwed0).eq(0)
@@ -1802,18 +1455,14 @@ describe("ConcentratedLiquidityModuleE", function () {
     });
 
     it("Can handle rebalance to same range", async () => {
-      console.log("in Can handle rebalance to same range 1")
       const { module, module2, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
-      console.log("in Can handle rebalance to same range 2")
       await addMoreLiquidity(module2, USDB, WETH)
-      console.log("in Can handle rebalance to same range 3")
       expect(
         await Promise.all([
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
       ).to.deep.equal([BN.from("2"), BN.from("4117143401061226630")]);
-      console.log("in Can handle rebalance to same range 4")
 
       expect(await module.tokenId()).to.deep.equal(BN.from("11"));
       let position = await module.position()
@@ -1821,7 +1470,7 @@ describe("ConcentratedLiquidityModuleE", function () {
       let tickUpper = 87000
       expect(position.tickLower).eq(tickLower)
       expect(position.tickUpper).eq(tickUpper)
-      console.log("in Can handle rebalance to same range 5")
+      let state = await pool.safelyGetStateOfAMM()
 
       let tx = await module.moduleE_rebalance({
         router: SWAP_ROUTER_ADDRESS,
@@ -1829,67 +1478,44 @@ describe("ConcentratedLiquidityModuleE", function () {
         slippageLiquidity: 1_000_000,
         tickLower: tickLower,
         tickUpper: tickUpper,
-        sqrtPriceX96,
+        sqrtPriceX96: state.sqrtPrice,
       })
-      console.log("in Can handle rebalance to same range 6")
-      await expect(tx)
-        .to.emit(pool, "Swap")
-        .withArgs(
-          SWAP_ROUTER_ADDRESS,
-          module.address,
-          BN.from("-34090756937382223001362"),
-          BN.from("10565945789577175017"),
-          BN.from("1392948110278170812480898490"),
-          BN.from("1809644280222846793499326"),
-          -80823,
-        );
-      console.log("in Can handle rebalance to same range 7")
+      await expect(tx).to.emit(pool, "Swap")
 
-      expect(convertToStruct(await module.position())).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: AddressZero,
-        token0: WETH_ADDRESS,
-        token1: USDB_ADDRESS,
-        tickLower: 78000,
-        tickUpper: 87000,
-        liquidity: BN.from("19818056076200303065737"),
-        feeGrowthInside0LastX128: BN.from(
-          "223062771100361370800904183975351004548",
-        ),
-        feeGrowthInside1LastX128: BN.from(
-          "63775295523650471992080398957675698",
-        ),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
-      console.log("in Can handle rebalance to same range 8")
+      position = await module.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(78000)
+      expect(position.tickUpper).eq(87000)
+      almostEqual(BN.from(position.liquidity), BN.from("8381140546815517751888"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
 
       // Only leftover on one side
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("0"), BN.from("5505297270512626701")]);
-      console.log("in Can handle rebalance to same range 9")
+      let balances = await Promise.all([
+        USDB.balanceOf(module.address),
+        WETH.balanceOf(module.address),
+      ])
+      almostEqual(balances[0], "5736801427835358290979", 0.002)
+      expect(balances[1]).eq(0)
     });
 
     it("Can rebalance equal", async () => {
-      console.log("in Can rebalance equal 1")
       const { module, module2, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
-      console.log("in Can rebalance equal 2")
       await addMoreLiquidity(module2, USDB, WETH)
-      console.log("in Can rebalance equal 3")
       expect(
         await Promise.all([
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
       ).to.deep.equal([BN.from("2"), BN.from("4117143401061226630")]);
-      console.log("in Can rebalance equal 4")
 
       expect(await module.tokenId()).to.deep.equal(BN.from("11"));
-      console.log("in Can rebalance equal 5")
+      let state = await pool.safelyGetStateOfAMM()
 
       let tx = await module.moduleE_rebalance({
         router: SWAP_ROUTER_ADDRESS,
@@ -1897,49 +1523,30 @@ describe("ConcentratedLiquidityModuleE", function () {
         slippageLiquidity: 10_000, // 1%
         tickLower: -82020,
         tickUpper: -79620,
-        sqrtPriceX96,
+        sqrtPriceX96: state.sqrtPrice,
       })
-      console.log("in Can rebalance equal 6")
-      await expect(tx)
-        .to.emit(pool, "Swap")
-        .withArgs(
-          SWAP_ROUTER_ADDRESS,
-          module.address,
-          BN.from("19902778130550452706038"),
-          BN.from("-6128416111010888352"),
-          BN.from("1392218601020053651155219570"),
-          BN.from("1809644280222846793499326"),
-          -80833,
-        );
-      console.log("in Can rebalance equal 7")
+      await expect(tx).to.emit(pool, "Swap")
 
-      expect(convertToStruct(await module.position())).to.deep.equal({
-        nonce: BN.from("0"),
-        operator: AddressZero,
-        token0: WETH_ADDRESS,
-        token1: USDB_ADDRESS,
-        tickLower: -82020,
-        tickUpper: -79620,
-        liquidity: BN.from("55739009505790607644248"),
-        feeGrowthInside0LastX128: BN.from(
-          "164500857552271469339101134859378297624",
-        ),
-        feeGrowthInside1LastX128: BN.from(
-          "47566901442692672301425492992783708",
-        ),
-        tokensOwed0: BN.from("0"),
-        tokensOwed1: BN.from("0"),
-      });
-      console.log("in Can rebalance equal 8")
+      let position = await module.position()
+      expect(position.nonce).eq(0)
+      expect(position.operator).eq(AddressZero)
+      expect(position.token0).eq(WETH_ADDRESS)
+      expect(position.token1).eq(USDB_ADDRESS)
+      expect(position.tickLower).eq(-82020)
+      expect(position.tickUpper).eq(-79620)
+      almostEqual(BN.from(position.liquidity), BN.from("96952581062906826209600496"))
+      expect(position.feeGrowthInside0LastX128).eq(0)
+      expect(position.feeGrowthInside1LastX128).eq(0)
+      expect(position.tokensOwed0).eq(0)
+      expect(position.tokensOwed1).eq(0)
 
-      // Only leftover on one side
+      // single sided liquidity - no leftovers
       expect(
         await Promise.all([
           USDB.balanceOf(module.address),
           WETH.balanceOf(module.address),
         ]),
-      ).to.deep.equal([BN.from("0"), BN.from("442634440538521250")]);
-      console.log("in Can rebalance equal 9")
+      ).to.deep.equal([BN.from("0"), BN.from("0")]);
     });
   });
 

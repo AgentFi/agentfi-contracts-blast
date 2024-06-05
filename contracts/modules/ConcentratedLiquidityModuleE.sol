@@ -13,7 +13,8 @@ import { Errors } from "./../libraries/Errors.sol";
 import { LiquidityAmounts } from "./../libraries/LiquidityAmounts.sol";
 import { TickMath } from "./../libraries/TickMath.sol";
 import { Blastable } from "./../utils/Blastable.sol";
-import "hardhat/console.sol";
+
+
 /**
  * @title ConcentratedLiquidityModuleE
  * @author AgentFi
@@ -155,7 +156,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
     function moduleE_mint(
         MintParams memory params
     ) public payable virtual override returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
-        console.log("in moduleE_mint() 1");
         if (params.tickLower >= params.tickUpper) revert Errors.InvalidTickParam();
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
         if (state.tokenId != 0) revert Errors.PositionAlreadyExists();
@@ -166,16 +166,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         _setApproval(params.token0, state.manager, params.amount0Desired);
         _setApproval(params.token1, state.manager, params.amount1Desired);
 
-        console.log("in moduleE_mint() 2");
-        console.log(params.token0);
-        console.log(params.token1);
-        console.logInt(int256(params.tickLower));
-        console.logInt(int256(params.tickUpper));
-        console.log(params.amount0Desired);
-        console.log(params.amount1Desired);
-        console.log(params.amount0Min);
-        console.log(params.amount1Min);
-        console.log("in moduleE_mint() 3");
         (tokenId_, liquidity, amount0, amount1) = INonfungiblePositionManager(params.manager).mint(
             INonfungiblePositionManager.MintParams({
                 token0: params.token0,
@@ -184,19 +174,17 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 tickUpper: params.tickUpper,
                 amount0Desired: params.amount0Desired,
                 amount1Desired: params.amount1Desired,
-                //amount0Min: params.amount0Min,
-                //amount1Min: params.amount1Min,
-                amount0Min: 0,
-                amount1Min: 0,
+                amount0Min: params.amount0Min,
+                amount1Min: params.amount1Min,
+                //amount0Min: 0,
+                //amount1Min: 0,
                 recipient: address(this),
                 deadline: block.timestamp
             })
         );
-        console.log("in moduleE_mint() 4");
 
         // Update state with new token
         state.tokenId = tokenId_;
-        console.log("in moduleE_mint() 5");
     }
 
     /// @notice Increases the amount of liquidity in a position, with tokens paid by the `msg.sender`
@@ -489,39 +477,16 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleE_rebalance(RebalanceParams memory params) external payable override {
-        console.log("in moduleE_rebalance() 1");
-        (, , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
-        console.log("Starting at ticks");
-        console.logInt(int256(tickLower));
-        console.logInt(int256(tickUpper));
-        console.log("Rebalancing to ticks");
-        console.logInt(int256(params.tickLower));
-        console.logInt(int256(params.tickUpper));
         IAlgebraPool pool_ = IAlgebraPool(pool());
-        (, int24 poolTick, , , , , ) = pool_.safelyGetStateOfAMM();
-        console.log("Current pool tick");
-        console.logInt(int256(poolTick));
         address token0 = pool_.token0();
         address token1 = pool_.token1();
-        console.log("balances start:");
-        console.log(IERC20(token0).balanceOf(address(this)));
-        console.log(IERC20(token1).balanceOf(address(this)));
         moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
-        console.log("in moduleE_rebalance() 2");
-        console.log("balances after full withdraw to self:");
-        console.log(IERC20(token0).balanceOf(address(this)));
-        console.log(IERC20(token1).balanceOf(address(this)));
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
             params.sqrtPriceX96,
             params.tickLower,
             params.tickUpper
         );
-        console.log("in moduleE_rebalance() 3");
-        //console.log(tokenIn);
-        //console.log(tokenOut);
-        //console.log(amountIn);
-        console.log("swap", amountIn, tokenIn==token0 ? "zero for one" : "one for zero");
         _performSwap(
             PerformSwapParams({
                 router: params.router,
@@ -532,10 +497,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 sqrtPriceX96: params.sqrtPriceX96
             })
         );
-        console.log("in moduleE_rebalance() 4");
-        console.log("balances after swap:");
-        console.log(IERC20(token0).balanceOf(address(this)));
-        console.log(IERC20(token1).balanceOf(address(this)));
 
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
         moduleE_mintWithBalance(
@@ -548,10 +509,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 sqrtPriceX96: params.sqrtPriceX96
             })
         );
-        console.log("in moduleE_rebalance() 5");
-        console.log("balances after deposit:");
-        console.log(IERC20(token0).balanceOf(address(this)));
-        console.log(IERC20(token1).balanceOf(address(this)));
     }
 
     /***************************************
@@ -567,10 +524,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         int24 tickLower,
         int24 tickUpper
     ) internal view returns (address, address, uint256) {
-        console.log("in _getSwapForNewRange() 1");
-        console.logInt(int256(tickLower));
-        console.logInt(int256(tickUpper));
-        console.log(tickLower >= tickUpper);
         if (tickLower >= tickUpper) revert Errors.InvalidTickParam();
 
         IAlgebraPool pool_ = IAlgebraPool(pool());
@@ -583,16 +536,10 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         uint256 p = uint256(sqrtPriceX96);
         uint256 pa = uint256(TickMath.getSqrtRatioAtTick(tickLower));
         uint256 pb = uint256(TickMath.getSqrtRatioAtTick(tickUpper));
-        console.log("in _getSwapForNewRange() 2");
-        console.log(p);
-        console.log(pa);
-        console.log(pb);
 
         if (pb <= p) {
-            console.log("in _getSwapForNewRange() branch A");
             return (token0, token1, amount0);
         } else if (pa >= p) {
-            console.log("in _getSwapForNewRange() branch B");
             return (token1, token0, amount1);
         } else {
             uint256 SCALE = 10 ** 18; // Scale  to avoid zero values
@@ -600,11 +547,9 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
             ratio = Math.mulDiv(ratio, SCALE, 2 ** 192);
 
             if (Math.mulDiv(amount0, ratio, 10 ** 18) > amount1) {
-                console.log("in _getSwapForNewRange() branch C");
                 uint256 amountIn = (amount0 - Math.mulDiv(amount1, SCALE, ratio)) / 2;
                 return (token0, token1, amountIn);
             } else {
-                console.log("in _getSwapForNewRange() branch D");
                 uint256 amountIn = (amount1 - Math.mulDiv(amount0, ratio, SCALE)) / 2;
                 return (token1, token0, amountIn);
             }
@@ -612,16 +557,11 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
     }
 
     function _performSwap(PerformSwapParams memory params) internal {
-        console.log("in _performSwap() 1");
         if (params.amountIn == 0) {
             return;
         }
-        console.log("in _performSwap() 2");
-
 
         uint256 amountOutMinimum;
-
-        //sqrtPrice, slippageSwap, fee, router
         if (params.tokenIn < params.tokenOut) {
             amountOutMinimum = Math.mulDiv(params.amountIn, uint256(params.sqrtPriceX96) ** 2, 2 ** 192);
         } else {
@@ -642,7 +582,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 limitSqrtPrice: 0
             })
         );
-        console.log("in _performSwap() 3");
     }
 
     /***************************************
