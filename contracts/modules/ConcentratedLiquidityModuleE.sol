@@ -163,8 +163,8 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         state.manager = params.manager;
         state.pool = params.pool;
 
-        _setApproval(params.token0, state.manager, params.amount0Desired);
-        _setApproval(params.token1, state.manager, params.amount1Desired);
+        _checkApproval(params.token0, state.manager, params.amount0Desired);
+        _checkApproval(params.token1, state.manager, params.amount1Desired);
 
         (tokenId_, liquidity, amount0, amount1) = INonfungiblePositionManager(params.manager).mint(
             INonfungiblePositionManager.MintParams({
@@ -206,8 +206,8 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
         if (state.tokenId == 0) revert Errors.NoPositionFound();
 
-        _setApproval(token0, state.manager, params.amount0Desired);
-        _setApproval(token1, state.manager, params.amount1Desired);
+        _checkApproval(token0, state.manager, params.amount0Desired);
+        _checkApproval(token1, state.manager, params.amount1Desired);
 
         (liquidity, amount0, amount1) = manager_.increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
@@ -275,7 +275,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         ISwapRouter swapRouter = ISwapRouter(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountIn);
+        _checkApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
@@ -477,9 +477,6 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleE_rebalance(RebalanceParams memory params) external payable override {
-        IAlgebraPool pool_ = IAlgebraPool(pool());
-        address token0 = pool_.token0();
-        address token1 = pool_.token1();
         moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
@@ -622,7 +619,17 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         amount1 = IERC20(token1).balanceOf(address(this));
     }
 
-    function _setApproval(address token, address spender, uint256 value) internal {
-        SafeERC20.safeIncreaseAllowance(IERC20(token), spender, value);
+    /**
+     * @notice Checks the approval of an ERC20 token from this contract to another address.
+     * @param token The token to check allowance.
+     * @param recipient The address to give allowance to.
+     * @param minAmount The minimum amount of the allowance.
+     */
+    function _checkApproval(address token, address recipient, uint256 minAmount) internal {
+        // if current allowance is insufficient
+        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            // set allowance to max
+            SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
+        }
     }
 }
