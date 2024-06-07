@@ -1,7 +1,7 @@
 // /* global describe it before ethers */
 
 import hre from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -57,12 +57,14 @@ enum MODE {
 const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
+    "_quoteClaimWithRevert()",
     "borrowBalance()",
     "comptroller()",
     "duoAsset()",
     "mode()",
     "moduleName()",
     "oToken()",
+    "quoteClaim()",
     "rateContract()",
     "strategyType()",
     "supplyBalance()",
@@ -685,11 +687,16 @@ describe("LoopoorModuleD", function () {
         parseEther("1249991.679098100761621992"),
       );
 
+      await mine(1000);
+      almostEqual(
+        await module.callStatic.quoteClaim(),
+        parseEther("0.005957176188503403"),
+      );
       await module.moduleD_claimTo(USER_ADDRESS);
 
       almostEqual(
         await ORBIT.balanceOf(USER_ADDRESS),
-        parseEther("0.000005957176188503"),
+        parseEther("0.005963133364691907"),
       );
 
       almostEqual(
@@ -1121,7 +1128,7 @@ describe("LoopoorModuleD", function () {
     });
 
     it("Can claim orbit without withdraw", async function () {
-      const { module, ODETH, WETH, ORBIT, signer } =
+      const { module, ODETH, WETH, ORBIT, signer, COMPTROLLER } =
         await loadFixture(fixtureDeployed);
 
       await signer.sendTransaction({
@@ -1138,11 +1145,16 @@ describe("LoopoorModuleD", function () {
         parseEther("2.499"), // 2.5 is max based on 60% LTV
       );
 
+      await mine(1000);
+      almostEqual(
+        await module.callStatic.quoteClaim(),
+        parseEther("0.001995097039355829"),
+      );
       await module.moduleD_claimTo(USER_ADDRESS);
 
       almostEqual(
         await ORBIT.balanceOf(USER_ADDRESS),
-        parseEther("0.000001995097039355"),
+        parseEther("0.001997092136395185"), // Withdrawing increases orbit claim
       );
       almostEqual(
         await ODETH.balanceOf(module.address),

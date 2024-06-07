@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Blastable } from "./../utils/Blastable.sol";
+import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
@@ -163,6 +164,18 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
             return IERC20(address(0));
         }
         return IERC20(IWrapMintV2(wrapMint_).duoAssetToken());
+    }
+
+    function _quoteClaimWithRevert() external {
+        moduleD_claim();
+        uint256 balance = IERC20(comptroller().getTokenAddress()).balanceOf(address(this));
+        revert Errors.RevertForAmount(balance);
+    }
+
+    function quoteClaim() external returns (uint256 balance_) {
+        try LoopooorModuleD(payable(address(this)))._quoteClaimWithRevert() {} catch (bytes memory reason) {
+            balance_ = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
     }
 
     /***************************************

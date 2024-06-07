@@ -104,6 +104,11 @@ interface ILoopooorModuleD {
      */
     function duoAsset() external view returns (IERC20);
 
+    /**
+     * @notice Returns orbit, both in tba and unclaimed in the contract.
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteClaim() external returns (uint256 balance_);
     /***************************************
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/

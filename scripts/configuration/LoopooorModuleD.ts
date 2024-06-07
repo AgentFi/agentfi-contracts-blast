@@ -1,5 +1,10 @@
 export const moduleDFunctionParams = [
   {
+    selector: "0xdc3be667",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
     selector: "0x243cd14e",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -26,6 +31,11 @@ export const moduleDFunctionParams = [
   },
   {
     selector: "0x1a32aad6",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0x4c711a2a",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
