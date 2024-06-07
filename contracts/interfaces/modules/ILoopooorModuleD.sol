@@ -104,6 +104,11 @@ interface ILoopooorModuleD {
      */
     function duoAsset() external view returns (IERC20);
 
+    /**
+     * @notice Returns the balance in underlying asset of the contract.
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteBalance() external returns (uint256 balance_);
     /***************************************
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/
@@ -286,7 +291,7 @@ interface ILoopooorModuleD {
     /**
      * @notice Withdraws the balance from the Orbit protocol and burns the fixed or variable rate position.
      */
-    function moduleD_withdrawBalance() external payable;
+    function moduleD_withdrawBalance() external payable returns (uint256);
 
     /**
      * @notice Withdraws the balance from the Orbit protocol and burns the fixed or variable rate position, then sends the balance to the specified receiver.

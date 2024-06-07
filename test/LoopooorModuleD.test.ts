@@ -1,7 +1,7 @@
 // /* global describe it before ethers */
 
 import hre from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -57,12 +57,14 @@ enum MODE {
 const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
+    "_quoteBalanceWithRevert()",
     "borrowBalance()",
     "comptroller()",
     "duoAsset()",
     "mode()",
     "moduleName()",
     "oToken()",
+    "quoteBalance()",
     "rateContract()",
     "strategyType()",
     "supplyBalance()",
@@ -656,6 +658,7 @@ describe("LoopoorModuleD", function () {
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
     });
+
     it("Looped depositing USDB in fixedRate", async function () {
       const { module, ODUSD, DUSD, COMPTROLLER, USDB, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
@@ -694,13 +697,20 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("99.999530688585409877"),
+      );
+
       // ===== Do leverage burn
       const usdb = await USDB.balanceOf(USER_ADDRESS);
       await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         (await USDB.balanceOf(USER_ADDRESS)).sub(usdb),
-        parseEther("99.999999953036711437"),
+        parseEther("99.999530688585409877"),
       );
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
@@ -744,13 +754,20 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("100.008452576750142788"),
+      );
+
       // ===== Do leverage burn
       const usdb = await USDB.balanceOf(USER_ADDRESS);
       await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         (await USDB.balanceOf(USER_ADDRESS)).sub(usdb),
-        parseEther("99.999999953036711437"),
+        parseEther("100.008452576750142788"),
       );
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
@@ -1044,13 +1061,15 @@ describe("LoopoorModuleD", function () {
       const { module, WETH, ODETH, DETH, WRAPMINT_ETH } =
         await loadFixture(fixtureDeployed);
       const variableRateContract = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
-      await expect(module.moduleD_burnVariableRate(
-        AddressZero,
-        variableRateContract,
-        await DETH.balanceOf(module.address),
-        0,
-      )).to.be.reverted;
-    })
+      await expect(
+        module.moduleD_burnVariableRate(
+          AddressZero,
+          variableRateContract,
+          await DETH.balanceOf(module.address),
+          0,
+        ),
+      ).to.be.reverted;
+    });
 
     it("Looped depositing WETH in fixedRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =
@@ -1096,12 +1115,18 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000);
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("0.099999857741142425"),
+      );
+
       // ===== Do leverage burn
       const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         await WETH.balanceOf(USER_ADDRESS),
-        parseEther("0.100000001012337307"),
+        parseEther("0.099999857741142425"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
@@ -1208,12 +1233,19 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("0.100003275766995141"),
+      );
+
       // ===== Do leverage burn
       const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         await WETH.balanceOf(USER_ADDRESS),
-        parseEther("0.100000001012337307"),
+        parseEther("0.100003275766995141"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));

@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Blastable } from "./../utils/Blastable.sol";
+import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
@@ -166,6 +167,21 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
             return IERC20(address(0));
         }
         return IERC20(IWrapMintV2(wrapMint_).duoAssetToken());
+    }
+
+    function _quoteBalanceWithRevert() external {
+        uint256 balance = moduleD_withdrawBalance();
+        revert Errors.RevertForAmount(balance);
+    }
+
+    /**
+     * @notice Returns the balance in underlying asset of the contract.
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteBalance() external returns (uint256 balance) {
+        try LoopooorModuleD(payable(address(this)))._quoteBalanceWithRevert() {} catch (bytes memory reason) {
+            balance = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
     }
 
     /***************************************
@@ -372,7 +388,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
-    function moduleD_withdrawBalance() public payable override {
+    function moduleD_withdrawBalance() public payable override returns (uint256 amount_) {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         IOErc20Delegator oToken_ = IOErc20Delegator(state.oToken);
@@ -421,8 +437,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
         // Unwrap if necesary
         if (underlying() == _eth) {
-            uint256 balance = IERC20(_weth).balanceOf(address(this));
-            IWETH(_weth).withdraw(balance);
+            amount_ = IERC20(_weth).balanceOf(address(this));
+            IWETH(_weth).withdraw(amount_);
+        } else {
+            amount_ = IERC20(state.underlying).balanceOf(address(this));
         }
 
         // claim orbit token
