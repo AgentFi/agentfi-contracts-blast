@@ -60,6 +60,7 @@ const permissions = Object.entries({
     "borrowBalance()",
     "comptroller()",
     "duoAsset()",
+    "leverage()",
     "mode()",
     "moduleName()",
     "oToken()",
@@ -80,13 +81,16 @@ const permissions = Object.entries({
     "moduleD_burnFixedRate(address,address,uint256)",
     "moduleD_burnVariableRate(address,address,uint256,uint256)",
     "moduleD_depositBalance(address,address,address,uint8,uint256)",
+    "moduleD_increaseWithBalance()",
     "moduleD_mint(address,uint256)",
     "moduleD_mintFixedRate(address,address,address,uint256,uint256,uint256,bytes)",
     "moduleD_mintFixedRateEth(address,address,uint256,uint256,uint256,bytes)",
     "moduleD_mintVariableRate(address,address,address,uint256,uint256,bytes)",
     "moduleD_mintVariableRateEth(address,address,uint256,uint256,bytes)",
+    "moduleD_partialWithdrawTo(address,uint256)",
     "moduleD_redeem(address,uint256)",
     "moduleD_repayBorrow(address,uint256)",
+    "moduleD_sendAmountTo(address,address,uint256)",
     "moduleD_sendBalanceTo(address,address)",
     "moduleD_withdrawBalance()",
     "moduleD_withdrawBalanceTo(address)",
@@ -794,8 +798,48 @@ describe("LoopoorModuleD", function () {
       ).to.be.reverted;
     });
 
-    it("Can reject double deposit", async function () {
-      const { module } = await loadFixture(fixtureDeployed);
+    it("Can handle increase deposit", async function () {
+      const { module, ODETH } = await loadFixture(fixtureDeployed);
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        ETH_ADDRESS,
+        MODE.BOOST_YIELD,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963028339426454"),
+      );
+
+      await module.moduleD_increaseWithBalance({ value: parseEther("0.1") });
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999930152257006793"),
+      );
+    });
+
+    it("Can handle double deposit", async function () {
+      const { module, ODETH } = await loadFixture(fixtureDeployed);
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        ETH_ADDRESS,
+        MODE.BOOST_YIELD,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963028339426454"),
+      );
+
       await module.moduleD_depositBalance(
         WRAPMINT_ETH_ADDRESS,
         ODETH_ADDRESS,
@@ -807,18 +851,10 @@ describe("LoopoorModuleD", function () {
         },
       );
 
-      await expect(
-        module.moduleD_depositBalance(
-          WRAPMINT_ETH_ADDRESS,
-          ODETH_ADDRESS,
-          ETH_ADDRESS,
-          MODE.BOOST_YIELD,
-          parseEther("2.499"), // 2.5 is max based on 60% LTV
-          {
-            value: parseEther("0.1"),
-          },
-        ),
-      ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999930152257006793"),
+      );
     });
 
     it("Can mint fixedRate DETH with WETH", async function () {
@@ -1052,6 +1088,43 @@ describe("LoopoorModuleD", function () {
       )).to.be.reverted;
     })
 
+    it("Partial withdrawal WETH in fixedRate", async function () {
+      const { module, ODETH, WETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        WETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+      // ===== Do leverage burn
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963025996614092"),
+      );
+
+      const burnTx = module.moduleD_partialWithdrawTo(
+        USER_ADDRESS,
+        parseEther("0.05"),
+      );
+
+      almostEqual(await WETH.balanceOf(USER_ADDRESS), parseEther("0.05"));
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("624.749981334661137337"),
+      );
+    });
+
     it("Looped depositing WETH in fixedRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =
         await loadFixture(fixtureDeployed);
@@ -1090,6 +1163,7 @@ describe("LoopoorModuleD", function () {
 
       await expect(mintTx).to.emit(WRAPMINT_ETH, "MintFixedRate");
 
+      almostEqual(await module.leverage(), parseEther("2.499"));
       expect(await module.underlying()).to.equal(WETH_ADDRESS);
       expect(await module.mode()).to.equal(1);
       expect(
@@ -1107,6 +1181,52 @@ describe("LoopoorModuleD", function () {
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
+    it("Can handle double depositing DETH directly", async function () {
+      const { module, ODETH, DETH, WRAPMINT_ETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.2"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.2"),
+        },
+      );
+
+      // ===== Do First deposit
+      await DETH.transfer(module.address, parseEther("0.1"));
+      await module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.999958011201242472"),
+      );
+      //
+      // ===== Do Second deposit
+      await DETH.transfer(module.address, parseEther("0.1"));
+      await module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999926049650415822"),
+      );
+    });
     it("Looped depositing DETH directly", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WRAPMINT_ETH, signer } =
         await loadFixture(fixtureDeployed);

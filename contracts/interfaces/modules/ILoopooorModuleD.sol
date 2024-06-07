@@ -104,6 +104,11 @@ interface ILoopooorModuleD {
      */
     function duoAsset() external view returns (IERC20);
 
+    /**
+     *  @notice The current scaled leverage of the position
+     */
+    function leverage() external view returns (uint256);
+
     /***************************************
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/
@@ -284,6 +289,11 @@ interface ILoopooorModuleD {
     ) external payable;
 
     /**
+     * @notice Increases current position with any available balance.
+     */
+    function moduleD_increaseWithBalance() external payable; 
+
+    /**
      * @notice Withdraws the balance from the Orbit protocol and burns the fixed or variable rate position.
      */
     function moduleD_withdrawBalance() external payable;
@@ -295,9 +305,15 @@ interface ILoopooorModuleD {
     function moduleD_withdrawBalanceTo(address receiver) external payable;
 
     /**
+     *  @notice Perform a partial withdrawal, sending amount to receiver
+     */
+    function moduleD_partialWithdrawTo(address receiver, uint256 amount) external;
+
+    /**
      * @notice Sends the balance of the specified token to the specified receiver.
      * @param receiver The address to send the balance to.
      * @param token The address of the token to be sent.
      */
     function moduleD_sendBalanceTo(address receiver, address token) external payable;
+    function moduleD_sendAmountTo(address receiver, address token, uint256 amount) external payable;
 }

@@ -126,6 +126,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         return getDuoAssetFromOToken(address(oToken()));
     }
 
+    function leverage() public view override returns (uint256) {
+        uint256 supply = supplyBalance();
+        uint256 borrow = borrowBalance();
+        return Math.mulDiv(supply, PRECISION_LEVERAGE, supply - borrow);
+    }
+
     function supplyBalance() public view override returns (uint256 supply_) {
         IOErc20Delegator oToken_ = oToken();
         if (address(oToken_) == address(0)) {
@@ -305,12 +311,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address oToken_,
         address underlying_,
         MODE mode_,
-        uint256 leverage
-    ) external payable override {
+        uint256 leverage_
+    ) public payable override {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         if (state.rateContract != address(0)) {
-            revert Errors.PositionAlreadyExists();
+            moduleD_withdrawBalance();
         }
 
         state.mode = mode_;
@@ -326,7 +332,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
 
         uint256 balance = IERC20(underlying_).balanceOf(address(this));
-        uint256 total = Math.mulDiv(balance, leverage, PRECISION_LEVERAGE);
+        uint256 total = Math.mulDiv(balance, leverage_, PRECISION_LEVERAGE);
 
         if (mode_ == MODE.FIXED_RATE) {
             (address fixedRateContract_, , ) = moduleD_mintFixedRate(
@@ -445,6 +451,38 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         // withdraw orbit
         uint256 balance = IERC20(_orbit).balanceOf(address(this));
         if(balance > 0) SafeERC20.safeTransfer(IERC20(_orbit), receiver, balance);
+    }
+
+    function moduleD_sendAmountTo(address receiver, address token, uint256 amount) public payable override {
+        if (token == _eth) {
+            Calls.sendValue(receiver, amount);
+        } else {
+            SafeERC20.safeTransfer(IERC20(token), receiver, amount);
+        }
+
+        // withdraw orbit
+        uint256 balance = IERC20(_orbit).balanceOf(address(this));
+        if (balance > 0) SafeERC20.safeTransfer(IERC20(_orbit), receiver, balance);
+    }
+
+    function moduleD_increaseWithBalance() public payable override {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
+    }
+
+    function moduleD_partialWithdrawTo(address receiver, uint256 amount) external {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_sendAmountTo(receiver, state.underlying, amount);
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
     }
 
     /***************************************
