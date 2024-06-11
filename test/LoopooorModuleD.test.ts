@@ -2,7 +2,6 @@
 
 import hre from "hardhat";
 import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
-import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
