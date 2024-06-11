@@ -15,7 +15,6 @@ import { IPriceOracle } from "./../interfaces/external/Orbit/IPriceOracle.sol";
 import { IOrbitSpaceStationV4 } from "./../interfaces/external/Orbit/IOrbitSpaceStationV4.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
-
 /**
  * @title LoopooorModuleD
  * @author AgentFi
@@ -122,6 +121,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
     function duoAsset() public view override returns (IERC20) {
         return getDuoAssetFromOToken(address(oToken()));
+    }
+
+    function leverage() public view override returns (uint256) {
+        uint256 supply = supplyBalance();
+        uint256 borrow = borrowBalance();
+        return Math.mulDiv(supply, PRECISION_LEVERAGE, supply - borrow);
     }
 
     function supplyBalance() public view override returns (uint256 supply_) {
@@ -297,7 +302,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         return IOErc20Delegator(oToken_).redeem(redeemTokens);
     }
 
-    function moduleD_enterMarkets(address comptroller_, address[] memory oTokens) public payable override returns (uint[] memory) {
+    function moduleD_enterMarkets(
+        address comptroller_,
+        address[] memory oTokens
+    ) public payable override returns (uint[] memory) {
         return IOrbitSpaceStationV4(comptroller_).enterMarkets(oTokens);
     }
 
@@ -319,12 +327,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address oToken_,
         address underlying_,
         MODE mode_,
-        uint256 leverage
-    ) external payable override {
+        uint256 leverage_
+    ) public payable override {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         if (state.rateContract != address(0)) {
-            revert Errors.PositionAlreadyExists();
+            moduleD_withdrawBalance();
         }
 
         state.mode = mode_;
@@ -340,7 +348,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
 
         uint256 balance = IERC20(underlying_).balanceOf(address(this));
-        uint256 total = Math.mulDiv(balance, leverage, PRECISION_LEVERAGE);
+        uint256 total = Math.mulDiv(balance, leverage_, PRECISION_LEVERAGE);
 
         if (mode_ == MODE.FIXED_RATE) {
             (address fixedRateContract_, , ) = moduleD_mintFixedRate(
@@ -467,6 +475,34 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         moduleD_sendBalanceTo(receiver, comptroller().getTokenAddress());
     }
 
+    function moduleD_sendAmountTo(address receiver, address token, uint256 amount) public payable override {
+        if (token == _eth) {
+            Calls.sendValue(receiver, amount);
+        } else {
+            SafeERC20.safeTransfer(IERC20(token), receiver, amount);
+        }
+    }
+
+    function moduleD_increaseWithBalance() public payable override {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
+    }
+
+    function moduleD_partialWithdrawTo(address receiver, uint256 amount) external {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_sendAmountTo(receiver, state.underlying, amount);
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
+    }
+
     /***************************************
     HELPER FUNCTIONS
     ***************************************/
@@ -479,7 +515,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
      */
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         // if current allowance is insufficient
-        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+        if (IERC20(token).allowance(address(this), recipient) < minAmount) {
             // set allowance to max
             SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
         }
