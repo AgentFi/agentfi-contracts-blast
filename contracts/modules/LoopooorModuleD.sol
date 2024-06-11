@@ -183,6 +183,21 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
+    function _quoteBalanceWithRevert() external {
+        uint256 balance = moduleD_withdrawBalance();
+        revert Errors.RevertForAmount(balance);
+    }
+
+    /**
+     * @notice Returns the balance in underlying asset of the contract.
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteBalance() external returns (uint256 balance) {
+        try LoopooorModuleD(payable(address(this)))._quoteBalanceWithRevert() {} catch (bytes memory reason) {
+            balance = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
+    }
+
     /***************************************
     LOW LEVEL DUO MUTATOR FUNCTIONS
     ***************************************/
@@ -394,7 +409,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
-    function moduleD_withdrawBalance() public payable override {
+    function moduleD_withdrawBalance() public payable override returns (uint256 amount_) {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         IOErc20Delegator oToken_ = IOErc20Delegator(state.oToken);
@@ -443,8 +458,10 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
         // Unwrap if necesary
         if (underlying() == _eth) {
-            uint256 balance = IERC20(_weth).balanceOf(address(this));
-            IWETH(_weth).withdraw(balance);
+            amount_ = IERC20(_weth).balanceOf(address(this));
+            IWETH(_weth).withdraw(amount_);
+        } else {
+            amount_ = IERC20(state.underlying).balanceOf(address(this));
         }
 
         // claim orbit token
