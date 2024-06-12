@@ -136,6 +136,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
@@ -145,6 +146,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function createConcentratedLiquidityAgentForRoot(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1,
         address rootAgentAddress
@@ -157,7 +159,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
         _createAgentForRootPrecheck(rootAgentAddress);
         // create v3 agent
         (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
-            _createConcentratedLiquidityAgent(mintParams, deposit0, deposit1);
+            _createConcentratedLiquidityAgent(mintParams, farmParams, deposit0, deposit1);
         // transfer strategy agent to root agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
     }
@@ -166,6 +168,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      * @notice Creates a new V3 strategy agent.
      * The new agent will be minted to a new explorer agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -176,6 +179,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function createConcentratedLiquidityAgentAndExplorer(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) external payable override returns (
@@ -191,7 +195,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
         (explorerAgentID, explorerAddress) = _createExplorerAgent();
         // create v3 agent
         (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
-            _createConcentratedLiquidityAgent(mintParams, deposit0, deposit1);
+            _createConcentratedLiquidityAgent(mintParams, farmParams, deposit0, deposit1);
         // transfer v3 agent to explorer agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
@@ -203,6 +207,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
@@ -212,6 +217,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function createConcentratedLiquidityAgentForRootAndRefundExcess(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1,
         address rootAgentAddress
@@ -224,7 +230,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
         _createAgentForRootPrecheck(rootAgentAddress);
         // create v3 agent
         (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
-            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, deposit0, deposit1);
+            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, farmParams, deposit0, deposit1);
         // transfer strategy agent to root agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), rootAgentAddress, strategyAgentID);
     }
@@ -233,6 +239,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      * @notice Creates a new V3 strategy agent.
      * The new agent will be minted to a new explorer agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -243,6 +250,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) external payable override returns (
@@ -258,7 +266,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
         (explorerAgentID, explorerAddress) = _createExplorerAgent();
         // create v3 agent
         (nonfungiblePositionTokenId, strategyAgentID, strategyAddress) =
-            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, deposit0, deposit1);
+            _createConcentratedLiquidityAgentAndRefundExcess(mintParams, farmParams, deposit0, deposit1);
         // transfer v3 agent to explorer agent
         IBlastooorStrategyAgents(_strategyAgentNft).transferFrom(address(this), explorerAddress, strategyAgentID);
         // transfer explorer agent to msg sender
@@ -272,6 +280,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
     /**
      * @notice Creates a new concentrated liquidity agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -280,6 +289,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function _createConcentratedLiquidityAgent(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) internal returns (
@@ -317,11 +327,20 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
                   sqrtPriceX96: mintParams.sqrtPriceX96
                 })
             );
+        // farm the position
+        IConcentratedLiquidityModuleE(payable(strategyAddress)).moduleE_enterFarming(
+            IConcentratedLiquidityModuleE.FarmParams({
+                rewardToken: farmParams.rewardToken,
+                bonusRewardToken: farmParams.bonusRewardToken,
+                nonce: farmParams.nonce
+            })
+        );
     }
 
     /**
      * @notice Creates a new concentrated liquidity agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -330,6 +349,7 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
      */
     function _createConcentratedLiquidityAgentAndRefundExcess(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) internal returns (
@@ -368,6 +388,14 @@ contract AlgebraCLAgentFactory is Blastable, Ownable2Step, MulticallableERC2771C
                   receiver: _msgSender()
                 })
             );
+        // farm the position
+        IConcentratedLiquidityModuleE(payable(strategyAddress)).moduleE_enterFarming(
+            IConcentratedLiquidityModuleE.FarmParams({
+                rewardToken: farmParams.rewardToken,
+                bonusRewardToken: farmParams.bonusRewardToken,
+                nonce: farmParams.nonce
+            })
+        );
     }
 
     /***************************************

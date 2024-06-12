@@ -196,36 +196,9 @@ interface INonfungiblePositionManager {
     /// @param tokenId The ID of the token that is being burned
     function burn(uint256 tokenId) external payable;
 
-    /*
     /// @notice Changes approval of token ID for farming.
     /// @param tokenId The ID of the token that is being approved / unapproved
     /// @param approve New status of approval
     /// @param farmingAddress The address of farming: used to prevent tx frontrun
     function approveForFarming(uint256 tokenId, bool approve, address farmingAddress) external payable;
-
-    /// @notice Changes farming status of token to 'farmed' or 'not farmed'
-    /// @dev can be called only by farmingCenter
-    /// @param tokenId The ID of the token
-    /// @param toActive The new status
-    function switchFarmingStatus(uint256 tokenId, bool toActive) external;
-
-    /// @notice Changes address of farmingCenter
-    /// @dev can be called only by factory owner or NONFUNGIBLE_POSITION_MANAGER_ADMINISTRATOR_ROLE
-    /// @param newFarmingCenter The new address of farmingCenter
-    function setFarmingCenter(address newFarmingCenter) external;
-
-    /// @notice Returns whether `spender` is allowed to manage `tokenId`
-    /// @dev Requirement: `tokenId` must exist
-    function isApprovedOrOwner(address spender, uint256 tokenId) external view returns (bool);
-
-    /// @notice Returns the address of currently connected farming, if any
-    /// @return The address of the farming center contract, which handles farmings logic
-    function farmingCenter() external view returns (address);
-
-    /// @notice Returns the address of farming that is approved for this token, if any
-    function farmingApprovals(uint256 tokenId) external view returns (address);
-
-    /// @notice Returns the address of farming in which this token is farmed, if any
-    function tokenFarmedIn(uint256 tokenId) external view returns (address);
-    */
 }

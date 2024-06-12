@@ -7,6 +7,8 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { INonfungiblePositionManager } from "./../interfaces/external/Algebra/INonfungiblePositionManager.sol";
 import { ISwapRouter } from "./../interfaces/external/Algebra/ISwapRouter.sol";
 import { IAlgebraPool } from "./../interfaces/external/Algebra/IAlgebraPool.sol";
+import { IFarmingCenter } from "./../interfaces/external/Algebra/IFarmingCenter.sol";
+import { IAlgebraEternalFarming } from "./../interfaces/external/Algebra/IAlgebraEternalFarming.sol";
 import { IConcentratedLiquidityModuleE } from "./../interfaces/modules/IConcentratedLiquidityModuleE.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
@@ -25,6 +27,8 @@ import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModuleE {
     uint24 internal constant SLIPPAGE_SCALE = 1_000_000; // 100%
     address public immutable override weth;
+    address public immutable override farmingCenter;
+    address public immutable override eternalFarming;
 
     /***************************************
     State
@@ -36,6 +40,10 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         address manager;
         address pool;
         uint256 tokenId;
+
+        address rewardToken;
+        address bonusRewardToken;
+        uint256 nonce;
     }
 
     function concentratedLiquidityModuleEStorage()
@@ -60,15 +68,21 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
      * @param blastPoints_ The address of the blast points contract.
      * @param pointsOperator_ The address of the blast points operator.
      * @param weth_ The address of wrapped ether.
+     * @param farmingCenter_ The address of the Algebra FarmingCenter.
+     * @param eternalFarming_ The address of the AlgebraEternalFarming.
      */
     constructor(
         address blast_,
         address gasCollector_,
         address blastPoints_,
         address pointsOperator_,
-        address weth_
+        address weth_,
+        address farmingCenter_,
+        address eternalFarming_
     ) Blastable(blast_, gasCollector_, blastPoints_, pointsOperator_) {
         weth = weth_;
+        farmingCenter = farmingCenter_;
+        eternalFarming = eternalFarming_;
     }
 
     /***************************************
@@ -147,10 +161,10 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         )
     {
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        return manager_.positions(tokenId);
+        return manager_.positions(tokenId_);
     }
 
     function moduleE_wrap() public payable override {
@@ -245,13 +259,13 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         DecreaseLiquidityParams memory params
     ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
         (amount0, amount1) = manager_.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: tokenId,
+                tokenId: tokenId_,
                 liquidity: params.liquidity,
                 amount0Min: params.amount0Min,
                 amount1Min: params.amount1Min,
@@ -264,13 +278,13 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         CollectParams memory params
     ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
         (amount0, amount1) = manager_.collect(
             INonfungiblePositionManager.CollectParams({
-                tokenId: tokenId,
+                tokenId: tokenId_,
                 recipient: address(this),
                 amount0Max: params.amount0Max,
                 amount1Max: params.amount1Max
@@ -280,12 +294,15 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
     function moduleE_burn() public payable virtual override {
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
 
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        manager_.burn(tokenId);
+        manager_.burn(tokenId_);
         state.tokenId = 0;
+        state.rewardToken = address(0);
+        state.bonusRewardToken = address(0);
+        state.nonce = 0;
     }
 
     /// @notice Swaps `amountIn` of one token for as much as possible of another token
@@ -311,6 +328,127 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 limitSqrtPrice: params.limitSqrtPrice
             })
         );
+    }
+
+    /// @notice Withdrawals, swaps and creates a new position at the new range
+    function moduleE_rebalance(RebalanceParams memory params) external payable override {
+        moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
+        moduleE_wrap();
+
+        (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
+            params.sqrtPriceX96,
+            params.tickLower,
+            params.tickUpper
+        );
+        _performSwap(
+            PerformSwapParams({
+                router: params.router,
+                tokenIn: tokenIn,
+                tokenOut: tokenOut,
+                amountIn: amountIn,
+                slippageSwap: params.slippageSwap,
+                sqrtPriceX96: params.sqrtPriceX96
+            })
+        );
+
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        moduleE_mintWithBalance(
+            MintBalanceParams({
+                manager: state.manager,
+                pool: state.pool,
+                slippageLiquidity: params.slippageLiquidity,
+                tickLower: params.tickLower,
+                tickUpper: params.tickUpper,
+                sqrtPriceX96: params.sqrtPriceX96
+            })
+        );
+    }
+
+    /// @notice Withdrawals, swaps and creates a new position at the new range
+    function moduleE_enterFarming(FarmParams memory params) public payable override {
+        // setup and checks
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
+        // early exit if variables are not set
+        if(farmingCenter == address(0) || eternalFarming == address(0) || params.rewardToken == address(0)) return;
+        // approve position
+        INonfungiblePositionManager(state.manager).approveForFarming(tokenId_, true, farmingCenter);
+        // enter to farming
+        IFarmingCenter(farmingCenter).enterFarming(
+            IFarmingCenter.IncentiveKey({
+                rewardToken: params.rewardToken,
+                bonusRewardToken: params.bonusRewardToken,
+                pool: state.pool,
+                nonce: params.nonce
+            }),
+            tokenId_
+        );
+        // store farming params
+        state.rewardToken = params.rewardToken;
+        state.bonusRewardToken = params.bonusRewardToken;
+        state.nonce = params.nonce;
+    }
+
+    /// @notice Returns the amount of rewards claimable by the agent
+    /// @dev This should be a view function, but it cant because of the TBA. Use staticcall
+    function moduleE_getRewardInfo() external payable override returns (
+        address rewardToken,
+        address bonusRewardToken,
+        uint256 nonce,
+        uint256 reward,
+        uint256 bonusReward
+    ) {
+        // setup and checks
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        uint256 tokenId_ = state.tokenId;
+        rewardToken = state.rewardToken;
+        bonusRewardToken = state.bonusRewardToken;
+        nonce = state.nonce;
+        // early exit if variables are not set
+        if(farmingCenter == address(0) || eternalFarming == address(0) || rewardToken == address(0) || tokenId_ == 0) {
+            return (rewardToken, bonusRewardToken, nonce, 0, 0);
+        }
+        // fetch from eternal farming
+        (reward, bonusReward) = IAlgebraEternalFarming(eternalFarming).getRewardInfo(
+            IAlgebraEternalFarming.IncentiveKey({
+                rewardToken: rewardToken,
+                bonusRewardToken: bonusRewardToken,
+                pool: state.pool,
+                nonce: nonce
+            }),
+            tokenId_
+        );
+    }
+
+    /// @notice Claims the farming rewards
+    function moduleE_claimRewardsTo(address receiver) public payable override {
+        // setup and checks
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        uint256 tokenId_ = state.tokenId;
+        address rewardToken = state.rewardToken;
+        address bonusRewardToken = state.bonusRewardToken;
+        // early exit if variables are not set
+        if(farmingCenter == address(0) || eternalFarming == address(0) || rewardToken == address(0) || tokenId_ == 0) {
+            return;
+        }
+        // collect rewards
+        (uint256 reward, uint256 bonusReward) = IFarmingCenter(farmingCenter).collectRewards(
+            IFarmingCenter.IncentiveKey({
+                rewardToken: rewardToken,
+                bonusRewardToken: bonusRewardToken,
+                pool: state.pool,
+                nonce: state.nonce
+            }),
+            tokenId_
+        );
+        // claim rewards
+        if(reward > 0) {
+            IFarmingCenter(farmingCenter).claimReward(rewardToken, receiver, 0);
+        }
+        if(bonusReward > 0) {
+            IFarmingCenter(farmingCenter).claimReward(bonusRewardToken, receiver, 0);
+        }
     }
 
     /***************************************
@@ -499,48 +637,16 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
     ) external payable override {
+        moduleE_claimRewardsTo(receiver);
         moduleE_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
         moduleE_sendBalanceTo(receiver);
     }
 
     /// @notice Sends funds to receiver after withdrawaling position
     function moduleE_fullWithdrawTo(address receiver, uint160 sqrtPriceX96, uint24 slippageLiquidity) external payable override {
+        moduleE_claimRewardsTo(receiver);
         moduleE_fullWithdrawToSelf(sqrtPriceX96, slippageLiquidity);
         moduleE_sendBalanceTo(receiver);
-    }
-
-    /// @notice Withdrawals, swaps and creates a new position at the new range
-    function moduleE_rebalance(RebalanceParams memory params) external payable override {
-        moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
-        moduleE_wrap();
-
-        (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
-            params.sqrtPriceX96,
-            params.tickLower,
-            params.tickUpper
-        );
-        _performSwap(
-            PerformSwapParams({
-                router: params.router,
-                tokenIn: tokenIn,
-                tokenOut: tokenOut,
-                amountIn: amountIn,
-                slippageSwap: params.slippageSwap,
-                sqrtPriceX96: params.sqrtPriceX96
-            })
-        );
-
-        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
-        moduleE_mintWithBalance(
-            MintBalanceParams({
-                manager: state.manager,
-                pool: state.pool,
-                slippageLiquidity: params.slippageLiquidity,
-                tickLower: params.tickLower,
-                tickUpper: params.tickUpper,
-                sqrtPriceX96: params.sqrtPriceX96
-            })
-        );
     }
 
     /***************************************

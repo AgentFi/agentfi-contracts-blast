@@ -48,6 +48,10 @@ interface IConcentratedLiquidityModuleE {
 
     function weth() external view returns (address weth_);
 
+    function farmingCenter() external view returns (address farmingCenter_);
+
+    function eternalFarming() external view returns (address eternalFarming_);
+
     /***************************************
     Wrapper functions around NonfungiblePositionManager
     ***************************************/
@@ -163,6 +167,28 @@ interface IConcentratedLiquidityModuleE {
         address router,
         ExactInputSingleParams memory params
     ) external payable returns (uint256 amountOut);
+
+    struct FarmParams {
+        address rewardToken;
+        address bonusRewardToken;
+        uint256 nonce;
+    }
+
+    /// @notice Withdrawals, swaps and creates a new position at the new range
+    function moduleE_enterFarming(FarmParams memory params) external payable;
+
+    /// @notice Returns the amount of rewards claimable by the agent
+    /// @dev This should be a view function, but it cant because of the TBA. Use staticcall
+    function moduleE_getRewardInfo() external payable returns (
+        address rewardToken,
+        address bonusRewardToken,
+        uint256 nonce,
+        uint256 reward,
+        uint256 bonusReward
+    );
+
+    /// @notice Claims the farming rewards
+    function moduleE_claimRewardsTo(address receiver) external payable;
 
     /***************************************
     AGENT HIGH LEVEL FUNCTIONS

@@ -65,6 +65,9 @@ const permissions = Object.entries({
     "tokenId()",
     "tickSpacing()",
     "weth()",
+    "farmingCenter()",
+    "eternalFarming()",
+    "moduleE_getRewardInfo()",
   ],
   // AgentFi + Owner
   [toBytes32(9)]: [
@@ -83,6 +86,7 @@ const permissions = Object.entries({
     "moduleE_rebalance((address,uint24,uint24,int24,int24,uint160))",
     "moduleE_wrap()",
     "moduleE_unwrap()",
+    "moduleE_enterFarming((address,address,uint256))",
   ],
 
   // Owner Only:
@@ -93,6 +97,7 @@ const permissions = Object.entries({
     "moduleE_mintWithBalanceAndRefundTo((address,address,uint24,int24,int24,uint160,address))",
     "moduleE_partialWithdrawTo(address,uint128,uint160,uint24)",
     "moduleE_sendBalanceTo(address)",
+    "moduleE_claimRewardsTo(address)"
   ],
 }).reduce(
   (acc, [requiredRole, functions]) => {
@@ -312,14 +317,18 @@ describe("ConcentratedLiquidityModuleE", function () {
       gasCollector.address,
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
-      AddressZero // intentionally not using WETH to test as erc20
+      AddressZero, // intentionally not using WETH to test as erc20,
+      AddressZero, // no algebra farming
+      AddressZero, // no algebra farming
     ]);
     const module2 = await deployContract(deployer, moduleName, [
       BLAST_ADDRESS,
       gasCollector.address,
       BLAST_POINTS_ADDRESS,
       BLAST_POINTS_OPERATOR_ADDRESS,
-      WETH_ADDRESS
+      WETH_ADDRESS,
+      AddressZero, // no algebra farming
+      AddressZero, // no algebra farming
     ]);
 
     const overrides = [

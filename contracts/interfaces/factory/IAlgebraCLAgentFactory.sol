@@ -58,6 +58,12 @@ interface IAlgebraCLAgentFactory {
         uint160 sqrtPriceX96;
     }
 
+    struct FarmParams {
+        address rewardToken;
+        address bonusRewardToken;
+        uint256 nonce;
+    }
+
     struct TokenDeposit {
         address token;
         uint256 amount;
@@ -68,6 +74,7 @@ interface IAlgebraCLAgentFactory {
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
@@ -77,6 +84,7 @@ interface IAlgebraCLAgentFactory {
      */
     function createConcentratedLiquidityAgentForRoot(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1,
         address rootAgentAddress
@@ -90,6 +98,7 @@ interface IAlgebraCLAgentFactory {
      * @notice Creates a new V3 strategy agent.
      * The new agent will be minted to a new explorer agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -100,6 +109,7 @@ interface IAlgebraCLAgentFactory {
      */
     function createConcentratedLiquidityAgentAndExplorer(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) external payable returns (
@@ -115,6 +125,7 @@ interface IAlgebraCLAgentFactory {
      * The new agent will be minted to an existing root agent.
      * Can only be called by the owner of the root agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @param rootAgentAddress The address of the root agent to transfer the v3 agent to.
@@ -124,6 +135,7 @@ interface IAlgebraCLAgentFactory {
      */
     function createConcentratedLiquidityAgentForRootAndRefundExcess(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1,
         address rootAgentAddress
@@ -137,6 +149,7 @@ interface IAlgebraCLAgentFactory {
      * @notice Creates a new V3 strategy agent.
      * The new agent will be minted to a new explorer agent.
      * @param mintParams Parameters to use to mint the position.
+     * @param farmParams Parameters to use to farm rewards for the position.
      * @param deposit0 The first token and amount to deposit.
      * @param deposit1 The second token and amount to deposit.
      * @return nonfungiblePositionTokenId The ID of the concentrated liquidity position.
@@ -147,6 +160,7 @@ interface IAlgebraCLAgentFactory {
      */
     function createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
         MintBalanceParams calldata mintParams,
+        FarmParams calldata farmParams,
         TokenDeposit calldata deposit0,
         TokenDeposit calldata deposit1
     ) external payable returns (
