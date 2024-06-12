@@ -306,7 +306,7 @@ async function postConcentratedLiquidityAccountCreationSettings() {
     isActive: true,
   }
   // fetch current settings
-  let currentSettings = await concentratedLiquidityAgentFactory.getAgentCreationSettings()
+  let currentSettings = await algebraCLAgentFactory.getAgentCreationSettings()
   // compare
   let isDiff = (
     expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
@@ -317,15 +317,15 @@ async function postConcentratedLiquidityAccountCreationSettings() {
   )
   // only post if necessary
   if(isDiff) {
-    console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    console.log(`Calling algebraCLAgentFactory.postAgentCreationSettings()`)
 
-    let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let tx = await algebraCLAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
     let receipt = await tx.wait(networkSettings.confirmations)
 
-    console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    console.log(`Called algebraCLAgentFactory.postAgentCreationSettings()`)
   }
   else {
-    //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    //console.log(`No diff detected, skip calling algebraCLAgentFactory.postAgentCreationSettings()`)
   }
 }
 
