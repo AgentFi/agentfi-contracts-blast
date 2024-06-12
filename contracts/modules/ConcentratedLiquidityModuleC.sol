@@ -134,10 +134,10 @@ contract ConcentratedLiquidityModuleC is Blastable, IConcentratedLiquidityModule
         )
     {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        return manager_.positions(tokenId);
+        return manager_.positions(tokenId_);
     }
 
     /// @notice Creates a new position wrapped in a NFT
@@ -217,13 +217,13 @@ contract ConcentratedLiquidityModuleC is Blastable, IConcentratedLiquidityModule
         DecreaseLiquidityParams memory params
     ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
         (amount0, amount1) = manager_.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: tokenId,
+                tokenId: tokenId_,
                 liquidity: params.liquidity,
                 amount0Min: params.amount0Min,
                 amount1Min: params.amount1Min,
@@ -236,13 +236,13 @@ contract ConcentratedLiquidityModuleC is Blastable, IConcentratedLiquidityModule
         CollectParams memory params
     ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
         (amount0, amount1) = manager_.collect(
             INonfungiblePositionManager.CollectParams({
-                tokenId: tokenId,
+                tokenId: tokenId_,
                 recipient: address(this),
                 amount0Max: params.amount0Max,
                 amount1Max: params.amount1Max
@@ -252,11 +252,11 @@ contract ConcentratedLiquidityModuleC is Blastable, IConcentratedLiquidityModule
 
     function moduleC_burn() public payable virtual override {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        uint256 tokenId = state.tokenId;
-        if (tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
 
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        manager_.burn(tokenId);
+        manager_.burn(tokenId_);
         state.tokenId = 0;
     }
 
