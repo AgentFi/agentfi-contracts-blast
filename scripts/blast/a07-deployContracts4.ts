@@ -64,8 +64,8 @@ const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1
 const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
 const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
 
-const CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS           = "0xD18eD95286316a359291b21d02e8d46C59986302"; // v1.0.4
-const ALGEBRA_CL_AGENT_FACTORY_ADDRESS                  = "0xae7af95E52c6221bD27E3f13E28b3517732a8bE7"; // v1.0.4
+const CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS           = "0xa28299bfbf44450CbA73a1eAdcE461AF62181a02"; // v1.0.4
+const ALGEBRA_CL_AGENT_FACTORY_ADDRESS                  = "0x6C7C6b72d410d7Ea6140e16B4af793fE9eC0eAA2"; // v1.0.4
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -73,6 +73,9 @@ const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
 const MAX_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000002";
 const WETH_ADDRESS               = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS               = "0x4300000000000000000000000000000000000003";
+
+const BLADESWAP_FARMING_CENTER_ADDRESS        = "0x8D2eB277a50c5aeEf2C04ef4819055639F9BC168";
+const BLADESWAP_ETERNAL_FARMING_ADDRESS       = "0xa0Cfb41a88f197d75FE2D07c7576679C1624a40E";
 
 let iblast: IBlast;
 
@@ -159,14 +162,12 @@ async function deployConcentratedLiquidityModuleE() {
     concentratedLiquidityModuleE = await ethers.getContractAt("ConcentratedLiquidityModuleE", CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS, agentfideployer) as ConcentratedLiquidityModuleE;
   } else {
     console.log("Deploying ConcentratedLiquidityModuleE");
-    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, WETH_ADDRESS];
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, WETH_ADDRESS, BLADESWAP_FARMING_CENTER_ADDRESS, BLADESWAP_ETERNAL_FARMING_ADDRESS];
     concentratedLiquidityModuleE = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityModuleE", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityModuleE;
     console.log(`Deployed ConcentratedLiquidityModuleE to ${concentratedLiquidityModuleE.address}`);
     contractsToVerify.push({ address: concentratedLiquidityModuleE.address, args, contractName: "contracts/modules/ConcentratedLiquidityModuleE.sol:ConcentratedLiquidityModuleE" })
     if(!!CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS && concentratedLiquidityModuleE.address != CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityModuleE to ${concentratedLiquidityModuleE.address}, expected ${CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS}`)
   }
-  let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, WETH_ADDRESS];
-  contractsToVerify.push({ address: concentratedLiquidityModuleE.address, args, contractName: "contracts/modules/ConcentratedLiquidityModuleE.sol:ConcentratedLiquidityModuleE" })
 }
 
 async function deployAlgebraCLAgentFactory() {
@@ -180,8 +181,6 @@ async function deployAlgebraCLAgentFactory() {
     contractsToVerify.push({ address: algebraCLAgentFactory.address, args, contractName: "contracts/factory/AlgebraCLAgentFactory.sol:AlgebraCLAgentFactory" })
     if(!!ALGEBRA_CL_AGENT_FACTORY_ADDRESS && algebraCLAgentFactory.address != ALGEBRA_CL_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed AlgebraCLAgentFactory to ${algebraCLAgentFactory.address}, expected ${ALGEBRA_CL_AGENT_FACTORY_ADDRESS}`)
   }
-  let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, EXPLORER_COLLECTION_ADDRESS, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
-  contractsToVerify.push({ address: algebraCLAgentFactory.address, args, contractName: "contracts/factory/AlgebraCLAgentFactory.sol:AlgebraCLAgentFactory" })
 }
 
 async function verifyContracts() {
