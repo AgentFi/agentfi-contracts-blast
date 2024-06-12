@@ -434,7 +434,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         moduleD_sendBalanceTo(receiver, underlying());
     }
 
-    // Send funds to reciever
+    // Send funds to receiver
     function moduleD_sendBalanceTo(address receiver, address token) public payable override {
         if (token == _eth) {
             Calls.sendValue(receiver, address(this).balance);
