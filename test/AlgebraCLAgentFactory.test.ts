@@ -1504,18 +1504,8 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
     })
     it("the agent is farming", async function () {
       let rewardInfo1 = await farmingCenter.deposits(tokenId)
-      console.log(rewardInfo1)
       let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
-      console.log(rewardInfo2)
-      console.log(rewardInfo2.reward)
-      console.log(rewardInfo2.bonusReward)
       let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      console.log(rewardInfo3)
-      console.log(rewardInfo3.rewardToken)
-      console.log(rewardInfo3.bonusRewardToken)
-      console.log(rewardInfo3.nonce)
-      console.log(rewardInfo3.reward)
-      console.log(rewardInfo3.bonusReward)
 
       expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
       expect(rewardInfo2.reward).eq(0) // just deposited, no rewards yet
@@ -1534,18 +1524,8 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
       }
 
       let rewardInfo1 = await farmingCenter.deposits(tokenId)
-      console.log(rewardInfo1)
       let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
-      console.log(rewardInfo2)
-      console.log(rewardInfo2.reward)
-      console.log(rewardInfo2.bonusReward)
       let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      console.log(rewardInfo3)
-      console.log(rewardInfo3.rewardToken)
-      console.log(rewardInfo3.bonusRewardToken)
-      console.log(rewardInfo3.nonce)
-      console.log(rewardInfo3.reward)
-      console.log(rewardInfo3.bonusReward)
 
       expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
       expect(rewardInfo2.reward).gt(0) // earned rewards
@@ -1566,18 +1546,8 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
       let tx = await strategyAgent.moduleE_claimRewardsTo(user1.address)
 
       let rewardInfo1 = await farmingCenter.deposits(tokenId)
-      console.log(rewardInfo1)
       let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
-      console.log(rewardInfo2)
-      console.log(rewardInfo2.reward)
-      console.log(rewardInfo2.bonusReward)
       let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      console.log(rewardInfo3)
-      console.log(rewardInfo3.rewardToken)
-      console.log(rewardInfo3.bonusRewardToken)
-      console.log(rewardInfo3.nonce)
-      console.log(rewardInfo3.reward)
-      console.log(rewardInfo3.bonusReward)
 
       expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
       expect(rewardInfo2.reward).eq(0) // reset
@@ -1590,7 +1560,6 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
 
       let bal2 = await blade.balanceOf(user1.address);
       expect(bal2).gte(rewardInfo0.reward) // gt for extra block
-      console.log(formatUnits(bal2))
     })
     it("auto claims rewards during partialWithdrawTo", async function () {
       // burn some blocks to earn rewards
@@ -1602,10 +1571,7 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
       let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
 
       let state = await strategyAgent.safelyGetStateOfAMM()
-      //console.log(`state`, state)
-      //expect().eq("")
       let position = await strategyAgent.position()
-      //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
       expect(position.liquidity).gt(0)
@@ -1613,18 +1579,8 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
       let tx = await strategyAgent.moduleE_partialWithdrawTo(user1.address, position.liquidity.div(4), state.sqrtPrice, 1_000_000)
 
       let rewardInfo1 = await farmingCenter.deposits(tokenId)
-      console.log(rewardInfo1)
       let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
-      //console.log(rewardInfo2)
-      console.log(rewardInfo2.reward)
-      console.log(rewardInfo2.bonusReward)
       let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      //console.log(rewardInfo3)
-      console.log(rewardInfo3.rewardToken)
-      console.log(rewardInfo3.bonusRewardToken)
-      console.log(rewardInfo3.nonce)
-      console.log(rewardInfo3.reward)
-      console.log(rewardInfo3.bonusReward)
 
       expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
       expect(rewardInfo2.reward).eq(0) // reset
@@ -1637,51 +1593,28 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
 
       let bal2 = await blade.balanceOf(user1.address);
       expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
-      console.log(formatUnits(bal2))
     })
     it("auto claims rewards during fullWithdrawTo", async function () {
-      console.log("in auto claims rewards during fullWithdrawTo 1")
       // burn some blocks to earn rewards
       for(let i = 0; i < 3; i++) {
         await user1.sendTransaction({to:user1.address})
       }
-      console.log("in auto claims rewards during fullWithdrawTo 2")
 
       let bal1 = await blade.balanceOf(user1.address);
-      console.log("in auto claims rewards during fullWithdrawTo 3")
       let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      console.log("in auto claims rewards during fullWithdrawTo 4")
 
       let state = await strategyAgent.safelyGetStateOfAMM()
-      console.log("in auto claims rewards during fullWithdrawTo 5")
       let position = await strategyAgent.position()
-      console.log("in auto claims rewards during fullWithdrawTo 6")
 
       let tx = await strategyAgent.moduleE_fullWithdrawTo(user1.address, state.sqrtPrice, 1_000_000)
-      console.log("in auto claims rewards during fullWithdrawTo 7")
 
-      // these now fail token burned
-      //await farmingCenter.deposits(tokenId)
-      let rewardInfo1 = await farmingCenter.deposits(tokenId)
-      console.log(rewardInfo1)
-      console.log("in auto claims rewards during fullWithdrawTo 7.1")
-      //await expect(farmingCenter.deposits(tokenId)).to.be.reverted
-      console.log("in auto claims rewards during fullWithdrawTo 8")
+      // this now fails since token burned
       await expect(eternalFarming.getRewardInfo(incentiveKey, tokenId)).to.be.reverted
-      console.log("in auto claims rewards during fullWithdrawTo 9")
 
-      // this fails gracefully
+      // these return zeros
 
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
       let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
-      console.log("in auto claims rewards during fullWithdrawTo 10")
-
-      //console.log(rewardInfo3)
-      console.log(rewardInfo3.rewardToken)
-      console.log(rewardInfo3.bonusRewardToken)
-      console.log(rewardInfo3.nonce)
-      console.log(rewardInfo3.reward)
-      console.log(rewardInfo3.bonusReward)
-      console.log("in auto claims rewards during fullWithdrawTo 11")
 
       expect(rewardInfo1).eq("0x0000000000000000000000000000000000000000000000000000000000000000") // no key
       expect(rewardInfo3.rewardToken).eq(AddressZero) // set to zero
@@ -1689,12 +1622,127 @@ describe("AlgebraCLAgentFactory Blast Mainnet", function () {
       expect(rewardInfo3.nonce).eq(0)
       expect(rewardInfo3.reward).eq(0)
       expect(rewardInfo3.bonusReward).eq(0)
-      console.log("in auto claims rewards during fullWithdrawTo 12")
 
       let bal2 = await blade.balanceOf(user1.address);
       expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
-      console.log(formatUnits(bal2))
-      console.log("in auto claims rewards during fullWithdrawTo 13")
+    })
+    it("create a new agent with farming", async function () {
+      // create
+      let strategyAgentID = 10
+      let explorerAgentID = 4
+      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      expect(staticRes.explorerAgentID).eq(explorerAgentID)
+      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndRefundExcess", tx);
+      await watchTxForEvents(tx)
+      // created a new explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(explorerAgentID)
+      expect(await explorerAgentNft.balanceOf(user1.address)).eq(explorerAgentID)
+      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
+      expect(explorerTbas.length).eq(1)
+      let explorerAddress = explorerTbas[0].agentAddress
+      await expectDeployed(explorerAddress)
+      expect(explorerAddress).eq(staticRes.explorerAddress)
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
+      expect(explorerBalances.eth).eq(0)
+      expect(explorerBalances.weth).eq(0)
+      expect(explorerBalances.usdb).eq(0)
+      expect(explorerBalances.genesisAgents).eq(0)
+      expect(explorerBalances.strategyAgents).eq(1)
+      expect(explorerBalances.explorerAgents).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
+      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(strategyTbas.length).eq(1)
+      let strategyAddress = strategyTbas[0].agentAddress
+      await expectDeployed(strategyAddress)
+      expect(strategyAddress).eq(staticRes.strategyAddress)
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
+      expect(strategyBalances.eth).eq(0)
+      expect(strategyBalances.weth).eq(0) // should not keep dust amounts
+      expect(strategyBalances.usdb).eq(0)
+      expect(strategyBalances.genesisAgents).eq(0)
+      expect(strategyBalances.strategyAgents).eq(0)
+      expect(strategyBalances.explorerAgents).eq(0)
+      expect(strategyBalances.bladeswapPositions).eq(1)
+      // agent has a v3 position
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
+      strategyAgent = moduleContract
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Concentrated Liquidity")
+      let manager = await moduleContract.manager()
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
+      let pool = await moduleContract.pool()
+      expect(pool).eq(POOL_ADDRESS)
+      tokenId = await moduleContract.tokenId()
+      expect(tokenId).gt(0)
+      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
+      //console.log(`tokenId ${tokenId.toString()}`)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
+      //expect().eq("")
+      let position = await moduleContract.position()
+      //console.log(`position`, position)
+      expect(position.token0).eq(USDB_ADDRESS)
+      expect(position.token1).eq(WETH_ADDRESS)
+      expect(position.liquidity).gt(0)
+    })
+    it("the agent is farming", async function () {
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+    })
+    it("can exit farming", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let bal1 = await blade.balanceOf(user1.address);
+      let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      let state = await strategyAgent.safelyGetStateOfAMM()
+      let position = await strategyAgent.position()
+
+      let tx = await strategyAgent.moduleE_exitFarming(user1.address)
+
+      // this now fails since farm exited
+      await expect(eternalFarming.getRewardInfo(incentiveKey, tokenId)).to.be.reverted
+
+      // these return zeros
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x0000000000000000000000000000000000000000000000000000000000000000") // no key
+      expect(rewardInfo3.rewardToken).eq(AddressZero) // set to zero
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero)
+      expect(rewardInfo3.nonce).eq(0)
+      expect(rewardInfo3.reward).eq(0)
+      expect(rewardInfo3.bonusReward).eq(0)
+
+      let bal2 = await blade.balanceOf(user1.address);
+      expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
     })
   })
 

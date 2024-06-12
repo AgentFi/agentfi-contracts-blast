@@ -364,7 +364,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         );
     }
 
-    /// @notice Withdrawals, swaps and creates a new position at the new range
+    /// @notice Enters a farm
     function moduleE_enterFarming(FarmParams memory params) public payable override {
         // setup and checks
         ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
@@ -388,6 +388,35 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
         state.rewardToken = params.rewardToken;
         state.bonusRewardToken = params.bonusRewardToken;
         state.nonce = params.nonce;
+    }
+
+    /// @notice Exits the current farm. Collects any rewards from the previous farm if any
+    function moduleE_exitFarming(address receiver) public payable override {
+        // setup and checks
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
+        // early exit if variables are not set
+        if(farmingCenter == address(0) || eternalFarming == address(0)) return;
+        // claim rewards
+        moduleE_claimRewardsTo(receiver);
+        // exit farm
+        address rewardToken = state.rewardToken;
+        if(rewardToken != address(0)) {
+            IFarmingCenter(farmingCenter).exitFarming(
+                IFarmingCenter.IncentiveKey({
+                    rewardToken: rewardToken,
+                    bonusRewardToken: state.bonusRewardToken,
+                    pool: state.pool,
+                    nonce: state.nonce
+                }),
+                tokenId_
+            );
+        }
+        // reset farming params
+        state.rewardToken = address(0);
+        state.bonusRewardToken = address(0);
+        state.nonce = 0;
     }
 
     /// @notice Returns the amount of rewards claimable by the agent

@@ -87,6 +87,7 @@ const permissions = Object.entries({
     "moduleE_wrap()",
     "moduleE_unwrap()",
     "moduleE_enterFarming((address,address,uint256))",
+    "moduleE_exitFarming(address)",
   ],
 
   // Owner Only:

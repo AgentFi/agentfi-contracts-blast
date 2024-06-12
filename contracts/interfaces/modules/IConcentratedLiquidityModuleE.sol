@@ -174,8 +174,11 @@ interface IConcentratedLiquidityModuleE {
         uint256 nonce;
     }
 
-    /// @notice Withdrawals, swaps and creates a new position at the new range
+    /// @notice Enters a farm
     function moduleE_enterFarming(FarmParams memory params) external payable;
+
+    /// @notice Exits the current farm. Collects any rewards from the previous farm if any
+    function moduleE_exitFarming(address receiver) external payable;
 
     /// @notice Returns the amount of rewards claimable by the agent
     /// @dev This should be a view function, but it cant because of the TBA. Use staticcall
