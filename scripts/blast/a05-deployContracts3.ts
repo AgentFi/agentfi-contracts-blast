@@ -64,6 +64,9 @@ const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x96E50f33079F749cb20
 const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
 const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
 
+const LOOPOOOR_MODULE_F_ADDRESS                         = "0x5E38765FF50D9b8932441Cd668c1fDA365D358b5"; // v1.0.5
+const PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS                = "0x423b7688Ef986835590612b6578293d2Ee895e1b"; // v1.0.5
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -107,6 +110,9 @@ let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
 let loopooorModuleD: LoopooorModuleD;
 let loopooorAgentFactory: LoopooorAgentFactory;
 
+let loopooorModuleF: LoopooorModuleF;
+let pacLoopooorAgentFactory: PacLoopooorAgentFactory;
+
 let contractsToVerify = []
 
 async function main() {
@@ -149,6 +155,9 @@ async function main() {
 
   await deployLoopooorModuleD();
   await deployLoopooorAgentFactory();
+
+  await deployLoopooorModuleF();
+  await deployPacLoopooorAgentFactory();
 
   await verifyContracts();
   logAddresses()
@@ -232,6 +241,32 @@ async function deployLoopooorAgentFactory() {
   }
 }
 
+async function deployLoopooorModuleF() {
+  if(await isDeployed(LOOPOOOR_MODULE_F_ADDRESS)) {
+    loopooorModuleF = await ethers.getContractAt("LoopooorModuleF", LOOPOOOR_MODULE_F_ADDRESS, agentfideployer) as LoopooorModuleF;
+  } else {
+    console.log("Deploying LoopooorModuleF");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    loopooorModuleF = await deployContractUsingContractFactory(agentfideployer, "LoopooorModuleF", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as LoopooorModuleF;
+    console.log(`Deployed LoopooorModuleF to ${loopooorModuleF.address}`);
+    contractsToVerify.push({ address: loopooorModuleF.address, args, contractName: "contracts/modules/LoopooorModuleF.sol:LoopooorModuleF" })
+    if(!!LOOPOOOR_MODULE_F_ADDRESS && loopooorModuleF.address != LOOPOOOR_MODULE_F_ADDRESS) throw new Error(`Deployed LoopooorModuleF to ${loopooorModuleF.address}, expected ${LOOPOOOR_MODULE_F_ADDRESS}`)
+  }
+}
+
+async function deployPacLoopooorAgentFactory() {
+  if(await isDeployed(PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS)) {
+    pacLoopooorAgentFactory = await ethers.getContractAt("PacLoopooorAgentFactory", PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as PacLoopooorAgentFactory;
+  } else {
+    console.log("Deploying PacLoopooorAgentFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, EXPLORER_COLLECTION_ADDRESS, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
+    pacLoopooorAgentFactory = await deployContractUsingContractFactory(agentfideployer, "PacLoopooorAgentFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as PacLoopooorAgentFactory;
+    console.log(`Deployed PacLoopooorAgentFactory to ${pacLoopooorAgentFactory.address}`);
+    contractsToVerify.push({ address: pacLoopooorAgentFactory.address, args, contractName: "contracts/factory/PacLoopooorAgentFactory.sol:PacLoopooorAgentFactory" })
+    if(!!PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS && pacLoopooorAgentFactory.address != PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed PacLoopooorAgentFactory to ${pacLoopooorAgentFactory.address}, expected ${PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS}`)
+  }
+}
+
 async function verifyContracts() {
   if(chainID == 31337) return
   if(contractsToVerify.length == 0) return
@@ -253,6 +288,8 @@ function logAddresses() {
   logContractAddress("MultipliooorAgentFactory", multipliooorAgentFactory.address);
   logContractAddress("LoopooorModuleD", loopooorModuleD.address);
   logContractAddress("LoopooorAgentFactory", loopooorAgentFactory.address);
+  logContractAddress("LoopooorModuleF", loopooorModuleF.address);
+  logContractAddress("PacLoopooorAgentFactory", pacLoopooorAgentFactory.address);
 }
 
 main()
