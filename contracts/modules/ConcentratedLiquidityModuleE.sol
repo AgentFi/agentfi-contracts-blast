@@ -30,6 +30,8 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
     address public immutable override farmingCenter;
     address public immutable override eternalFarming;
 
+    address internal constant blade = 0xD1FedD031b92f50a50c05E2C45aF1aDb4CEa82f4;
+
     /***************************************
     State
     ***************************************/
@@ -332,9 +334,19 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
     function moduleE_rebalance(RebalanceParams memory params) external payable override {
+        // copy farm params
+        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        FarmParams memory farmParams = FarmParams({
+            rewardToken: state.rewardToken,
+            bonusRewardToken: state.bonusRewardToken,
+            nonce: state.nonce
+        });
+        // exit farming, collect rewards
+        moduleE_exitFarming(address(this));
+        // withdraw from pool
         moduleE_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
         moduleE_wrap();
-
+        // swap to new range
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
             params.sqrtPriceX96,
             params.tickLower,
@@ -350,8 +362,7 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 sqrtPriceX96: params.sqrtPriceX96
             })
         );
-
-        ConcentratedLiquidityModuleEStorage storage state = concentratedLiquidityModuleEStorage();
+        // mint new position
         moduleE_mintWithBalance(
             MintBalanceParams({
                 manager: state.manager,
@@ -362,6 +373,8 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 sqrtPriceX96: params.sqrtPriceX96
             })
         );
+        // re enter farming
+        moduleE_enterFarming(farmParams);
     }
 
     /// @notice Enters a farm
@@ -506,6 +519,9 @@ contract ConcentratedLiquidityModuleE is Blastable, IConcentratedLiquidityModule
                 }
             }
         }
+
+        uint256 bladeBalance = IERC20(blade).balanceOf(address(this));
+        if(bladeBalance > 0) SafeERC20.safeTransfer(IERC20(blade), receiver, bladeBalance);
     }
 
     /// @notice Mints new position with all assets in this contract
