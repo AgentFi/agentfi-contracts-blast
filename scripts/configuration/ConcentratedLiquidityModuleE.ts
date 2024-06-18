@@ -45,6 +45,21 @@ export const moduleEFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   {
+    selector: "0xdd56e5d8",
+    signature: "farmingCenter()",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    selector: "0xde2356d1",
+    signature: "eternalFarming()",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    selector: "0xd62c6f4f",
+    signature: "moduleE_getRewardInfo()",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
     selector: "0x852bd5a4",
     signature: "moduleE_burn()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
@@ -120,6 +135,16 @@ export const moduleEFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
   },
   {
+    selector: "0x06c0a5af",
+    signature: "moduleE_enterFarming((address,address,uint256))",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
+  },
+  {
+    selector: "0xe2b50502",
+    signature: "moduleE_exitFarming(address)",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000009"
+  },
+  {
     selector: "0xf186765e",
     signature: "moduleE_collectTo(address)",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
@@ -147,6 +172,11 @@ export const moduleEFunctionParams = [
   {
     selector: "0xa2ee5d54",
     signature: "moduleE_sendBalanceTo(address)",
+    requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  {
+    selector: "0xec06085b",
+    signature: "moduleE_claimRewardsTo(address)",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
   }
 ];
