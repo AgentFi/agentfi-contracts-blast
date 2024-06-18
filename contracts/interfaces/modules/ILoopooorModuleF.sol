@@ -98,6 +98,12 @@ interface ILoopooorModuleF {
     function quoteBalance() external returns (uint256);
 
     /**
+     * @notice Returns the outstanding borrow after paying off as much as possible
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteNetBorrow() external returns (uint256 balance);
+
+    /**
      * @notice Returns an array of rate contract addresses.
      * @return An array of rate contract addresses.
      */

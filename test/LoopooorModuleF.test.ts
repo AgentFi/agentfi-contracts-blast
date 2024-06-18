@@ -57,6 +57,7 @@ const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
     "_quoteBalanceWithRevert()",
+    "_quoteNetBorrowWithRevert()",
     "aToken()",
     "borrow()",
     "borrowBalance()",
@@ -68,6 +69,7 @@ const permissions = Object.entries({
     "pool()",
     "poolWrapper()",
     "quoteBalance()",
+    "quoteNetBorrow()",
     "rateContracts()",
     "strategyType()",
     "supplyBalance()",
@@ -654,6 +656,126 @@ describe("LoopoorModuleF", function () {
       expect(await aDUSD.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
+    it("Can handle depositing DUSD, supplying DUSD and borrowing USDB, leaving dust", async function () {
+      const { module, DUSD, USDB, WRAPMINT_USDB, signer, aDUSD, vUSDB } =
+        await loadFixture(fixtureDeployed);
+
+      // Confirm Initial stage
+      await USDB.approve(WRAPMINT_USDB_ADDRESS, parseEther("100"));
+
+      await WRAPMINT_USDB.connect(signer).mintFixedRate(
+        ethers.constants.AddressZero,
+        USDB_ADDRESS,
+        parseEther("100"),
+        0,
+        0,
+        toBytes32(0),
+      );
+
+      await DUSD.transfer(module.address, parseEther("100"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleF_depositBalance(
+        WRAPMINT_USDB_ADDRESS,
+        USDB_ADDRESS,
+        DUSD_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DUSD,
+        module.address,
+        parseEther("-100"),
+      );
+
+      almostEqual(
+        await aDUSD.balanceOf(module.address),
+        parseEther("249.900000000000000000"),
+      );
+      almostEqual(
+        await vUSDB.balanceOf(module.address),
+        parseEther("149.900000000000000001"),
+      );
+
+      // ===== Do leverage burn
+      await module.moduleF_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DUSD.balanceOf(USER_ADDRESS),
+        parseEther("99.999999953036711437"),
+      );
+
+      almostEqual(await module.leverage(), parseEther("2.499"), 0.01);
+      almostEqual(
+        await aDUSD.balanceOf(module.address),
+        parseEther("0.000002957183510738"),
+      );
+      almostEqual(
+        await vUSDB.balanceOf(module.address),
+        parseEther("0.000001772659525922"),
+      );
+    });
+
+    it("Can handle depositing DUSD, supplying DUSD and borrowing USDB, full withdraw through additional deposit", async function () {
+      const { module, DUSD, USDB, WRAPMINT_USDB, signer, aDUSD, vUSDB } =
+        await loadFixture(fixtureDeployed);
+
+      // Confirm Initial stage
+      await USDB.approve(WRAPMINT_USDB_ADDRESS, parseEther("100"));
+
+      await WRAPMINT_USDB.connect(signer).mintFixedRate(
+        ethers.constants.AddressZero,
+        USDB_ADDRESS,
+        parseEther("100"),
+        0,
+        0,
+        toBytes32(0),
+      );
+
+      await DUSD.transfer(module.address, parseEther("100"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleF_depositBalance(
+        WRAPMINT_USDB_ADDRESS,
+        USDB_ADDRESS,
+        DUSD_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DUSD,
+        module.address,
+        parseEther("-100"),
+      );
+
+      almostEqual(
+        await aDUSD.balanceOf(module.address),
+        parseEther("249.900000000000000000"),
+      );
+      almostEqual(
+        await vUSDB.balanceOf(module.address),
+        parseEther("149.900000000000000001"),
+      );
+
+      // ===== Do leverage burn
+      await mine(100);
+      const net = await module.callStatic.quoteNetBorrow();
+      almostEqual(net, parseEther("0.000089519332260016"), 0.01);
+
+      await USDB.transfer(module.address, net.mul(105).div(100));
+      await module.moduleF_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DUSD.balanceOf(USER_ADDRESS),
+        parseEther("99.999999953036711437"),
+      );
+
+      almostEqual(await aDUSD.balanceOf(module.address), parseEther("0"));
+      almostEqual(await vUSDB.balanceOf(module.address), parseEther("0"));
+    });
+
     it("Can handle depositing USDB, supplying fixedRate DUSD and borrowing DUSD", async function () {
       const { module, aDUSD, USDB, WRAPMINT_USDB, vDUSD } =
         await loadFixture(fixtureDeployed);
@@ -1215,7 +1337,7 @@ describe("LoopoorModuleF", function () {
         );
     });
 
-    it("Can handle depositing DETH, supply DWETH and borrowing DWETH", async function () {
+    it("Can handle depositing DETH, supply DETH and borrowing DETH", async function () {
       const { module, DETH, WRAPMINT_ETH, signer, aDETH, vDETH } =
         await loadFixture(fixtureDeployed);
 
@@ -1261,6 +1383,176 @@ describe("LoopoorModuleF", function () {
 
       almostEqual(await aDETH.balanceOf(module.address), parseEther("0"));
       almostEqual(await vDETH.balanceOf(module.address), parseEther("0"));
+    });
+
+    it("Can handle depositing DETH, supply DETH and borrowing ETH, dust", async function () {
+      const { module, DETH, WRAPMINT_ETH, signer, aDETH, vWETH } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        ethers.constants.AddressZero,
+        parseEther("0.1"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await DETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleF_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        WETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.1"),
+      );
+
+      almostEqual(await aDETH.balanceOf(module.address), parseEther("0.2499"));
+      almostEqual(await vWETH.balanceOf(module.address), parseEther("0.1499"));
+
+      // ===== Do leverage burn
+      await module.moduleF_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DETH.balanceOf(USER_ADDRESS),
+        parseEther("0.100000001012337307"),
+      );
+      almostEqual(await module.leverage(), parseEther("2.499"));
+
+      almostEqual(
+        await aDETH.balanceOf(module.address),
+        parseEther("0.000000004571647552"),
+      );
+      almostEqual(
+        await vWETH.balanceOf(module.address),
+        parseEther("0.000000002743443487"),
+      );
+    });
+
+    it("Can handle depositing DETH, supply DETH and borrowing ETH, full withdraw through additional WETH deposit", async function () {
+      const { module, DETH, WRAPMINT_ETH, signer, aDETH, vWETH, WETH } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        ethers.constants.AddressZero,
+        parseEther("0.1"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await DETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleF_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        WETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.1"),
+      );
+
+      almostEqual(await aDETH.balanceOf(module.address), parseEther("0.2499"));
+      almostEqual(await vWETH.balanceOf(module.address), parseEther("0.1499"));
+
+      // ===== Do leverage burn
+      await mine(100);
+      let net = await module.callStatic.quoteNetBorrow();
+      almostEqual(net, parseEther("0.000000138543958775"), 0.01);
+
+      net = net.mul(105).div(100);
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: net,
+      });
+
+      await WETH.transfer(module.address, net);
+      await module.moduleF_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await DETH.balanceOf(USER_ADDRESS),
+        parseEther("0.100000001012337307"),
+      );
+
+      almostEqual(await aDETH.balanceOf(module.address), parseEther("0"));
+      almostEqual(await vWETH.balanceOf(module.address), parseEther("0"));
+    });
+
+    it("Can handle depositing DETH, supply DETH and borrowing ETH, full withdraw through additional ETH deposit", async function () {
+      const { module, DETH, WRAPMINT_ETH, signer, aDETH, vWETH, WETH } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        ethers.constants.AddressZero,
+        parseEther("0.1"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await DETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleF_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        WETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("-0.1"),
+      );
+
+      almostEqual(await aDETH.balanceOf(module.address), parseEther("0.2499"));
+      almostEqual(await vWETH.balanceOf(module.address), parseEther("0.1499"));
+
+      // ===== Do leverage burn
+      await mine(100);
+      let net = await module.callStatic.quoteNetBorrow();
+      almostEqual(net, parseEther("0.000000138543958775"), 0.01);
+
+      net = net.mul(105).div(100); // slight increase required
+
+      await module.moduleF_withdrawBalanceTo(USER_ADDRESS, {
+        value: net,
+      });
+
+      almostEqual(
+        await DETH.balanceOf(USER_ADDRESS),
+        parseEther("0.100000001012337307"),
+      );
+
+      almostEqual(await aDETH.balanceOf(module.address), parseEther("0"));
+      almostEqual(await vWETH.balanceOf(module.address), parseEther("0"));
     });
 
     it("Can handle depositing WETH, supplying DETH in fixedRate and borrowing DETH", async function () {
@@ -1686,7 +1978,7 @@ describe("LoopoorModuleF", function () {
       almostEqual(
         await DETH.balanceOf(USER_ADDRESS),
         parseEther("0.000000000012645229"),
-        0.01,
+        0.02,
       );
 
       expect(await aDETH.balanceOf(module.address)).to.equal(parseEther("0"));

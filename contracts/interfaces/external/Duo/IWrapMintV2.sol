@@ -13,6 +13,7 @@ interface IWrapMintV2 {
     event UpdateDuoAssetToken(address indexed duoAssetToken);
 
     function duoAssetToken() external view returns (address);
+    function TOKEN() external view returns (address);
 
     /** @notice mint a fixed rate contract (represented as NFT), input with ERC20 token */
     function mintFixedRate(

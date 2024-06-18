@@ -19,6 +19,7 @@ import { ReserveConfiguration } from "./../interfaces/external/AaveV3/ReserveCon
 import { IWrapMintV2 } from "./../interfaces/external/Duo/IWrapMintV2.sol";
 import { IRateContract } from "./../interfaces/external/Duo/IRateContract.sol";
 import { IPacPoolWrapper } from "./../interfaces/external/PacFinance/IPacPoolWrapper.sol";
+import { IFewWrappedToken } from "./../interfaces/external/RingProtocol/IFewWrappedToken.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
 
 /**
@@ -53,6 +54,7 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
         address borrow; // Fixed or variable storage contract
         address underlying;
         address wrapMint;
+        uint256 leverage;
         MODE mode;
         DoubleEndedQueue.AddressDeque queue;
     }
@@ -150,6 +152,22 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
      */
     function quoteBalance() external returns (uint256 balance) {
         try LoopooorModuleF(payable(address(this)))._quoteBalanceWithRevert() {} catch (bytes memory reason) {
+            balance = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
+    }
+
+    function _quoteNetBorrowWithRevert() external {
+        moduleF_withdrawBalance();
+        uint256 balance = borrowBalance();
+        revert Errors.RevertForAmount(balance);
+    }
+
+    /**
+     * @notice Returns the outstanding borrow after paying off as much as possible
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteNetBorrow() external returns (uint256 balance) {
+        try LoopooorModuleF(payable(address(this)))._quoteNetBorrowWithRevert() {} catch (bytes memory reason) {
             balance = BlastableLibrary.parseRevertReasonForAmount(reason);
         }
     }
@@ -314,11 +332,7 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
             return;
         }
 
-        address underlying_ = state.underlying;
-        if (underlying_ == _eth) {
-            underlying_ = _weth;
-        }
-
+        address underlying_ = IFewWrappedToken(IWrapMintV2(state.wrapMint).TOKEN()).token();
         uint256 balance = IERC20(underlying_).balanceOf(address(this));
         if (balance == 0) {
             return;
@@ -395,6 +409,7 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
         state.mode = mode_;
         state.underlying = underlying_;
         state.wrapMint = wrapMint_;
+        state.leverage = leverage_;
 
         // Wrap ETH into WETH.
         if (underlying_ == _eth) {
@@ -437,15 +452,19 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
     function moduleF_withdrawBalance() public payable returns (uint256 amount_) {
         LoopooorModuleFStorage storage state = loopooorModuleFStorage();
 
+        // Wrap any ETH for repaying the borrow.
+        if (address(this).balance > 0) {
+            Calls.sendValue(_weth, address(this).balance);
+        }
+
         IERC20 variableDebtToken_ = IERC20(variableDebtToken());
         address duoAsset_ = address(duoAsset());
 
         uint256 price = oracle().getAssetPrice(duoAsset_);
         (uint256 ltv, , , , , ) = pool().getConfiguration(duoAsset_).getParams();
 
-        (, uint256 borrowed, uint256 amount, , , ) = pool().getUserAccountData(address(this));
-        while (borrowed > 0) {
-            // Withdraw max by calculating USD collateral we can withdraw, and convert to underlying
+        (uint256 collateral, uint256 borrowed, uint256 amount, , , ) = pool().getUserAccountData(address(this));
+        while (borrowed > 0 && amount > 0) {
             amount = Math.mulDiv(amount, PRECISION_LTV, ltv, Math.Rounding.Floor);
             amount = Math.mulDiv(amount, PRECISION_PRICE, price, Math.Rounding.Floor);
             moduleF_withdrawERC20(duoAsset_, amount, address(this));
@@ -458,13 +477,29 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
             // Repay as much as possible
             uint256 balance = IERC20(state.borrow).balanceOf(address(this));
             balance = Math.min(balance, variableDebtToken_.balanceOf(address(this)));
-            moduleF_repayERC20(state.borrow, balance, 2, address(this));
+            if (balance > 0) {
+                moduleF_repayERC20(state.borrow, balance, 2, address(this));
+            }
 
-            (, borrowed, amount, , , ) = pool().getUserAccountData(address(this));
+            (collateral, borrowed, amount, , , ) = pool().getUserAccountData(address(this));
         }
 
-        // Final withdrawal
-        moduleF_withdrawERC20(duoAsset_, IERC20(aToken()).balanceOf(address(this)), address(this));
+        if (amount == 0) {
+            // Resupply to maintain target leverage
+            collateral = Math.mulDiv(collateral, PRECISION_PRICE, price, Math.Rounding.Floor);
+            borrowed = Math.mulDiv(borrowed, PRECISION_PRICE, price, Math.Rounding.Ceil);
+
+            // Calculated expected amount of collateral, to support borrowed position
+            amount = Math.mulDiv(borrowed, state.leverage, state.leverage - PRECISION_LEVERAGE, Math.Rounding.Ceil);
+
+            // Deposit more collateral if required
+            if (amount > collateral) {
+                moduleF_supplyERC20(duoAsset_, amount - collateral, address(this));
+            }
+        } else {
+            // Final withdrawal
+            moduleF_withdrawERC20(duoAsset_, IERC20(aToken()).balanceOf(address(this)), address(this));
+        }
 
         // Burn
         burnDuoAsset();
@@ -478,7 +513,7 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
         }
     }
 
-    function moduleF_withdrawBalanceTo(address receiver) external payable {
+    function moduleF_withdrawBalanceTo(address receiver) public payable {
         moduleF_withdrawBalance();
         moduleF_sendBalanceTo(receiver, underlying());
         moduleF_sendBalanceTo(receiver, address(duoAsset())); // Leaves some dust in some condifitions
@@ -503,22 +538,19 @@ contract LoopooorModuleF is Blastable, ILoopooorModuleF {
 
     function moduleF_increaseWithBalance() public payable {
         LoopooorModuleFStorage storage state = loopooorModuleFStorage();
-        uint256 leverage_ = leverage();
 
         moduleF_withdrawBalance();
-
-        moduleF_depositBalance(state.wrapMint, state.borrow, state.underlying, state.mode, leverage_);
+        moduleF_depositBalance(state.wrapMint, state.borrow, state.underlying, state.mode, state.leverage);
     }
 
     function moduleF_partialWithdrawTo(address receiver, uint256 amount) external {
         LoopooorModuleFStorage storage state = loopooorModuleFStorage();
-        uint256 leverage_ = leverage();
 
         moduleF_withdrawBalance();
 
         moduleF_sendAmountTo(receiver, state.underlying, amount);
 
-        moduleF_depositBalance(state.wrapMint, state.borrow, state.underlying, state.mode, leverage_);
+        moduleF_depositBalance(state.wrapMint, state.borrow, state.underlying, state.mode, state.leverage);
     }
 
     /***************************************
