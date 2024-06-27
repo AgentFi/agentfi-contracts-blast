@@ -22,6 +22,7 @@ import { deployContractUsingContractFactory, verifyContract } from "./../utils/d
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
 import { moduleAFunctionParams } from "./../configuration/DexBalancerModuleA";
+import { moduleGFunctionParams } from "./../configuration/DexBalancerModuleG";
 import { moduleDFunctionParams } from "./../configuration/LoopooorModuleD";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
@@ -59,6 +60,7 @@ const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 
 const DEX_BALANCER_MODULE_A_ADDRESS   = "0x7e8280f5Ee5137f89d09FA61B356fa322a93415a"; // v1.0.3
+const DEX_BALANCER_MODULE_G_ADDRESS   = "0x9Ff3725ad84694D066704B4130f15bC2D2dac331"; // v1.0.?
 const DEX_BALANCER_FACTORY_ADDRESS    = "0xB52274826621B6886787eC29E4C25cd3493B4930"; // v1.0.3
 
 const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
@@ -104,6 +106,7 @@ let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
 
 let dexBalancerModuleA: DexBalancerModuleA;
+let dexBalancerModuleG: DexBalancerModuleG;
 let dexBalancerAgentFactory: DexBalancerAgentFactory;
 
 let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
@@ -178,6 +181,7 @@ async function main() {
   explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
 
   dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  dexBalancerModuleG = await ethers.getContractAt("DexBalancerModuleG", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleG;
   dexBalancerAgentFactory = await ethers.getContractAt("DexBalancerAgentFactory", DEX_BALANCER_FACTORY_ADDRESS, agentfideployer) as DexBalancerAgentFactory;
 
   multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
@@ -317,7 +321,11 @@ async function postDexBalancerAccountCreationSettings() {
     {
       implementation: DEX_BALANCER_MODULE_A_ADDRESS,
       functionParams: moduleAFunctionParams
-    }
+    },
+    {
+      implementation: DEX_BALANCER_MODULE_G_ADDRESS,
+      functionParams: moduleGFunctionParams
+    },
   ]
   let setOverridesCalldata = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata]
