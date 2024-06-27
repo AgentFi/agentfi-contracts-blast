@@ -365,6 +365,7 @@ async function postDexBalancerAccountCreationSettings() {
 
 async function postMultipliooorAccountCreationSettings() {
   // assemble expected settings
+  /*
   let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
   let functionParamsB = [
     { selector: "0x82ccd330", requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000" }, // strategyType()
@@ -395,12 +396,16 @@ async function postMultipliooorAccountCreationSettings() {
   let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
   let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
+  */
   let expectedSettings = {
     strategyAccountImpl: strategyAccountImpl.address,
     explorerAccountImpl: explorerAccountImpl.address,
-    strategyInitializationCall: multicallCalldata,
-    explorerInitializationCall: blastConfigureCalldata,
-    isActive: true,
+    //strategyInitializationCall: multicallCalldata,
+    //explorerInitializationCall: blastConfigureCalldata,
+    //isActive: true,
+    strategyInitializationCall: "0x",
+    explorerInitializationCall: "0x",
+    isActive: false,
   }
   // fetch current settings
   let currentSettings = await multipliooorAgentFactory.getAgentCreationSettings()
