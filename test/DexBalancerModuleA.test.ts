@@ -121,6 +121,7 @@ describe("DexBalancerModuleA", function () {
   let ring: MockERC20;
   let ringLpToken: MockERC20;
   let ringStakingRewards: IFixedStakingRewards;
+  let ringTokenClaimer: IRingTokenClaimer;
 
   let blasterRouter: IBlasterswapV2Router02;
   let blasterLpToken: MockERC20;
@@ -168,6 +169,7 @@ describe("DexBalancerModuleA", function () {
     ring = await ethers.getContractAt("MockERC20", RING_ADDRESS) as MockERC20;
     ringLpToken = await ethers.getContractAt("MockERC20", RING_LP_TOKEN_ADDRESS) as MockERC20;
     ringStakingRewards = await ethers.getContractAt("IFixedStakingRewards", RING_STAKING_REWARDS_ADDRESS) as IFixedStakingRewards;
+    ringTokenClaimer = await ethers.getContractAt("IRingTokenClaimer", RING_TOKEN_CLAIMER_ADDRESS) as IRingTokenClaimer;
 
     blasterRouter = await ethers.getContractAt("IBlasterswapV2Router02", BLASTERSWAP_ROUTER_ADDRESS) as IBlasterswapV2Router02;
     blasterLpToken = await ethers.getContractAt("MockERC20", BLASTERSWAP_LP_TOKEN_ADDRESS) as MockERC20;
@@ -766,6 +768,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances0.weth).eq(0)
       expect(balances0.usdb).gt(0)
       expect(balances0.ring).eq(0)
+      expect(balances0.ringClaimed).eq(0)
       expect(balances0.thrusterLpToken).eq(0)
       expect(balances0.hyperlockStaking).eq(0)
       expect(balances0.ringLpToken).eq(0)
@@ -802,6 +805,7 @@ describe("DexBalancerModuleA", function () {
       //expect(balances1.weth).eq(0)
       //expect(balances1.usdb).eq(0)
       expect(balances1.ring).eq(0)
+      expect(balances1.ringClaimed).eq(0)
       expect(balances1.thrusterLpToken).eq(0)
       expect(balances1.hyperlockStaking).gt(0)
       expect(balances1.ringLpToken).eq(0)
@@ -816,6 +820,7 @@ describe("DexBalancerModuleA", function () {
       //expect(balances2.weth).eq(0)
       //expect(balances2.usdb).eq(0)
       expect(balances2.ring).eq(0)
+      expect(balances2.ringClaimed).eq(0)
       expect(balances2.thrusterLpToken).eq(0)
       expect(balances2.hyperlockStaking).gt(0)
       expect(balances2.ringLpToken).eq(0)
@@ -834,6 +839,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gt(0)
       expect(balances3.usdb).gt(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).eq(0)
       expect(balances3.ringLpToken).eq(0)
@@ -873,7 +879,8 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.eth).eq(0)
       expect(balances3.weth).eq(0)
       expect(balances3.usdb).eq(0)
-      //expect(balances3.ring).eq(0)
+      expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).eq(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1023,6 +1030,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1040,6 +1048,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1090,6 +1099,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1138,6 +1148,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.weth).gte(0)
       expect(balances4.usdb).gte(0)
       expect(balances4.ring).eq(0)
+      //expect(balances4.ringClaimed).eq(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).gt(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1151,6 +1162,9 @@ describe("DexBalancerModuleA", function () {
       //expect(balances5.usdb).gte(0)
       expect(balances5.ring).gt(0)
       expect(balances5.ring).gte(balances3.ringStakingEarned.div(10))
+      expect(balances5.ring).eq(balances4.ringClaimed.div(10))
+      //44158342829535
+      //441583428295352
       expect(balances5.thrusterLpToken).eq(0)
       expect(balances5.hyperlockStaking).eq(0)
       expect(balances5.ringLpToken).eq(0)
@@ -1169,6 +1183,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
       expect(balances1.ring).eq(0)
+      expect(balances1.ringClaimed).gt(0)
       expect(balances1.thrusterLpToken).eq(0)
       expect(balances1.hyperlockStaking).gt(0)
       expect(balances1.ringLpToken).eq(0)
@@ -1187,6 +1202,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).gt(balances1.ringClaimed)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1199,6 +1215,7 @@ describe("DexBalancerModuleA", function () {
       //expect(balances4.weth).gte(0)
       //expect(balances4.usdb).gte(0)
       expect(balances4.ring).gt(balances2.ring)
+      expect(balances4.ringClaimed).eq(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).eq(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1235,6 +1252,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).eq(0)
       expect(balances3.usdb).eq(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).gt(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).eq(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1247,6 +1265,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.weth).eq(balances2.weth) // no withdraw in weth
       expect(balances4.usdb).gt(balances2.usdb)
       expect(balances4.ring).gt(balances2.ring)
+      expect(balances4.ringClaimed).eq(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).eq(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1381,6 +1400,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1398,6 +1418,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1448,6 +1469,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).eq(0)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1483,6 +1505,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.weth).gte(0)
       expect(balances4.usdb).gte(0)
       expect(balances4.ring).eq(0)
+      expect(balances4.ringClaimed).gt(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).gt(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1514,6 +1537,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
       expect(balances1.ring).eq(0)
+      expect(balances1.ringClaimed).gt(0)
       expect(balances1.thrusterLpToken).eq(0)
       expect(balances1.hyperlockStaking).gt(0)
       expect(balances1.ringLpToken).eq(0)
@@ -1530,6 +1554,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).gt(balances1.ringClaimed)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).gt(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1542,6 +1567,7 @@ describe("DexBalancerModuleA", function () {
       //expect(balances4.weth).gte(0)
       //expect(balances4.usdb).gte(0)
       expect(balances4.ring).gt(balances2.ring)
+      expect(balances4.ringClaimed).eq(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).eq(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1560,6 +1586,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
       expect(balances1.ring).eq(0)
+      expect(balances1.ringClaimed).gt(0)
       expect(balances1.thrusterLpToken).eq(0)
       expect(balances1.hyperlockStaking).gt(0)
       expect(balances1.ringLpToken).eq(0)
@@ -1576,6 +1603,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.weth).eq(0)
       expect(balances3.usdb).eq(0)
       expect(balances3.ring).eq(0)
+      expect(balances3.ringClaimed).gt(balances1.ringClaimed)
       expect(balances3.thrusterLpToken).eq(0)
       expect(balances3.hyperlockStaking).eq(0)
       expect(balances3.ringLpToken).eq(0)
@@ -1588,6 +1616,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.weth).eq(balances2.weth) // no withdraw in weth
       expect(balances4.usdb).gt(balances2.usdb)
       expect(balances4.ring).gt(balances2.ring)
+      expect(balances4.ringClaimed).eq(0)
       expect(balances4.thrusterLpToken).eq(0)
       expect(balances4.hyperlockStaking).eq(0)
       expect(balances4.ringLpToken).eq(0)
@@ -1603,6 +1632,7 @@ describe("DexBalancerModuleA", function () {
       weth: await weth.balanceOf(account),
       usdb: await usdb.balanceOf(account),
       ring: await ring.balanceOf(account),
+      ringClaimed: await ringTokenClaimer.getClaimed(3, account),
       thrusterLpToken: await thrusterLpToken.balanceOf(account),
       hyperlockStaking: await hyperlockStaking.staked(account, THRUSTER_LP_TOKEN_ADDRESS),
       ringLpToken: await ringLpToken.balanceOf(account),
@@ -1616,6 +1646,7 @@ describe("DexBalancerModuleA", function () {
         weth: formatUnits(res.weth),
         usdb: formatUnits(res.usdb),
         ring: formatUnits(res.ring),
+        ringClaimed: formatUnits(res.ringClaimed),
         thrusterLpToken: formatUnits(res.thrusterLpToken),
         hyperlockStaking: formatUnits(res.hyperlockStaking),
         ringLpToken: formatUnits(res.ringLpToken),
