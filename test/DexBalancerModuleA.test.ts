@@ -571,7 +571,7 @@ describe("DexBalancerModuleA", function () {
       ]
       let tx = await multicallForwarder.connect(user1).aggregate(calls)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
@@ -607,7 +607,7 @@ describe("DexBalancerModuleA", function () {
       expect(await usdb.balanceOf(user1.address)).eq(0)
       let tx = await thrusterRouter_030.connect(user1).swapExactETHForTokens(amountOutMin, path, user1.address, MaxUint256, {value:amountIn})
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       expect(await weth.balanceOf(user1.address)).eq(0)
       expect(await usdb.balanceOf(user1.address)).gt(0)
     });
@@ -656,8 +656,8 @@ describe("DexBalancerModuleA", function () {
       let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', false)
       let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', false)
       let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', false)
-      let sighashes4 = calcSighashes(strategyModuleA, 'DexBalancerModuleA', true)
-      let sighashes5 = calcSighashes(strategyModuleG, 'DexBalancerModuleG', true)
+      let sighashes4 = calcSighashes(strategyModuleA, 'DexBalancerModuleA', false)
+      let sighashes5 = calcSighashes(strategyModuleG, 'DexBalancerModuleG', false)
     });
     it("non owner cannot set overrides", async function () {
       await expect(tbaccountS1.connect(user1).setOverrides([])).to.be.revertedWithCustomError(strategyFactory, "NotAuthorized")
@@ -673,7 +673,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = tbaccountS1.interface.encodeFunctionData("setOverrides", [overrides])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       for(const param of functionParams) {
         let { selector, isProtected } = param
         let res = await tbaccountS1.overrides(selector)
@@ -790,7 +790,7 @@ describe("DexBalancerModuleA", function () {
 
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata2, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       for(const param of functionParams) {
         let { selector, isProtected } = param
@@ -832,7 +832,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalance", [])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let balances3 = await getBalances(tbaccountS1.address)
       expect(balances3.eth).eq(0)
@@ -873,7 +873,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalanceTo", [user1.address])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let balances3 = await getBalances(tbaccountS1.address)
       expect(balances3.eth).eq(0)
@@ -998,7 +998,7 @@ describe("DexBalancerModuleA", function () {
       let tx = await multicallForwarder.connect(user1).aggregate3Value(calls, {value: depositAmountETH})
 
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
@@ -1043,7 +1043,7 @@ describe("DexBalancerModuleA", function () {
       for(let i = 0; i < 3; i++) {
         await user1.sendTransaction({to: user1.address})
       }
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1094,7 +1094,7 @@ describe("DexBalancerModuleA", function () {
       expect(override2.isProtected).eq(false)
     })
     it("can install missing module into account v1 and claim ring", async function () {
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1143,7 +1143,7 @@ describe("DexBalancerModuleA", function () {
       expect(override2.implementation).eq(strategyModuleG.address)
       expect(override2.isProtected).eq(true)
 
-      let balances4 = await getBalances(tbaccountS2.address, true)
+      let balances4 = await getBalances(tbaccountS2.address, false)
       expect(balances4.eth).eq(0) // wrapped
       expect(balances4.weth).gte(0)
       expect(balances4.usdb).gte(0)
@@ -1156,7 +1156,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.ringStakingEarned).gt(0)
       expect(balances4.blasterLpToken).gt(0)
 
-      let balances5 = await getBalances(user1.address, true)
+      let balances5 = await getBalances(user1.address, false)
       //expect(balances5.eth).eq(0) // wrapped
       //expect(balances5.weth).gte(0)
       //expect(balances5.usdb).gte(0)
@@ -1178,7 +1178,7 @@ describe("DexBalancerModuleA", function () {
         await user1.sendTransaction({to: user1.address})
       }
 
-      let balances1 = await getBalances(tbaccountS2.address, true)
+      let balances1 = await getBalances(tbaccountS2.address, false)
       expect(balances1.eth).eq(0) // wrapped
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
@@ -1191,13 +1191,13 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.ringStakingEarned).gt(0)
       expect(balances1.blasterLpToken).gt(0)
 
-      let balances2 = await getBalances(user1.address, true)
+      let balances2 = await getBalances(user1.address, false)
 
       let calldata2 = strategyModuleG.interface.encodeFunctionData("moduleG_claimRingTo", [user1.address])
 
       let tx = await tbaccountG2A.connect(user1).execute(tbaccountS2.address, 0, calldata2, 0)
 
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1210,7 +1210,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.ringStakingEarned).gt(0)
       expect(balances3.blasterLpToken).gt(0)
 
-      let balances4 = await getBalances(user1.address, true)
+      let balances4 = await getBalances(user1.address, false)
       //expect(balances4.eth).eq(0) // wrapped
       //expect(balances4.weth).gte(0)
       //expect(balances4.usdb).gte(0)
@@ -1229,7 +1229,7 @@ describe("DexBalancerModuleA", function () {
         await user1.sendTransaction({to: user1.address})
       }
 
-      let balances1 = await getBalances(tbaccountS2.address, true)
+      let balances1 = await getBalances(tbaccountS2.address, false)
       expect(balances1.eth).eq(0) // wrapped
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
@@ -1241,13 +1241,13 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.ringStakingEarned).gt(0)
       expect(balances1.blasterLpToken).gt(0)
 
-      let balances2 = await getBalances(user1.address, true)
+      let balances2 = await getBalances(user1.address, false)
 
       let calldata2 = strategyModuleG.interface.encodeFunctionData("moduleG_withdrawBalanceTo", [user1.address])
 
       let tx = await tbaccountG2A.connect(user1).execute(tbaccountS2.address, 0, calldata2, 0)
 
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0)
       expect(balances3.weth).eq(0)
       expect(balances3.usdb).eq(0)
@@ -1260,7 +1260,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.ringStakingEarned).gt(0) // residual
       expect(balances3.blasterLpToken).eq(0)
 
-      let balances4 = await getBalances(user1.address, true)
+      let balances4 = await getBalances(user1.address, false)
       expect(balances4.eth).gt(balances2.eth) // returned eth more than gas
       expect(balances4.weth).eq(balances2.weth) // no withdraw in weth
       expect(balances4.usdb).gt(balances2.usdb)
@@ -1367,7 +1367,7 @@ describe("DexBalancerModuleA", function () {
       let tx = await multicallForwarder.connect(user1).aggregate3Value(calls, {value: depositAmountETH})
 
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
@@ -1413,7 +1413,7 @@ describe("DexBalancerModuleA", function () {
       for(let i = 0; i < 3; i++) {
         await user1.sendTransaction({to: user1.address})
       }
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1464,7 +1464,7 @@ describe("DexBalancerModuleA", function () {
       expect(override2.requiredRole).eq(toBytes32(0))
     })
     it("can install missing module into account v1 and claim ring", async function () {
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1500,7 +1500,7 @@ describe("DexBalancerModuleA", function () {
       expect(override2.implementation).eq(strategyModuleG.address)
       expect(override2.requiredRole).eq(toBytes32(1))
 
-      let balances4 = await getBalances(tbaccountS2.address, true)
+      let balances4 = await getBalances(tbaccountS2.address, false)
       expect(balances4.eth).eq(0) // wrapped
       expect(balances4.weth).gte(0)
       expect(balances4.usdb).gte(0)
@@ -1513,7 +1513,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances4.ringStakingEarned).gt(0)
       expect(balances4.blasterLpToken).gt(0)
 
-      let balances5 = await getBalances(user1.address, true)
+      let balances5 = await getBalances(user1.address, false)
       //expect(balances5.eth).eq(0) // wrapped
       //expect(balances5.weth).gte(0)
       //expect(balances5.usdb).gte(0)
@@ -1532,7 +1532,7 @@ describe("DexBalancerModuleA", function () {
         await user1.sendTransaction({to: user1.address})
       }
 
-      let balances1 = await getBalances(tbaccountS2.address, true)
+      let balances1 = await getBalances(tbaccountS2.address, false)
       expect(balances1.eth).eq(0) // wrapped
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
@@ -1545,11 +1545,11 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.ringStakingEarned).gt(0)
       expect(balances1.blasterLpToken).gt(0)
 
-      let balances2 = await getBalances(user1.address, true)
+      let balances2 = await getBalances(user1.address, false)
 
       let tx = await strategyAgent.connect(user1).moduleG_claimRingTo(user1.address)
 
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0) // wrapped
       expect(balances3.weth).gte(0)
       expect(balances3.usdb).gte(0)
@@ -1562,7 +1562,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.ringStakingEarned).gt(0)
       expect(balances3.blasterLpToken).gt(0)
 
-      let balances4 = await getBalances(user1.address, true)
+      let balances4 = await getBalances(user1.address, false)
       //expect(balances4.eth).eq(0) // wrapped
       //expect(balances4.weth).gte(0)
       //expect(balances4.usdb).gte(0)
@@ -1581,7 +1581,7 @@ describe("DexBalancerModuleA", function () {
         await user1.sendTransaction({to: user1.address})
       }
 
-      let balances1 = await getBalances(tbaccountS2.address, true)
+      let balances1 = await getBalances(tbaccountS2.address, false)
       expect(balances1.eth).eq(0) // wrapped
       expect(balances1.weth).gte(0)
       expect(balances1.usdb).gte(0)
@@ -1594,11 +1594,11 @@ describe("DexBalancerModuleA", function () {
       expect(balances1.ringStakingEarned).gt(0)
       expect(balances1.blasterLpToken).gt(0)
 
-      let balances2 = await getBalances(user1.address, true)
+      let balances2 = await getBalances(user1.address, false)
 
       let tx = await strategyAgent.connect(user1).moduleG_withdrawBalanceTo(user1.address)
 
-      let balances3 = await getBalances(tbaccountS2.address, true)
+      let balances3 = await getBalances(tbaccountS2.address, false)
       expect(balances3.eth).eq(0)
       expect(balances3.weth).eq(0)
       expect(balances3.usdb).eq(0)
@@ -1611,7 +1611,7 @@ describe("DexBalancerModuleA", function () {
       expect(balances3.ringStakingEarned).gt(0) // residual
       expect(balances3.blasterLpToken).eq(0)
 
-      let balances4 = await getBalances(user1.address, true)
+      let balances4 = await getBalances(user1.address, false)
       expect(balances4.eth).gt(balances2.eth) // returned eth more than gas
       expect(balances4.weth).eq(balances2.weth) // no withdraw in weth
       expect(balances4.usdb).gt(balances2.usdb)
