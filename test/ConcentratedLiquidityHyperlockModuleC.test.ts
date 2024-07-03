@@ -10,7 +10,7 @@ const { expect } = chai;
 
 import { price1ToTick } from "../scripts/utils/v3";
 import { fixtureSetup } from "./ConcentratedLiquidityModuleC.test";
-import { convertToStruct } from "../scripts/utils/test";
+import { almostEqual, convertToStruct } from "../scripts/utils/test";
 
 /* prettier-ignore */ const HYPERLOCK_STAKING_ADDRESS     = "0xc28EffdfEF75448243c1d9bA972b97e32dF60d06";
 /* prettier-ignore */ const POOL_ADDRESS                  = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
@@ -154,7 +154,7 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
       // Trigger the deposit
       await module
         .moduleC_mintWithBalanceAndRefundTo({
-          reciever: USER_ADDRESS,
+          receiver: USER_ADDRESS,
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
           slippageLiquidity: 1_00_000,
@@ -190,23 +190,12 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
       });
 
       // All funds sent back to user
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("0"), BN.from("0")]);
-      expect(
-        await Promise.all([
-          USDB.balanceOf(USER_ADDRESS),
-          WETH.balanceOf(USER_ADDRESS),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
-        BN.from("10"),
-        BN.from("0"),
-        BN.from("1596208653441996856"),
-      ]);
+      almostEqual(USDB.balanceOf(module.address), BN.from("0"));
+      almostEqual(WETH.balanceOf(module.address), BN.from("0"));
+
+      almostEqual(USDB.balanceOf(USER_ADDRESS), BN.from("10"));
+      almostEqual(WETH.balanceOf(USER_ADDRESS), BN.from("0"));
+      almostEqual(signer.getBalance(), BN.from("1596208653441996856"));
     });
   });
 
@@ -266,23 +255,12 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         tokensOwed1: BN.from("0"),
       });
 
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-        ]),
-      ).to.deep.equal([BN.from("0"), BN.from("0")]);
-      expect(
-        await Promise.all([
-          USDB.balanceOf(USER_ADDRESS),
-          WETH.balanceOf(USER_ADDRESS),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
-        BN.from("10"),
-        BN.from("0"),
-        BN.from("1595691681404988370"),
-      ]);
+      almostEqual(USDB.balanceOf(module.address), BN.from("0"));
+      almostEqual(WETH.balanceOf(module.address), BN.from("0"));
+
+      almostEqual(USDB.balanceOf(USER_ADDRESS), BN.from("10"));
+      almostEqual(WETH.balanceOf(USER_ADDRESS), BN.from("0"));
+      almostEqual(signer.getBalance(), BN.from("1595691681404988370"));
     });
   });
 
@@ -290,33 +268,27 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
     it("Can withdrawal to user", async () => {
       const { module, USDB, WETH, PositionManager, signer } =
         await loadFixture(fixtureDeposited);
-      expect(
-        await Promise.all([
-          USDB.balanceOf(module.address),
-          WETH.balanceOf(module.address),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
-        BN.from("11"),
+
+      almostEqual(await USDB.balanceOf(module.address), BN.from("11"));
+      almostEqual(
+        await WETH.balanceOf(module.address),
         BN.from("21131891579154171837"),
-        BN.from("97099855589811073"),
-      ]);
+      );
+      almostEqual(await signer.getBalance(), BN.from("97099855589811073"));
 
       await module
         .moduleC_fullWithdrawTo(USER_ADDRESS, sqrtPriceX96, 1_000)
         .then((tx) => tx.wait());
 
-      expect(
-        await Promise.all([
-          USDB.balanceOf(USER_ADDRESS),
-          WETH.balanceOf(USER_ADDRESS),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
+      almostEqual(
+        USDB.balanceOf(USER_ADDRESS),
         BN.from("413026157656739951683271"),
+      );
+      almostEqual(
+        WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
-        BN.from("50861229114998159745"),
-      ]);
+      );
+      almostEqual(signer.getBalance(), BN.from("50861229114998159745"));
 
       // Expect position to be burnt
       const tokenId = await module.tokenId();
@@ -353,8 +325,9 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         "64580542070095326831",
       );
 
-      expect((await signer.getBalance()).sub(eth)).to.equal(
-        "21150987685223178321",
+      almostEqual(
+        (await signer.getBalance()).sub(eth),
+        BN.from("21150987685223178321"),
       );
     });
   });
@@ -415,17 +388,15 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
       const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
 
-      expect(
-        await Promise.all([
-          USDB.balanceOf(USER_ADDRESS),
-          WETH.balanceOf(USER_ADDRESS),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
+      almostEqual(
+        USDB.balanceOf(USER_ADDRESS),
         BN.from("206513078828369975841636"),
+      );
+      almostEqual(
+        WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
-        BN.from("97099855589811073"),
-      ]);
+      );
+      almostEqual(await signer.getBalance(), BN.from("97099855589811073"));
 
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("16983715425639545311351"),
@@ -437,20 +408,19 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         0,
       );
       // Expect user balance to have increased, and liquidity decreased
-      expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
+      almostEqual(
+        convertToStruct(await module.position()).liquidity,
         BN.from("8491857712819772655676"),
       );
-      expect(
-        await Promise.all([
-          USDB.balanceOf(USER_ADDRESS),
-          WETH.balanceOf(USER_ADDRESS),
-          signer.getBalance(),
-        ]),
-      ).to.deep.equal([
+      almostEqual(
+        USDB.balanceOf(USER_ADDRESS),
         BN.from("309769618242554963762453"),
+      );
+      almostEqual(
+        WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
-        BN.from("36044963652858168591"),
-      ]);
+      );
+      almostEqual(signer.getBalance(), BN.from("36044963652858168591"));
     });
   });
 

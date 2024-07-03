@@ -58,6 +58,9 @@ const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x36246FF90d44fA6f171e392796d0872E138c34a7"; // v1.0.4
 const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1eDCa309ECcd0A6e8Ab77F"; // v1.0.4
 
+const CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS      = "0x23214B0B868F3Cb370b9aed7cbc7629804A63002"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK = "0x7A1B8225bfE612efA47b2a1daa23622C2F972D1C"; // v1.0.2
+
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
 const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
@@ -91,8 +94,12 @@ let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
 
 let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
+
 let concentratedLiquidityGatewayModuleC: ConcentratedLiquidityGatewayModuleC;
 let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
+
+let concentratedLiquidityHyperlockModuleC: ConcentratedLiquidityHyperlockModuleC;
+let concentratedLiquidityAgentFactoryHyperlock: ConcentratedLiquidityAgentFactory;
 
 let contractsToVerify = []
 
@@ -128,8 +135,12 @@ async function main() {
 
   await deployExplorerCollection();
   await deployExplorerAgentAccount();
+
   await deployConcentratedLiquidityGatewayModuleC();
   await deployConcentratedLiquidityAgentFactory();
+
+  await deployConcentratedLiquidityHyperlockModuleC();
+  await deployConcentratedLiquidityAgentFactoryHyperlock();
 
   await verifyContracts();
   logAddresses()
@@ -187,6 +198,32 @@ async function deployConcentratedLiquidityAgentFactory() {
   }
 }
 
+async function deployConcentratedLiquidityHyperlockModuleC() {
+  if(await isDeployed(CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS)) {
+    concentratedLiquidityHyperlockModuleC = await ethers.getContractAt("ConcentratedLiquidityHyperlockModuleC", CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityHyperlockModuleC;
+  } else {
+    console.log("Deploying ConcentratedLiquidityHyperlockModuleC");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    concentratedLiquidityHyperlockModuleC = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityHyperlockModuleC", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityHyperlockModuleC;
+    console.log(`Deployed ConcentratedLiquidityHyperlockModuleC to ${concentratedLiquidityHyperlockModuleC.address}`);
+    contractsToVerify.push({ address: concentratedLiquidityHyperlockModuleC.address, args, contractName: "contracts/modules/ConcentratedLiquidityHyperlockModuleC.sol:ConcentratedLiquidityHyperlockModuleC" })
+    if(!!CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS && concentratedLiquidityHyperlockModuleC.address != CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityHyperlockModuleC to ${concentratedLiquidityHyperlockModuleC.address}, expected ${CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS}`)
+  }
+}
+
+async function deployConcentratedLiquidityAgentFactoryHyperlock() {
+  if(await isDeployed(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK)) {
+    concentratedLiquidityAgentFactoryHyperlock = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK, agentfideployer) as ConcentratedLiquidityAgentFactory;
+  } else {
+    console.log("Deploying ConcentratedLiquidityAgentFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, explorerCollection.address, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
+    concentratedLiquidityAgentFactoryHyperlock = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityAgentFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityAgentFactory;
+    console.log(`Deployed ConcentratedLiquidityAgentFactory to ${concentratedLiquidityAgentFactoryHyperlock.address}`);
+    contractsToVerify.push({ address: concentratedLiquidityAgentFactoryHyperlock.address, args, contractName: "contracts/factory/ConcentratedLiquidityAgentFactory.sol:ConcentratedLiquidityAgentFactory" })
+    if(!!CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK && concentratedLiquidityAgentFactoryHyperlock.address != CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK) throw new Error(`Deployed ConcentratedLiquidityAgentFactory to ${concentratedLiquidityAgentFactoryHyperlock.address}, expected ${CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK}`)
+  }
+}
+
 async function verifyContracts() {
   if(chainID == 31337) return
   if(contractsToVerify.length == 0) return
@@ -206,6 +243,8 @@ function logAddresses() {
   logContractAddress("ExplorerAgentAccount", explorerAccountImpl.address);
   logContractAddress("ConcentratedLiquidityGatewayModuleC", concentratedLiquidityGatewayModuleC.address);
   logContractAddress("ConcentratedLiquidityAgentFactory", concentratedLiquidityAgentFactory.address);
+  logContractAddress("ConcentratedLiquidityHyperlockModuleC", concentratedLiquidityHyperlockModuleC.address);
+  logContractAddress("ConcentratedLiquidityAgentFactoryHyperlock", concentratedLiquidityAgentFactoryHyperlock.address);
 }
 
 main()
