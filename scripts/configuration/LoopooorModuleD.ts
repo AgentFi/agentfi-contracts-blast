@@ -1,5 +1,15 @@
 export const moduleDFunctionParams = [
   {
+    selector: "0xdc3be667",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0xbeeb3261",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
     selector: "0x243cd14e",
     signature: "borrowBalance()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -15,6 +25,11 @@ export const moduleDFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
   },
   {
+    selector: "0x2c86d98e",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
     selector: "0x295a5212",
     signature: "mode()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -28,6 +43,16 @@ export const moduleDFunctionParams = [
     selector: "0x1a32aad6",
     signature: "oToken()",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    selector: "0x4c711a2a",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
+  },
+  {
+    selector: "0xf1a2e849",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
   {
     selector: "0xeee24219",
@@ -70,9 +95,24 @@ export const moduleDFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
   },
   {
+    selector: "0x7be13c92",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
+    selector: "0xb440ae7b",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
     selector: "0xcbefbc26",
     signature: "moduleD_depositBalance(address,address,address,uint8,uint256)",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  {
+    selector: "0x3da8dddb",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
   {
     selector: "0x6eb73f74",
@@ -100,6 +140,11 @@ export const moduleDFunctionParams = [
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
   },
   {
+    selector: "0xa6b204c1",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
+  },
+  {
     selector: "0x378e38bf",
     signature: "moduleD_redeem(address,uint256)",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
@@ -108,6 +153,11 @@ export const moduleDFunctionParams = [
     selector: "0x34502682",
     signature: "moduleD_repayBorrow(address,uint256)",
     requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000001"
+  },
+  {
+    selector: "0x559c47e1",
+    requiredRole:
+      "0x0000000000000000000000000000000000000000000000000000000000000001",
   },
   {
     selector: "0xe2eefd3d",

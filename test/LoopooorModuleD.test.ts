@@ -1,7 +1,7 @@
 // /* global describe it before ethers */
 
 import hre from "hardhat";
-import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
+import { loadFixture, mine } from "@nomicfoundation/hardhat-network-helpers";
 const { ethers } = hre;
 const { provider } = ethers;
 const { parseEther } = ethers.utils;
@@ -57,12 +57,17 @@ enum MODE {
 const permissions = Object.entries({
   // Public
   [toBytes32(0)]: [
+    "_quoteClaimWithRevert()",
+    "_quoteBalanceWithRevert()",
     "borrowBalance()",
     "comptroller()",
     "duoAsset()",
+    "leverage()",
     "mode()",
     "moduleName()",
     "oToken()",
+    "quoteClaim()",
+    "quoteBalance()",
     "rateContract()",
     "strategyType()",
     "supplyBalance()",
@@ -79,14 +84,19 @@ const permissions = Object.entries({
     "moduleD_borrow(address,uint256)",
     "moduleD_burnFixedRate(address,address,uint256)",
     "moduleD_burnVariableRate(address,address,uint256,uint256)",
+    "moduleD_claim()",
+    "moduleD_claimTo(address)",
     "moduleD_depositBalance(address,address,address,uint8,uint256)",
+    "moduleD_increaseWithBalance()",
     "moduleD_mint(address,uint256)",
     "moduleD_mintFixedRate(address,address,address,uint256,uint256,uint256,bytes)",
     "moduleD_mintFixedRateEth(address,address,uint256,uint256,uint256,bytes)",
     "moduleD_mintVariableRate(address,address,address,uint256,uint256,bytes)",
     "moduleD_mintVariableRateEth(address,address,uint256,uint256,bytes)",
+    "moduleD_partialWithdrawTo(address,uint256)",
     "moduleD_redeem(address,uint256)",
     "moduleD_repayBorrow(address,uint256)",
+    "moduleD_sendAmountTo(address,address,uint256)",
     "moduleD_sendBalanceTo(address,address)",
     "moduleD_withdrawBalance()",
     "moduleD_withdrawBalanceTo(address)",
@@ -479,6 +489,12 @@ describe("LoopoorModuleD", function () {
       "IWrapMintV2",
       WRAPMINT_ETH_ADDRESS,
     );
+
+    const ORBIT = await ethers.getContractAt(
+      "MockERC20",
+      ORBIT_ADDRESS,
+      signer,
+    );
     return {
       ...fixture,
       COMPTROLLER,
@@ -488,6 +504,7 @@ describe("LoopoorModuleD", function () {
       DETH,
       ODETH,
       WRAPMINT_ETH,
+      ORBIT,
     };
   }
   describe("USDB Configuration", () => {
@@ -656,6 +673,68 @@ describe("LoopoorModuleD", function () {
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
     });
+
+    it("Can claim ORBIT without withdraw", async function () {
+      const { module, ORBIT, USDB, ODUSD } = await loadFixture(fixtureDeployed);
+
+      await USDB.transfer(module.address, parseEther("100"));
+
+      // ===== Do leverage mint
+      await module.moduleD_depositBalance(
+        WRAPMINT_USDB_ADDRESS,
+        ODUSD_ADDRESS,
+        USDB_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      almostEqual(
+        await ODUSD.balanceOf(module.address),
+        parseEther("1249991.679098100761621992"),
+      );
+
+      await mine(1000);
+      almostEqual(
+        await module.callStatic.quoteClaim(),
+        parseEther("0.005957176188503403"),
+      );
+      await module.moduleD_claimTo(USER_ADDRESS);
+
+      almostEqual(
+        await ORBIT.balanceOf(USER_ADDRESS),
+        parseEther("0.005963133364691907"),
+      );
+
+      almostEqual(
+        await ODUSD.balanceOf(module.address),
+        parseEther("1249991.679098100761621992"),
+      );
+    });
+
+    it("Can claim ORBIT during withdraw", async function () {
+      const { module, ORBIT, USDB, ODUSD } = await loadFixture(fixtureDeployed);
+
+      await USDB.transfer(module.address, parseEther("100"));
+
+      // ===== Do leverage mint
+      await module.moduleD_depositBalance(
+        WRAPMINT_USDB_ADDRESS,
+        ODUSD_ADDRESS,
+        USDB_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await ORBIT.balanceOf(USER_ADDRESS),
+        parseEther("0.000005957176188503"),
+      );
+
+      expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
+    });
+
     it("Looped depositing USDB in fixedRate", async function () {
       const { module, ODUSD, DUSD, COMPTROLLER, USDB, WRAPMINT_USDB } =
         await loadFixture(fixtureDeployed);
@@ -694,13 +773,20 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("99.999530688585409877"),
+      );
+
       // ===== Do leverage burn
       const usdb = await USDB.balanceOf(USER_ADDRESS);
       await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         (await USDB.balanceOf(USER_ADDRESS)).sub(usdb),
-        parseEther("99.999999953036711437"),
+        parseEther("99.999530688585409877"),
       );
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
@@ -744,13 +830,20 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODUSD_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("100.008452576750142788"),
+      );
+
       // ===== Do leverage burn
       const usdb = await USDB.balanceOf(USER_ADDRESS);
       await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         (await USDB.balanceOf(USER_ADDRESS)).sub(usdb),
-        parseEther("99.999999953036711437"),
+        parseEther("100.008452576750142788"),
       );
 
       expect(await ODUSD.balanceOf(module.address)).to.equal(parseEther("0"));
@@ -794,8 +887,48 @@ describe("LoopoorModuleD", function () {
       ).to.be.reverted;
     });
 
-    it("Can reject double deposit", async function () {
-      const { module } = await loadFixture(fixtureDeployed);
+    it("Can handle increase deposit", async function () {
+      const { module, ODETH } = await loadFixture(fixtureDeployed);
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        ETH_ADDRESS,
+        MODE.BOOST_YIELD,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963028339426454"),
+      );
+
+      await module.moduleD_increaseWithBalance({ value: parseEther("0.1") });
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999930152257006793"),
+      );
+    });
+
+    it("Can handle double deposit", async function () {
+      const { module, ODETH } = await loadFixture(fixtureDeployed);
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        ETH_ADDRESS,
+        MODE.BOOST_YIELD,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963028339426454"),
+      );
+
       await module.moduleD_depositBalance(
         WRAPMINT_ETH_ADDRESS,
         ODETH_ADDRESS,
@@ -807,18 +940,10 @@ describe("LoopoorModuleD", function () {
         },
       );
 
-      await expect(
-        module.moduleD_depositBalance(
-          WRAPMINT_ETH_ADDRESS,
-          ODETH_ADDRESS,
-          ETH_ADDRESS,
-          MODE.BOOST_YIELD,
-          parseEther("2.499"), // 2.5 is max based on 60% LTV
-          {
-            value: parseEther("0.1"),
-          },
-        ),
-      ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999930152257006793"),
+      );
     });
 
     it("Can mint fixedRate DETH with WETH", async function () {
@@ -1044,13 +1169,110 @@ describe("LoopoorModuleD", function () {
       const { module, WETH, ODETH, DETH, WRAPMINT_ETH } =
         await loadFixture(fixtureDeployed);
       const variableRateContract = "0x518e0D4c3d5B6ccFA21A2B344fC9C819AB17b154";
-      await expect(module.moduleD_burnVariableRate(
-        AddressZero,
-        variableRateContract,
-        await DETH.balanceOf(module.address),
-        0,
-      )).to.be.reverted;
-    })
+      await expect(
+        module.moduleD_burnVariableRate(
+          AddressZero,
+          variableRateContract,
+          await DETH.balanceOf(module.address),
+          0,
+        ),
+      ).to.be.reverted;
+    });
+
+    it("Can claim orbit without withdraw", async function () {
+      const { module, ODETH, WETH, ORBIT, signer, COMPTROLLER } =
+        await loadFixture(fixtureDeployed);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+      await WETH.transfer(module.address, parseEther("0.1"));
+
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        WETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await mine(1000);
+      almostEqual(
+        await module.callStatic.quoteClaim(),
+        parseEther("0.001995097039355829"),
+      );
+      await module.moduleD_claimTo(USER_ADDRESS);
+
+      almostEqual(
+        await ORBIT.balanceOf(USER_ADDRESS),
+        parseEther("0.001997092136395185"), // Withdrawing increases orbit claim
+      );
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.999958011201242472"),
+      );
+    });
+
+    it("Can claim orbit during withdraw", async function () {
+      const { module, ODETH, WETH, ORBIT, signer } =
+        await loadFixture(fixtureDeployed);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+      await WETH.transfer(module.address, parseEther("0.1"));
+      await module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        WETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await ORBIT.balanceOf(USER_ADDRESS),
+        parseEther("0.000001995097039355"),
+      );
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
+    });
+
+    it("Partial withdrawal WETH in fixedRate", async function () {
+      const { module, ODETH, WETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        WETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+      // ===== Do leverage burn
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.499963025996614092"),
+      );
+
+      await module.moduleD_partialWithdrawTo(USER_ADDRESS, parseEther("0.05"));
+
+      almostEqual(await WETH.balanceOf(USER_ADDRESS), parseEther("0.05"));
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("624.749981334661137337"),
+      );
+    });
 
     it("Looped depositing WETH in fixedRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =
@@ -1090,23 +1312,76 @@ describe("LoopoorModuleD", function () {
 
       await expect(mintTx).to.emit(WRAPMINT_ETH, "MintFixedRate");
 
+      almostEqual(await module.leverage(), parseEther("2.499"));
       expect(await module.underlying()).to.equal(WETH_ADDRESS);
       expect(await module.mode()).to.equal(1);
       expect(
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000);
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("0.099999857741142425"),
+      );
+
       // ===== Do leverage burn
-      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         await WETH.balanceOf(USER_ADDRESS),
-        parseEther("0.100000001012337307"),
+        parseEther("0.099999857741142425"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
     });
 
+    it("Can handle double depositing DETH directly", async function () {
+      const { module, ODETH, DETH, WRAPMINT_ETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Mint DETH
+      await WRAPMINT_ETH.connect(signer).mintFixedRateEth(
+        SWAP_ROUTER_ADDRESS,
+        parseEther("0.2"),
+        0,
+        0,
+        toBytes32(0),
+        {
+          value: parseEther("0.2"),
+        },
+      );
+
+      // ===== Do First deposit
+      await DETH.transfer(module.address, parseEther("0.1"));
+      await module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("1249.999958011201242472"),
+      );
+      //
+      // ===== Do Second deposit
+      await DETH.transfer(module.address, parseEther("0.1"));
+      await module.moduleD_depositBalance(
+        ethers.constants.AddressZero,
+        ODETH_ADDRESS,
+        DETH_ADDRESS,
+        MODE.DIRECT,
+        parseEther("2.499"), // 2.5 is max based on 60% LTV
+      );
+
+      almostEqual(
+        await ODETH.balanceOf(module.address),
+        parseEther("2498.999926049650415822"),
+      );
+    });
     it("Looped depositing DETH directly", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WRAPMINT_ETH, signer } =
         await loadFixture(fixtureDeployed);
@@ -1153,7 +1428,7 @@ describe("LoopoorModuleD", function () {
       ).to.equal(true);
 
       // ===== Do leverage burn
-      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         await DETH.balanceOf(USER_ADDRESS),
@@ -1208,12 +1483,19 @@ describe("LoopoorModuleD", function () {
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
       ).to.equal(true);
 
+      await mine(10_000); // Mine some blocks to get yield
+
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("0.100003275766995141"),
+      );
+
       // ===== Do leverage burn
-      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
 
       almostEqual(
         await WETH.balanceOf(USER_ADDRESS),
-        parseEther("0.100000001012337307"),
+        parseEther("0.100003275766995141"),
       );
 
       expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
