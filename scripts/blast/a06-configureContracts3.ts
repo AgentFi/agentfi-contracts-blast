@@ -24,6 +24,7 @@ import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAb
 import { moduleAFunctionParams } from "./../configuration/DexBalancerModuleA";
 import { moduleGFunctionParams } from "./../configuration/DexBalancerModuleG";
 import { moduleDFunctionParams } from "./../configuration/LoopooorModuleD";
+import { moduleFFunctionParams } from "./../configuration/LoopooorModuleF";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -72,6 +73,9 @@ const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1
 const LOOPOOOR_MODULE_D_ADDRESS                         = "0x8220512520db5D3295EA41308601FD0974405975"; // v1.0.3
 const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
 
+const LOOPOOOR_MODULE_F_ADDRESS                         = "0x4FD3e9e59F339145e157766d4d916b8C697b0A63"; // v1.0.5
+const PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS                = "0x423b7688Ef986835590612b6578293d2Ee895e1b"; // v1.0.5
+
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
 // tokens
@@ -118,6 +122,9 @@ let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
 let loopooorModuleD: LoopooorModuleD;
 let loopooorAgentFactory: LoopooorAgentFactory;
 
+let loopooorModuleF: LoopooorModuleF;
+let pacLoopooorAgentFactory: PacLoopooorAgentFactory;
+
 let usdb: MockERC20;
 
 async function main() {
@@ -154,6 +161,9 @@ async function main() {
 
   await expectDeployed(LOOPOOOR_MODULE_D_ADDRESS)
   await expectDeployed(LOOPOOOR_AGENT_FACTORY_ADDRESS)
+
+  await expectDeployed(LOOPOOOR_MODULE_F_ADDRESS)
+  await expectDeployed(PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS)
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -193,6 +203,9 @@ async function main() {
   loopooorModuleD = await ethers.getContractAt("LoopooorModuleD", LOOPOOOR_MODULE_D_ADDRESS, agentfideployer) as LoopooorModuleD;
   loopooorAgentFactory = await ethers.getContractAt("LoopooorAgentFactory", LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as LoopooorAgentFactory;
 
+  loopooorModuleF = await ethers.getContractAt("LoopooorModuleF", LOOPOOOR_MODULE_F_ADDRESS, agentfideployer) as LoopooorModuleF;
+  pacLoopooorAgentFactory = await ethers.getContractAt("PacLoopooorAgentFactory", PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as PacLoopooorAgentFactory;
+
   await whitelistStrategyFactories();
   await whitelistExplorerFactories();
 
@@ -201,6 +214,7 @@ async function main() {
   await postDexBalancerAccountCreationSettings();
   await postMultipliooorAccountCreationSettings();
   await postLoopooorAccountCreationSettings();
+  await postPacLoopooorAccountCreationSettings();
 }
 
 async function whitelistStrategyFactories() {
@@ -219,6 +233,10 @@ async function whitelistStrategyFactories() {
     },
     {
       factory: LOOPOOOR_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -252,6 +270,10 @@ async function whitelistExplorerFactories() {
     },
     {
       factory: LOOPOOOR_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -295,6 +317,10 @@ async function agentRegistrySetOperators() {
     },
     {
       account: loopooorAgentFactory.address,
+      isAuthorized: true,
+    },
+    {
+      account: pacLoopooorAgentFactory.address,
       isAuthorized: true,
     },
   ]
@@ -484,6 +510,58 @@ async function postLoopooorAccountCreationSettings() {
   }
 }
 
+// PacLoopooorAgentFactory
+
+async function postPacLoopooorAccountCreationSettings() {
+  // assemble expected settings
+  let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
+  let overrides = [
+    {
+      implementation: LOOPOOOR_MODULE_F_ADDRESS,
+      functionParams: moduleFFunctionParams
+    }
+  ]
+  let roles = [
+    {
+      role: toBytes32(9),
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    },
+  ]
+  let setOverridesCalldata = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides])
+  let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
+  let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
+  let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
+  let expectedSettings = {
+    strategyAccountImpl: strategyAccountImpl.address,
+    explorerAccountImpl: explorerAccountImpl.address,
+    strategyInitializationCall: multicallCalldata,
+    explorerInitializationCall: blastConfigureCalldata,
+    isActive: true,
+  }
+  // fetch current settings
+  let currentSettings = await pacLoopooorAgentFactory.getAgentCreationSettings()
+  // compare
+  let isDiff = (
+    expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
+    expectedSettings.explorerAccountImpl != currentSettings.explorerAccountImpl_ ||
+    expectedSettings.strategyInitializationCall != currentSettings.strategyInitializationCall_ ||
+    expectedSettings.explorerInitializationCall != currentSettings.explorerInitializationCall_ ||
+    expectedSettings.isActive != currentSettings.isActive_
+  )
+  // only post if necessary
+  if(isDiff) {
+    console.log(`Calling pacLoopooorAgentFactory.postAgentCreationSettings()`)
+
+    let tx = await pacLoopooorAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let receipt = await tx.wait(networkSettings.confirmations)
+
+    console.log(`Called pacLoopooorAgentFactory.postAgentCreationSettings()`)
+  }
+  else {
+    //console.log(`No diff detected, skip calling pacLoopooorAgentFactory.postAgentCreationSettings()`)
+  }
+}
 
 main()
     .then(() => process.exit(0))
