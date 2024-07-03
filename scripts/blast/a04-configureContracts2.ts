@@ -168,7 +168,7 @@ async function main() {
   explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
   concentratedLiquidityGatewayModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityGatewayModuleC;
   concentratedLiquidityAgentFactory = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS, agentfideployer) as ConcentratedLiquidityAgentFactory;
-  concentratedLiquidityHyperlockModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityHyperlockModuleC;
+  concentratedLiquidityHyperlockModuleC = await ethers.getContractAt("ConcentratedLiquidityHyperlockModuleC", CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityHyperlockModuleC;
   concentratedLiquidityAgentFactoryHyperlock = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK, agentfideployer) as ConcentratedLiquidityAgentFactory;
 
 
