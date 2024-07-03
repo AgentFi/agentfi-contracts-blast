@@ -59,8 +59,12 @@ const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4
 
 const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603e8Ee1e122547EC053Bf18"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
+
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x10C02a975a748Db5B749Dc420154dD945e2e8657"; // v1.0.2
 const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x96E50f33079F749cb20f32C05DBb62B09620a817"; // v1.0.2
+
+const CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS      = "0x23214B0B868F3Cb370b9aed7cbc7629804A63002";
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK = "0x7A1B8225bfE612efA47b2a1daa23622C2F972D1C";
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -94,8 +98,12 @@ let dispatcher: Dispatcher;
 
 let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
+
 let concentratedLiquidityGatewayModuleC: ConcentratedLiquidityGatewayModuleC;
 let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
+
+let concentratedLiquidityHyperlockModuleC: ConcentratedLiquidityHyperlockModuleC;
+let concentratedLiquidityAgentFactoryHyperlock: ConcentratedLiquidityAgentFactory;
 
 let usdb: MockERC20;
 
@@ -131,6 +139,8 @@ async function main() {
   await expectDeployed(EXPLORER_ACCOUNT_IMPL_ADDRESS)
   await expectDeployed(CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS)
   await expectDeployed(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS)
+  await expectDeployed(CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS)
+  await expectDeployed(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK)
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -158,6 +168,8 @@ async function main() {
   explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
   concentratedLiquidityGatewayModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityGatewayModuleC;
   concentratedLiquidityAgentFactory = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS, agentfideployer) as ConcentratedLiquidityAgentFactory;
+  concentratedLiquidityHyperlockModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityHyperlockModuleC;
+  concentratedLiquidityAgentFactoryHyperlock = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK, agentfideployer) as ConcentratedLiquidityAgentFactory;
 
 
   await whitelistStrategyFactories();
@@ -166,13 +178,18 @@ async function main() {
 
   await agentRegistrySetOperators();
 
-  await postConcentratedLiquidityAccountCreationSettings();
+  //await postConcentratedLiquidityAccountCreationSettings();
+  await postConcentratedLiquidityAccountCreationSettingsHyperlock();
 }
 
 async function whitelistStrategyFactories() {
   let expectedSettings = [
     {
       factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK,
       shouldWhitelist: true,
     },
   ]
@@ -194,6 +211,10 @@ async function whitelistExplorerFactories() {
   let expectedSettings = [
     {
       factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS_HYPERLOCK,
       shouldWhitelist: true,
     },
   ]
@@ -255,6 +276,10 @@ async function agentRegistrySetOperators() {
     },
     {
       account: concentratedLiquidityAgentFactory.address,
+      isAuthorized: true,
+    },
+    {
+      account: concentratedLiquidityAgentFactoryHyperlock.address,
       isAuthorized: true,
     },
   ]
@@ -319,6 +344,59 @@ async function postConcentratedLiquidityAccountCreationSettings() {
     let receipt = await tx.wait(networkSettings.confirmations)
 
     console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
+  else {
+    //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+  }
+}
+
+// concentratedLiquidityAgentFactoryHyperlock
+
+async function postConcentratedLiquidityAccountCreationSettingsHyperlock() {
+  // assemble expected settings
+  let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
+  let overrides = [
+    {
+      implementation: CONCENTRATED_LIQUIDITY_HYPERLOCK_MODULE_C_ADDRESS,
+      functionParams: functionParams
+    }
+  ]
+  let roles = [
+    {
+      role: toBytes32(9),
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    },
+  ]
+  let setOverridesCalldata = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides])
+  let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
+  let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
+  let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
+  let expectedSettings = {
+    strategyAccountImpl: strategyAccountImpl.address,
+    explorerAccountImpl: explorerAccountImpl.address,
+    strategyInitializationCall: multicallCalldata,
+    explorerInitializationCall: blastConfigureCalldata,
+    isActive: true,
+  }
+  // fetch current settings
+  let currentSettings = await concentratedLiquidityAgentFactoryHyperlock.getAgentCreationSettings()
+  // compare
+  let isDiff = (
+    expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
+    expectedSettings.explorerAccountImpl != currentSettings.explorerAccountImpl_ ||
+    expectedSettings.strategyInitializationCall != currentSettings.strategyInitializationCall_ ||
+    expectedSettings.explorerInitializationCall != currentSettings.explorerInitializationCall_ ||
+    expectedSettings.isActive != currentSettings.isActive_
+  )
+  // only post if necessary
+  if(isDiff) {
+    console.log(`Calling concentratedLiquidityAgentFactoryHyperlock.postAgentCreationSettings()`)
+
+    let tx = await concentratedLiquidityAgentFactoryHyperlock.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let receipt = await tx.wait(networkSettings.confirmations)
+
+    console.log(`Called concentratedLiquidityAgentFactoryHyperlock.postAgentCreationSettings()`)
   }
   else {
     //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
