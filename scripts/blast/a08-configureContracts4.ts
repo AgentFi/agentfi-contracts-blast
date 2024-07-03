@@ -21,7 +21,7 @@ import { getNetworkSettings } from "./../utils/getNetworkSettings";
 import { deployContractUsingContractFactory, verifyContract } from "./../utils/deployContract";
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
-import { moduleCFunctionParams as functionParams } from "./../configuration/ConcentratedLiquidityModuleC";
+import { moduleEFunctionParams } from "./../configuration/ConcentratedLiquidityModuleE";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -54,14 +54,25 @@ const STRATEGY_FACTORY_ADDRESS        = "0x09906C1eaC081AC4aF24D6F7e05f7566440b4
 const STRATEGY_ACCOUNT_IMPL_V1_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba213"; // v1.0.1
 const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x376Ba5cF93908D78a3d98c05C8e0B39C0207568d"; // v1.0.2
 
-const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
-const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167";
-
 const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603e8Ee1e122547EC053Bf18"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x7e8280f5Ee5137f89d09FA61B356fa322a93415a"; // v1.0.3
+const DEX_BALANCER_FACTORY_ADDRESS    = "0xB52274826621B6886787eC29E4C25cd3493B4930"; // v1.0.3
+
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
+const MULTIPLIOOOR_FACTORY_ADDRESS          = "0xE42ECCA759813Ceed368Ca08d8F0F6780D0c41E1"; // v1.0.3
+
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x36246FF90d44fA6f171e392796d0872E138c34a7"; // v1.0.4
 const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1eDCa309ECcd0A6e8Ab77F"; // v1.0.4
+
+const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
+const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
+
+const CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS           = "0x5dBC01F3F1310E36454C43cA1d2c84F44b8094F2"; // v1.0.4
+const ALGEBRA_CL_AGENT_FACTORY_ADDRESS                  = "0x6C7C6b72d410d7Ea6140e16B4af793fE9eC0eAA2"; // v1.0.4
+
+const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -69,6 +80,9 @@ const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
 const MAX_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000002";
 const WETH_ADDRESS               = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS               = "0x4300000000000000000000000000000000000003";
+
+const BLADESWAP_FARMING_CENTER_ADDRESS        = "0x8D2eB277a50c5aeEf2C04ef4819055639F9BC168";
+const BLADESWAP_ETERNAL_FARMING_ADDRESS       = "0xa0Cfb41a88f197d75FE2D07c7576679C1624a40E";
 
 let iblast: IBlast;
 let iblastpoints: IBlastPoints;
@@ -89,14 +103,25 @@ let strategyCollection: BlastooorStrategyAgents;
 let strategyFactory: BlastooorStrategyFactory;
 let strategyAccountImpl: BlastooorStrategyAgentAccount;
 
-let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
-
 let dispatcher: Dispatcher;
 
 let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
+
+let dexBalancerModuleA: DexBalancerModuleA;
+let dexBalancerAgentFactory: DexBalancerAgentFactory;
+
+let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
+let multipliooorAgentFactory: MultipliooorAgentFactory;
+
 let concentratedLiquidityGatewayModuleC: ConcentratedLiquidityGatewayModuleC;
 let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
+
+let loopooorModuleD: LoopooorModuleD;
+let loopooorAgentFactory: LoopooorAgentFactory;
+
+let concentratedLiquidityModuleE: ConcentratedLiquidityModuleE;
+let algebraCLAgentFactory: AlgebraCLAgentFactory;
 
 let usdb: MockERC20;
 
@@ -110,7 +135,7 @@ async function main() {
     return ((chainID === chainid) || ((chainID === 31337) && (process.env.FORK_NETWORK === chainName)));
   }
   if(!isChain(81457, "blast")) throw("Only run this on Blast Mainnet or a local fork of Blast Mainnet");
-
+  /*
   await expectDeployed(ERC6551_REGISTRY_ADDRESS)
   await expectDeployed(ENTRY_POINT_ADDRESS)
   await expectDeployed(MULTICALL_FORWARDER_ADDRESS)
@@ -127,11 +152,16 @@ async function main() {
   await expectDeployed(STRATEGY_ACCOUNT_IMPL_V1_ADDRESS)
   await expectDeployed(STRATEGY_ACCOUNT_IMPL_V2_ADDRESS)
   await expectDeployed(DISPATCHER_ADDRESS)
-
   await expectDeployed(EXPLORER_COLLECTION_ADDRESS)
   await expectDeployed(EXPLORER_ACCOUNT_IMPL_ADDRESS)
   await expectDeployed(CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS)
   await expectDeployed(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS)
+
+  await expectDeployed(LOOPOOOR_MODULE_D_ADDRESS)
+  await expectDeployed(LOOPOOOR_AGENT_FACTORY_ADDRESS)
+  */
+  await expectDeployed(CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS)
+  await expectDeployed(ALGEBRA_CL_AGENT_FACTORY_ADDRESS)
 
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
@@ -157,13 +187,24 @@ async function main() {
 
   explorerCollection = await ethers.getContractAt("ExplorerAgents", EXPLORER_COLLECTION_ADDRESS, agentfideployer) as ExplorerAgents;
   explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
+
+  dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  dexBalancerAgentFactory = await ethers.getContractAt("DexBalancerAgentFactory", DEX_BALANCER_FACTORY_ADDRESS, agentfideployer) as DexBalancerAgentFactory;
+
+  multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
+  multipliooorAgentFactory = await ethers.getContractAt("MultipliooorAgentFactory", MULTIPLIOOOR_FACTORY_ADDRESS, agentfideployer) as MultipliooorAgentFactory;
+
   concentratedLiquidityGatewayModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityGatewayModuleC;
   concentratedLiquidityAgentFactory = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS, agentfideployer) as ConcentratedLiquidityAgentFactory;
 
+  loopooorModuleD = await ethers.getContractAt("LoopooorModuleD", LOOPOOOR_MODULE_D_ADDRESS, agentfideployer) as LoopooorModuleD;
+  loopooorAgentFactory = await ethers.getContractAt("LoopooorAgentFactory", LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as LoopooorAgentFactory;
+
+  concentratedLiquidityModuleE = await ethers.getContractAt("ConcentratedLiquidityModuleE", CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS, agentfideployer) as ConcentratedLiquidityModuleE;
+  algebraCLAgentFactory = await ethers.getContractAt("AlgebraCLAgentFactory", ALGEBRA_CL_AGENT_FACTORY_ADDRESS, agentfideployer) as AlgebraCLAgentFactory;
 
   await whitelistStrategyFactories();
   await whitelistExplorerFactories();
-  await setExplorerNftMetadata();
 
   await agentRegistrySetOperators();
 
@@ -173,7 +214,7 @@ async function main() {
 async function whitelistStrategyFactories() {
   let expectedSettings = [
     {
-      factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS,
+      factory: ALGEBRA_CL_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -194,7 +235,7 @@ async function whitelistStrategyFactories() {
 async function whitelistExplorerFactories() {
   let expectedSettings = [
     {
-      factory: CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS,
+      factory: ALGEBRA_CL_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -212,50 +253,12 @@ async function whitelistExplorerFactories() {
   }
 }
 
-async function setExplorerNftMetadata() {
-  let txdatas = [] as any[]
-  let desiredContractURI = "https://stats-cdn.agentfi.io/contractURI-explorers.json"
-  let desiredBaseURI = "https://stats.agentfi.io/agents/metadata/?chainID=81457&collection=explorers&agentID="
-  let currentContractURI = await explorerCollection.contractURI()
-  let currentBaseURI = await explorerCollection.baseURI()
-  if(currentContractURI != desiredContractURI) {
-    txdatas.push(explorerCollection.interface.encodeFunctionData("setContractURI", [desiredContractURI]))
-  }
-  if(currentBaseURI != desiredBaseURI) {
-    txdatas.push(explorerCollection.interface.encodeFunctionData("setBaseURI", [desiredBaseURI]))
-  }
-  if(txdatas.length == 0) return
-  var tx
-  console.log("Setting Explorer NFT metadata");
-  if(txdatas.length == 1) {
-    tx = await agentfideployer.sendTransaction({
-      to: explorerCollection.address,
-      data: txdatas[0],
-      ...networkSettings.overrides,
-      gasLimit: 1_000_000
-    })
-  } else { // length > 1
-    tx = await explorerCollection.connect(agentfideployer).multicall(txdatas, {...networkSettings.overrides, gasLimit: 1_000_000});
-  }
-  //console.log("tx:", tx);
-  await tx.wait(networkSettings.confirmations);
-  console.log("Set Explorer NFT metadata");
-}
-
 // agent registry
 
 async function agentRegistrySetOperators() {
   let expectedSettings = [
     {
-      account: genesisAccountFactory.address,
-      isAuthorized: true,
-    },
-    {
-      account: strategyFactory.address,
-      isAuthorized: true,
-    },
-    {
-      account: concentratedLiquidityAgentFactory.address,
+      account: ALGEBRA_CL_AGENT_FACTORY_ADDRESS,
       isAuthorized: true,
     },
   ]
@@ -273,15 +276,15 @@ async function agentRegistrySetOperators() {
   }
 }
 
-// concentratedLiquidityAgentFactory
+// AlgebraCLAgentFactory
 
 async function postConcentratedLiquidityAccountCreationSettings() {
   // assemble expected settings
   let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
   let overrides = [
     {
-      implementation: CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS,
-      functionParams: functionParams
+      implementation: CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS,
+      functionParams: moduleEFunctionParams
     }
   ]
   let roles = [
@@ -303,7 +306,7 @@ async function postConcentratedLiquidityAccountCreationSettings() {
     isActive: true,
   }
   // fetch current settings
-  let currentSettings = await concentratedLiquidityAgentFactory.getAgentCreationSettings()
+  let currentSettings = await algebraCLAgentFactory.getAgentCreationSettings()
   // compare
   let isDiff = (
     expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
@@ -314,15 +317,15 @@ async function postConcentratedLiquidityAccountCreationSettings() {
   )
   // only post if necessary
   if(isDiff) {
-    console.log(`Calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    console.log(`Calling algebraCLAgentFactory.postAgentCreationSettings()`)
 
-    let tx = await concentratedLiquidityAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let tx = await algebraCLAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
     let receipt = await tx.wait(networkSettings.confirmations)
 
-    console.log(`Called concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    console.log(`Called algebraCLAgentFactory.postAgentCreationSettings()`)
   }
   else {
-    //console.log(`No diff detected, skip calling concentratedLiquidityAgentFactory.postAgentCreationSettings()`)
+    //console.log(`No diff detected, skip calling algebraCLAgentFactory.postAgentCreationSettings()`)
   }
 }
 

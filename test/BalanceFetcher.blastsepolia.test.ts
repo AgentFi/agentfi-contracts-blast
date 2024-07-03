@@ -8,7 +8,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import chai from "chai";
 const { expect } = chai;
 
-import { BalanceFetcher as AgentFetcher } from "../typechain-types";
+import { BalanceFetcher as BalanceFetcher } from "../typechain-types";
 
 import { expectDeployed } from "../scripts/utils/expectDeployed";
 import { getNetworkSettings } from "../scripts/utils/getNetworkSettings";
@@ -37,7 +37,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
   let networkSettings: any;
   let snapshot: BN;
 
-  let agentFetcher: AgentFetcher;
+  let balanceFetcher: BalanceFetcher;
 
   before(async function () {
     // use blast sepolia with set fork block
@@ -70,12 +70,12 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
       BLAST_POINTS_OPERATOR_ADDRESS,
       AGENT_REGISTRY_ADDRESS,
     ];
-    agentFetcher = (await deployContract(
+    balanceFetcher = (await deployContract(
       deployer,
       "BalanceFetcher",
       args
-    )) as AgentFetcher;
-    await expectDeployed(agentFetcher.address);
+    )) as BalanceFetcher;
+    await expectDeployed(balanceFetcher.address);
   });
 
   after(async function () {
@@ -104,7 +104,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
 
   describe("Fetch v2 pool info", function () {
     it("Can fetch pool info", async function () {
-      let res = await agentFetcher.fetchPoolInfoV2(
+      let res = await balanceFetcher.fetchPoolInfoV2(
         "0x024Dd95113137f04E715B2fC8F637FBe678e9512"
       );
       expect(convertToStruct(res)).deep.eq({
@@ -120,7 +120,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
   describe("Fetch agents", function () {
     it("Can handle empty nft collection array", async function () {
       let account = "0xE89c1F56B7d46EA0Dccb8512cDE03f6Be4E94986";
-      let res = await agentFetcher.callStatic
+      let res = await balanceFetcher.callStatic
         .fetchAgents(account, [], [])
         .then((r) => r.map(convertToStruct));
       expect(res).deep.eq([
@@ -137,7 +137,7 @@ describe("Balancer Fetch Forked Sepolia Test", function () {
 
     it("Can fetch agents for eoa on one nft collection", async function () {
       let account = "0x7da01a06A2582193C2867E22FE62f7f649F7B9e2";
-      let res = await agentFetcher.callStatic
+      let res = await balanceFetcher.callStatic
         .fetchAgents(
           account,
           ["0x5066A1975BE96B777ddDf57b496397efFdDcB4A9", "0xD6eC1A987A276c266D17eF8673BA4F05055991C7"],

@@ -49,14 +49,23 @@ const STRATEGY_FACTORY_ADDRESS        = "0x09906C1eaC081AC4aF24D6F7e05f7566440b4
 const STRATEGY_ACCOUNT_IMPL_V1_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba213"; // v1.0.1
 const STRATEGY_ACCOUNT_IMPL_V2_ADDRESS   = "0x376Ba5cF93908D78a3d98c05C8e0B39C0207568d"; // v1.0.2
 
-const DEX_BALANCER_MODULE_A_ADDRESS   = "0x35a4B9B95bc1D93Bf8e3CA9c030fc15726b83E6F"; // v1.0.1
-const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
-
 const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603e8Ee1e122547EC053Bf18"; // v1.0.2
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 
+const DEX_BALANCER_MODULE_A_ADDRESS   = "0x7e8280f5Ee5137f89d09FA61B356fa322a93415a"; // v1.0.3
+const DEX_BALANCER_FACTORY_ADDRESS    = "0xB52274826621B6886787eC29E4C25cd3493B4930"; // v1.0.3
+
+const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
+const MULTIPLIOOOR_FACTORY_ADDRESS          = "0xE42ECCA759813Ceed368Ca08d8F0F6780D0c41E1"; // v1.0.3
+
 const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x36246FF90d44fA6f171e392796d0872E138c34a7"; // v1.0.4
 const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1eDCa309ECcd0A6e8Ab77F"; // v1.0.4
+
+const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
+const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
+
+const CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS           = "0x5dBC01F3F1310E36454C43cA1d2c84F44b8094F2"; // v1.0.4
+const ALGEBRA_CL_AGENT_FACTORY_ADDRESS                  = "0x6C7C6b72d410d7Ea6140e16B4af793fE9eC0eAA2"; // v1.0.4
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -64,6 +73,9 @@ const ALL_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000001";
 const MAX_CLAIMABLE_GAS_ADDRESS  = "0x0000000000000000000000000000000000000002";
 const WETH_ADDRESS               = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS               = "0x4300000000000000000000000000000000000003";
+
+const BLADESWAP_FARMING_CENTER_ADDRESS        = "0x8D2eB277a50c5aeEf2C04ef4819055639F9BC168";
+const BLADESWAP_ETERNAL_FARMING_ADDRESS       = "0xa0Cfb41a88f197d75FE2D07c7576679C1624a40E";
 
 let iblast: IBlast;
 
@@ -86,13 +98,23 @@ let strategyAccountImplV2: BlastooorStrategyAgentAccountV2;
 
 let dispatcher: Dispatcher;
 
-let dexBalancerModuleA: DexBalancerModuleA;
-let multiplierMaxxooorModuleB: MultiplierMaxooorModuleB;
-
 let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
+
+let dexBalancerModuleA: DexBalancerModuleA;
+let dexBalancerAgentFactory: DexBalancerAgentFactory;
+
+let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
+let multipliooorAgentFactory: MultipliooorAgentFactory;
+
 let concentratedLiquidityGatewayModuleC: ConcentratedLiquidityGatewayModuleC;
 let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
+
+let loopooorModuleD: LoopooorModuleD;
+let loopooorAgentFactory: LoopooorAgentFactory;
+
+let concentratedLiquidityModuleE: ConcentratedLiquidityModuleE;
+let algebraCLAgentFactory: AlgebraCLAgentFactory;
 
 let contractsToVerify = []
 
@@ -125,65 +147,39 @@ async function main() {
   //dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
   //multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
   //usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
+  //explorerCollection = await ethers.getContractAt("ExplorerAgents", EXPLORER_COLLECTION_ADDRESS, agentfideployer) as ExplorerAgents;
+  //explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
 
-  await deployExplorerCollection();
-  await deployExplorerAgentAccount();
-  await deployConcentratedLiquidityGatewayModuleC();
-  await deployConcentratedLiquidityAgentFactory();
+  await deployConcentratedLiquidityModuleE();
+  await deployAlgebraCLAgentFactory();
 
   await verifyContracts();
   logAddresses()
 }
 
-async function deployExplorerCollection() {
-  if(await isDeployed(EXPLORER_COLLECTION_ADDRESS)) {
-    explorerCollection = await ethers.getContractAt("ExplorerAgents", EXPLORER_COLLECTION_ADDRESS, agentfideployer) as ExplorerAgents;
+async function deployConcentratedLiquidityModuleE() {
+  if(await isDeployed(CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS)) {
+    concentratedLiquidityModuleE = await ethers.getContractAt("ConcentratedLiquidityModuleE", CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS, agentfideployer) as ConcentratedLiquidityModuleE;
   } else {
-    console.log("Deploying ExplorerAgents");
-    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
-    explorerCollection = await deployContractUsingContractFactory(agentfideployer, "ExplorerAgents", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ExplorerAgents;
-    console.log(`Deployed ExplorerAgents to ${explorerCollection.address}`);
-    contractsToVerify.push({ address: explorerCollection.address, args, contractName: "contracts/tokens/ExplorerAgents.sol:ExplorerAgents" })
-    if(!!EXPLORER_COLLECTION_ADDRESS && EXPLORER_COLLECTION_ADDRESS != EXPLORER_COLLECTION_ADDRESS) throw new Error(`Deployed ExplorerAgents to ${EXPLORER_COLLECTION_ADDRESS}, expected ${EXPLORER_COLLECTION_ADDRESS}`)
+    console.log("Deploying ConcentratedLiquidityModuleE");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, WETH_ADDRESS, BLADESWAP_FARMING_CENTER_ADDRESS, BLADESWAP_ETERNAL_FARMING_ADDRESS];
+    concentratedLiquidityModuleE = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityModuleE", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityModuleE;
+    console.log(`Deployed ConcentratedLiquidityModuleE to ${concentratedLiquidityModuleE.address}`);
+    contractsToVerify.push({ address: concentratedLiquidityModuleE.address, args, contractName: "contracts/modules/ConcentratedLiquidityModuleE.sol:ConcentratedLiquidityModuleE" })
+    if(!!CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS && concentratedLiquidityModuleE.address != CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityModuleE to ${concentratedLiquidityModuleE.address}, expected ${CONCENTRATED_LIQUIDITY_MODULE_E_ADDRESS}`)
   }
 }
 
-async function deployExplorerAgentAccount() {
-  if(await isDeployed(EXPLORER_ACCOUNT_IMPL_ADDRESS)) {
-    explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
+async function deployAlgebraCLAgentFactory() {
+  if(await isDeployed(ALGEBRA_CL_AGENT_FACTORY_ADDRESS)) {
+    algebraCLAgentFactory = await ethers.getContractAt("AlgebraCLAgentFactory", ALGEBRA_CL_AGENT_FACTORY_ADDRESS, agentfideployer) as AlgebraCLAgentFactory;
   } else {
-    console.log("Deploying ExplorerAgentAccount");
-    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, MULTICALL_FORWARDER_ADDRESS, ERC6551_REGISTRY_ADDRESS, AddressZero];
-    explorerAccountImpl = await deployContractUsingContractFactory(agentfideployer, "ExplorerAgentAccount", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ExplorerAgentAccount;
-    console.log(`Deployed ExplorerAgentAccount to ${explorerAccountImpl.address}`);
-    contractsToVerify.push({ address: explorerAccountImpl.address, args, contractName: "contracts/accounts/ExplorerAgentAccount.sol:ExplorerAgentAccount" })
-    if(!!EXPLORER_ACCOUNT_IMPL_ADDRESS && explorerAccountImpl.address != EXPLORER_ACCOUNT_IMPL_ADDRESS) throw new Error(`Deployed ExplorerAgentAccount to ${explorerAccountImpl.address}, expected ${EXPLORER_ACCOUNT_IMPL_ADDRESS}`)
-  }
-}
-
-async function deployConcentratedLiquidityGatewayModuleC() {
-  if(await isDeployed(CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS)) {
-    concentratedLiquidityGatewayModuleC = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS, agentfideployer) as ConcentratedLiquidityGatewayModuleC;
-  } else {
-    console.log("Deploying ConcentratedLiquidityGatewayModuleC");
-    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
-    concentratedLiquidityGatewayModuleC = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityGatewayModuleC", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityGatewayModuleC;
-    console.log(`Deployed ConcentratedLiquidityGatewayModuleC to ${concentratedLiquidityGatewayModuleC.address}`);
-    contractsToVerify.push({ address: concentratedLiquidityGatewayModuleC.address, args, contractName: "contracts/modules/ConcentratedLiquidityGatewayModuleC.sol:ConcentratedLiquidityGatewayModuleC" })
-    if(!!CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS && concentratedLiquidityGatewayModuleC.address != CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityGatewayModuleC to ${concentratedLiquidityGatewayModuleC.address}, expected ${CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS}`)
-  }
-}
-
-async function deployConcentratedLiquidityAgentFactory() {
-  if(await isDeployed(CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS)) {
-    concentratedLiquidityAgentFactory = await ethers.getContractAt("ConcentratedLiquidityAgentFactory", CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS, agentfideployer) as ConcentratedLiquidityAgentFactory;
-  } else {
-    console.log("Deploying ConcentratedLiquidityAgentFactory");
-    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, explorerCollection.address, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
-    concentratedLiquidityAgentFactory = await deployContractUsingContractFactory(agentfideployer, "ConcentratedLiquidityAgentFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as ConcentratedLiquidityAgentFactory;
-    console.log(`Deployed ConcentratedLiquidityAgentFactory to ${concentratedLiquidityAgentFactory.address}`);
-    contractsToVerify.push({ address: concentratedLiquidityAgentFactory.address, args, contractName: "contracts/factory/ConcentratedLiquidityAgentFactory.sol:ConcentratedLiquidityAgentFactory" })
-    if(!!CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS && concentratedLiquidityAgentFactory.address != CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed ConcentratedLiquidityAgentFactory to ${concentratedLiquidityAgentFactory.address}, expected ${CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS}`)
+    console.log("Deploying AlgebraCLAgentFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, EXPLORER_COLLECTION_ADDRESS, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
+    algebraCLAgentFactory = await deployContractUsingContractFactory(agentfideployer, "AlgebraCLAgentFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as AlgebraCLAgentFactory;
+    console.log(`Deployed AlgebraCLAgentFactory to ${algebraCLAgentFactory.address}`);
+    contractsToVerify.push({ address: algebraCLAgentFactory.address, args, contractName: "contracts/factory/AlgebraCLAgentFactory.sol:AlgebraCLAgentFactory" })
+    if(!!ALGEBRA_CL_AGENT_FACTORY_ADDRESS && algebraCLAgentFactory.address != ALGEBRA_CL_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed AlgebraCLAgentFactory to ${algebraCLAgentFactory.address}, expected ${ALGEBRA_CL_AGENT_FACTORY_ADDRESS}`)
   }
 }
 
@@ -202,10 +198,8 @@ function logAddresses() {
   console.log("");
   console.log("| Contract Name                        | Address                                      |");
   console.log("|--------------------------------------|----------------------------------------------|");
-  logContractAddress("ExplorerAgents", explorerCollection.address);
-  logContractAddress("ExplorerAgentAccount", explorerAccountImpl.address);
-  logContractAddress("ConcentratedLiquidityGatewayModuleC", concentratedLiquidityGatewayModuleC.address);
-  logContractAddress("ConcentratedLiquidityAgentFactory", concentratedLiquidityAgentFactory.address);
+  logContractAddress("ConcentratedLiquidityModuleE", concentratedLiquidityModuleE.address);
+  logContractAddress("AlgebraCLAgentFactory", algebraCLAgentFactory.address);
 }
 
 main()

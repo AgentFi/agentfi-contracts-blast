@@ -11,7 +11,7 @@ const { expect, assert } = chai;
 import { IERC6551Registry, BlastooorGenesisAgents, AgentFactory01, BlastooorGenesisFactory, MockERC20, MockERC721, RevertAccount, MockERC1271, GasCollector, BlastooorGenesisAgentAccount, AgentRegistry, BlastooorAccountFactory, BlastooorAccountFactoryV2, BalanceFetcher } from "./../typechain-types";
 
 import { isDeployed, expectDeployed } from "./../scripts/utils/expectDeployed";
-import { toBytes32 } from "./../scripts/utils/setStorage";
+import { toBytes32, manipulateERC20BalanceOf } from "./../scripts/utils/setStorage";
 import { getNetworkSettings } from "../scripts/utils/getNetworkSettings";
 import { decimalsToAmount } from "../scripts/utils/price";
 import { deployContract } from "../scripts/utils/deployContract";
@@ -20,8 +20,8 @@ import { MulticallProvider, MulticallContract } from "./../scripts/utils/multica
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../scripts/utils/diamond"
 import { sign, assembleSignature, getMintFromAllowlistDigest, getMintFromAllowlistSignature } from "./../scripts/utils/signature";
 import { getERC20PermitSignature } from "./../scripts/utils/getERC20PermitSignature";
-import { convertToStruct } from "../scripts/utils/test";
-import { moduleCFunctionParams as functionParams } from "../scripts/configuration/ConcentratedLiquidityModuleC";
+import { convertToStruct, almostEqual } from "../scripts/utils/test";
+import { moduleEFunctionParams as functionParams } from "../scripts/configuration/ConcentratedLiquidityModuleE";
 
 const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -51,34 +51,17 @@ const STRATEGY_ACCOUNT_IMPL_ADDRESS   = "0x4b1e8C60E4a45FD64f5fBf6c497d17Ab12fba
 
 const DISPATCHER_ADDRESS              = "0x59c0269f4120058bA195220ba02dd0330d92c36D"; // v1.0.1
 
-
 const WETH_ADDRESS                    = "0x4300000000000000000000000000000000000004";
 const USDB_ADDRESS                    = "0x4300000000000000000000000000000000000003";
 
-const THRUSTER_POSITION_MANAGER_ADDRESS = "0x434575EaEa081b735C985FA9bf63CD7b87e227F9";
-const THRUSTER_POOL_WETH_USDB_030_ADDRESS = "0xf00DA13d2960Cf113edCef6e3f30D92E52906537";
-
+const POOL_ADDRESS                  = "0xdA5AaEb22eD5b8aa76347eC57424CA0d109eFB2A";
+const POSITION_MANAGER_ADDRESS      = "0x7553b306773EFa59E6f9676aFE049D2D2AbdfDd6";
+const SWAP_ROUTER_ADDRESS           = "0x9b6D09975E29D1888b98B83e31e72c00bC4D93C5";
+const FARMING_CENTER_ADDRESS        = "0x8D2eB277a50c5aeEf2C04ef4819055639F9BC168";
+const ETERNAL_FARMING_ADDRESS       = "0xa0Cfb41a88f197d75FE2D07c7576679C1624a40E";
+const BLADE_ADDRESS                 = "0xD1FedD031b92f50a50c05E2C45aF1aDb4CEa82f4";
 
 const THRUSTER_ROUTER_ADDRESS_030     = "0x98994a9A7a2570367554589189dC9772241650f6"; // 0.3% fee
-const THRUSTER_ROUTER_ADDRESS_100     = "0x44889b52b71E60De6ed7dE82E2939fcc52fB2B4E"; // 1% fee
-const THRUSTER_LP_TOKEN_ADDRESS       = "0x12c69BFA3fb3CbA75a1DEFA6e976B87E233fc7df";
-
-const HYPERLOCK_STAKING_ADDRESS       = "0xC3EcaDB7a5faB07c72af6BcFbD588b7818c4a40e";
-
-//const UNIVERSAL_ROUTER_ADDRESS        = "";
-const RING_SWAP_V2_ROUTER_ADDRESS     = "0x7001F706ACB6440d17cBFaD63Fa50a22D51696fF";
-const RING_STAKING_REWARDS_ADDRESS    = "0xEff87A51f5Abd015F1AFCD5737BBab450eA15A24";
-const RING_FWWETH_ADDRESS             = "0x66714DB8F3397c767d0A602458B5b4E3C0FE7dd1";
-const RING_FWUSDB_ADDRESS             = "0x866f2C06B83Df2ed7Ca9C2D044940E7CD55a06d6";
-const RING_LP_TOKEN_ADDRESS           = "0x9BE8a40C9cf00fe33fd84EAeDaA5C4fe3f04CbC3";
-const RING_FWLP_TOKEN_ADDRESS         = "0xA3F8128166E54d49A65ec2ba12b45965E4FA87C9";
-//const RING_ADDRESS                    = "";
-const RING_ADDRESS                    = "0x4300000000000000000000000000000000000003";
-const RING_STAKING_REWARDS_INDEX      = 3;
-
-const BLASTERSWAP_ROUTER_ADDRESS      = "0xc972FaE6b524E8A6e0af21875675bF58a3133e60";
-const BLASTERSWAP_LP_TOKEN_ADDRESS    = "0x3b5d3f610Cc3505f4701E9FB7D0F0C93b7713adD";
-
 
 const MAGIC_VALUE_0 = "0x00000000";
 const MAGIC_VALUE_IS_VALID_SIGNER = "0x523e3260";
@@ -86,7 +69,7 @@ const MAGIC_VALUE_IS_VALID_SIGNATURE = "0x1626ba7e";
 
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
-describe("ConcentratedLiquidityAgentFactory", function () {
+describe("AlgebraCLAgentFactory Blast Mainnet", function () {
   let deployer: SignerWithAddress;
   let owner: SignerWithAddress;
   let strategyManager: SignerWithAddress;
@@ -116,7 +99,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   let genesisAccountFactory: BlastooorAccountFactory;
   let genesisAccountFactoryV2: BlastooorAccountFactoryV2;
   let balanceFetcher: BalanceFetcher;
-  let clAgentFactory: ConcentratedLiquidityAgentFactory;
+  let clAgentFactory: AlgebraCLAgentFactory;
 
   let tbaccountG1A: BlastooorGenesisAgentAccount; // an account bound to a token
   let tbaccountG1B: BlastooorGenesisAgentAccount; // an account bound to a token
@@ -134,8 +117,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   let agentInitializationCode2: any;
   let tbaccountE1: BlastooorStrategyAgentAccount; // an account bound to a token
 
-  let moduleC: ConcentratedLiquidityModuleC;
-  let gatewayModuleC: ConcentratedLiquidityGatewayModuleC;
+  let moduleE: ConcentratedLiquidityModuleE;
 
   let erc20a: MockERC20;
   let erc20b: MockERC20;
@@ -145,19 +127,20 @@ describe("ConcentratedLiquidityAgentFactory", function () {
 
   let mockERC1271: MockERC1271;
 
+  let algebraPositionManager: INonfungiblePositionManager;
+  let farmingCenter: IFarmingCenter;
+  let eternalFarming: IAlgebraEternalFarming;
+  let blade: MockERC20;
+  let bladeswapPool: IAlgebraPool;
+
+  // start with no farm params, set later
+  let farmParams = {
+    rewardToken: AddressZero,
+    bonusRewardToken: AddressZero,
+    nonce: 0,
+  }
+
   let thrusterRouter_030: IThrusterRouter;
-  let thrusterRouter_100: IThrusterRouter;
-  let thrusterLpToken: MockERC20;
-  let thrusterPositionManager: INonfungiblePositionManager;
-
-  let hyperlockStaking: IHyperlockStaking;
-
-  let ring: MockERC20;
-  let ringLpToken: MockERC20;
-  let ringStakingRewards: IFixedStakingRewards;
-
-  let blasterRouter: IBlasterswapV2Router02;
-  let blasterLpToken: MockERC20;
 
   let collectionListGenesis = []
   let collectionListStrategy = []
@@ -171,6 +154,20 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   let l1DataFeeAnalyzer = new L1DataFeeAnalyzer();
 
   before(async function () {
+    // use blast mainnet with set fork block
+    const blockNumber = 4637000;
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.BLAST_URL,
+            blockNumber,
+          },
+        },
+      ],
+    });
+
     [deployer, owner, strategyManager, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
     chainID = (await provider.getNetwork()).chainId;
     networkSettings = getNetworkSettings(chainID);
@@ -183,37 +180,48 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     erc20c = await deployContract(deployer, "MockERC20", [`Token C`, `TKNC`, 18]) as MockERC20;
 
     await expectDeployed(ERC6551_REGISTRY_ADDRESS); // expect to be run on a fork of a testnet with registry deployed
-    //await expectDeployed(THRUSTER_ROUTER_ADDRESS_030);
-    //await expectDeployed(THRUSTER_ROUTER_ADDRESS_100);
-    await expectDeployed(THRUSTER_POSITION_MANAGER_ADDRESS);
-    await expectDeployed(THRUSTER_POOL_WETH_USDB_030_ADDRESS);
+    await expectDeployed(SWAP_ROUTER_ADDRESS);
+    await expectDeployed(POSITION_MANAGER_ADDRESS);
+    await expectDeployed(POOL_ADDRESS);
     await expectDeployed(WETH_ADDRESS);
     await expectDeployed(USDB_ADDRESS);
+    await expectDeployed(FARMING_CENTER_ADDRESS);
+    await expectDeployed(ETERNAL_FARMING_ADDRESS);
+    await expectDeployed(BLADE_ADDRESS);
+    await expectDeployed(THRUSTER_ROUTER_ADDRESS_030);
 
     erc6551Registry = await ethers.getContractAt("IERC6551Registry", ERC6551_REGISTRY_ADDRESS) as IERC6551Registry;
 
     weth = await ethers.getContractAt("MockERC20", WETH_ADDRESS) as MockERC20;
     usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS) as MockERC20;
 
+    algebraPositionManager = await ethers.getContractAt("contracts/interfaces/external/Algebra/INonfungiblePositionManager.sol:INonfungiblePositionManager", POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
+    farmingCenter = await ethers.getContractAt("IFarmingCenter", FARMING_CENTER_ADDRESS) as IFarmingCenter;
+    eternalFarming = await ethers.getContractAt("IAlgebraEternalFarming", ETERNAL_FARMING_ADDRESS) as IThrusterRIAlgebraEternalFarmingouter;
+    blade = await ethers.getContractAt("MockERC20", BLADE_ADDRESS) as MockERC20;
+    bladeswapPool = await ethers.getContractAt("IAlgebraPool", POOL_ADDRESS) as IAlgebraPool;
+
+
     thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
-    thrusterRouter_100 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_100) as IThrusterRouter;
-    thrusterLpToken = await ethers.getContractAt("MockERC20Permit", THRUSTER_LP_TOKEN_ADDRESS) as MockERC20;
-    thrusterPositionManager = await ethers.getContractAt("contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager", THRUSTER_POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
-
-    hyperlockStaking = await ethers.getContractAt("IHyperlockStaking", HYPERLOCK_STAKING_ADDRESS) as IHyperlockStaking;
-
-    //ring = await ethers.getContractAt("MockERC20", RING_ADDRESS) as MockERC20;
-    ringLpToken = await ethers.getContractAt("MockERC20Permit", RING_LP_TOKEN_ADDRESS) as MockERC20;
-    ringStakingRewards = await ethers.getContractAt("IFixedStakingRewards", RING_STAKING_REWARDS_ADDRESS) as IFixedStakingRewards;
-
-    blasterRouter = await ethers.getContractAt("IBlasterswapV2Router02", BLASTERSWAP_ROUTER_ADDRESS) as IBlasterswapV2Router02;
-    blasterLpToken = await ethers.getContractAt("MockERC20Permit", BLASTERSWAP_LP_TOKEN_ADDRESS) as MockERC20;
 
     tokenList = [AddressZero, WETH_ADDRESS, USDB_ADDRESS, erc20a.address]
   });
 
   after(async function () {
-    await provider.send("evm_revert", [snapshot]);
+    //await provider.send("evm_revert", [snapshot]);
+    // reset back to blast
+    const blockNumber = parseInt(process.env.BLAST_FORK_BLOCK);
+    await hre.network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: process.env.BLAST_URL,
+            blockNumber,
+          },
+        },
+      ],
+    });
   });
 
   describe("setup", function () {
@@ -308,24 +316,17 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       explorerAccountImplementation = await deployContract(deployer, "ExplorerAgentAccount", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, ENTRY_POINT_ADDRESS, multicallForwarder.address, ERC6551_REGISTRY_ADDRESS, AddressZero]) as ExplorerAgentAccount;
       await expectDeployed(explorerAccountImplementation.address);
       l1DataFeeAnalyzer.register("deploy ExplorerAgentAccount impl", explorerAccountImplementation.deployTransaction);
-
-      //explorerAccountImplementation = genesisAccountImplementation
     });
-    it("can deploy ConcentratedLiquidityAgentFactory", async function () {
-      clAgentFactory = await deployContract(deployer, "ConcentratedLiquidityAgentFactory", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, multicallForwarder.address, genesisAgentNft.address, strategyAgentNft.address, explorerAgentNft.address, ERC6551_REGISTRY_ADDRESS, agentRegistry.address, WETH_ADDRESS]) as ConcentratedLiquidityAgentFactory;
+    it("can deploy AlgebraCLAgentFactory", async function () {
+      clAgentFactory = await deployContract(deployer, "AlgebraCLAgentFactory", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, multicallForwarder.address, genesisAgentNft.address, strategyAgentNft.address, explorerAgentNft.address, ERC6551_REGISTRY_ADDRESS, agentRegistry.address, WETH_ADDRESS]) as AlgebraCLAgentFactory;
       await expectDeployed(clAgentFactory.address);
       expect(await clAgentFactory.owner()).eq(owner.address);
-      l1DataFeeAnalyzer.register("deploy ConcentratedLiquidityAgentFactory", clAgentFactory.deployTransaction);
+      l1DataFeeAnalyzer.register("deploy AlgebraCLAgentFactory", clAgentFactory.deployTransaction);
     });
-    it("can deploy ConcentratedLiquidityModuleC", async function () {
-      moduleC = await deployContract(deployer, "ConcentratedLiquidityModuleC", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as ConcentratedLiquidityModuleC;
-      await expectDeployed(moduleC.address);
-      l1DataFeeAnalyzer.register("deploy ConcentratedLiquidityModuleC", moduleC.deployTransaction);
-    });
-    it("can deploy ConcentratedLiquidityGatewayModuleC", async function () {
-      gatewayModuleC = await deployContract(deployer, "ConcentratedLiquidityGatewayModuleC", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]) as ConcentratedLiquidityGatewayModuleC;
-      await expectDeployed(gatewayModuleC.address);
-      l1DataFeeAnalyzer.register("deploy ConcentratedLiquidityGatewayModuleC", gatewayModuleC.deployTransaction);
+    it("can deploy ConcentratedLiquidityModuleE", async function () {
+      moduleE = await deployContract(deployer, "ConcentratedLiquidityModuleE", [BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, WETH_ADDRESS, FARMING_CENTER_ADDRESS, ETERNAL_FARMING_ADDRESS]) as ConcentratedLiquidityModuleE;
+      await expectDeployed(moduleE.address);
+      l1DataFeeAnalyzer.register("deploy ConcentratedLiquidityModuleE", moduleE.deployTransaction);
     });
   });
 
@@ -437,8 +438,8 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   describe("ways to not create agents pt 1", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -452,41 +453,26 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       token: USDB_ADDRESS,
       amount: WeiPerEther.mul(300)
     }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
     it("cannot create agents if inactive pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
     })
     it("cannot create agents if inactive pt 2", async function () {
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
     })
     it("cannot create agents if inactive pt 3", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
     })
     it("cannot create agents if inactive pt 4", async function () {
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
-      )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
-    })
-    it("cannot create agents if inactive pt 5", async function () {
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
-      await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
-    })
-    it("cannot create agents if inactive pt 6", async function () {
-      await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(clAgentFactory, "CreationSettingsPaused")
     })
   });
@@ -505,7 +491,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let blastConfigureCalldata = strategyAccountImplementation.interface.encodeFunctionData("blastConfigure()")
       let overrides = [
         {
-          implementation: gatewayModuleC.address,
+          implementation: moduleE.address,
           functionParams: functionParams
         }
       ]
@@ -527,15 +513,15 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(res.strategyInitializationCall_).eq(settings1.strategyInitializationCall)
       expect(res.explorerInitializationCall_).eq(settings1.explorerInitializationCall)
       expect(res.isActive_).eq(settings1.isActive)
-      l1DataFeeAnalyzer.register("ConcentratedLiquidityAgentFactory.postAgentCreationSettings", tx);
+      l1DataFeeAnalyzer.register("AlgebraCLAgentFactory.postAgentCreationSettings", tx);
     })
   });
 
   describe("ways to not create agents pt 2", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -553,37 +539,37 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     it("cannot create a v3 agent for not an agent pt 1", async function () {
       let rootAgentAddress = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 2", async function () {
       let rootAgentAddress = user1.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 3", async function () {
       let rootAgentAddress = strategyAccountImplementation.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 4", async function () {
       let rootAgentAddress = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 5", async function () {
       let rootAgentAddress = user1.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 6", async function () {
       let rootAgentAddress = strategyAccountImplementation.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("register more agents", async function () {
@@ -618,37 +604,37 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     it("cannot create a v3 agent for not an agent pt 7", async function () {
       let rootAgentAddress = user1.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for not an agent pt 8", async function () {
       let rootAgentAddress = user1.address
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotAnAgent")
     })
     it("cannot create a v3 agent for a root agent you dont own pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user2).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotOwnerOfAgent")
     })
     it("cannot create a v3 agent for a root agent you dont own pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user2).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(clAgentFactory, "NotOwnerOfAgent")
     })
     it("cannot create a v3 agent with insufficient balance pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.reverted
     })
     it("cannot create a v3 agent with insufficient balance pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.reverted
     })
     it("get tokens", async function () {
@@ -661,6 +647,13 @@ describe("ConcentratedLiquidityAgentFactory", function () {
         value: WeiPerEther.mul(10),
         gasLimit: 100_000
       })
+      /*
+      // mint some usdb
+      let slot = 0; //await findERC20BalanceOfSlot(USDB_ADDRESS)
+      let desiredBalance = WeiPerEther.mul(1_000_000)
+      await manipulateERC20BalanceOf(USDB_ADDRESS, slot, user1.address, desiredBalance)
+      await manipulateERC20BalanceOf(USDB_ADDRESS, slot, user3.address, desiredBalance)
+      */
 
       let amountIn = WeiPerEther.mul(10)
       let amountOutMin = WeiPerEther.mul(10_000)
@@ -673,13 +666,13 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     it("cannot create a v3 agent with insufficient allowance pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.reverted
     })
     it("cannot create a v3 agent with insufficient allowance pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.reverted
     })
     it("approve", async function () {
@@ -689,25 +682,25 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     it("cannot create a v3 agent if factory is not whitelisted for strategy agents pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
     })
     it("cannot create a v3 agent if factory is not whitelisted for strategy agents pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
     })
     it("cannot create a v3 agent if factory is not whitelisted for strategy agents pt 3", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
     })
     it("cannot create a v3 agent if factory is not whitelisted for strategy agents pt 4", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(strategyAgentNft, "FactoryNotWhitelisted")
     })
     it("whitelist factory for strategy agents", async function () {
@@ -727,12 +720,12 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     });
     it("cannot create a explorer agent if factory is not whitelisted for explorer agents pt 1", async function () {
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(explorerAgentNft, "FactoryNotWhitelisted")
     })
     it("cannot create a explorer agent if factory is not whitelisted for explorer agents pt 2", async function () {
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(explorerAgentNft, "FactoryNotWhitelisted")
     })
     it("whitelist factory for explorer agents", async function () {
@@ -753,25 +746,25 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     it("cannot create agent if factory is not registry operator pt 1", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
     it("cannot create agent if factory is not registry operator pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
     it("cannot create agent if factory is not registry operator pt 3", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
     it("cannot create agent if factory is not registry operator pt 4", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )).to.be.revertedWithCustomError(agentRegistry, "NotOperator");
     });
     it("registry setup", async function () {
@@ -792,28 +785,28 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       deposit0.token = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount.sub(1)}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount.sub(1)}
       )).to.be.revertedWithCustomError(clAgentFactory, "InsufficientBalance");
     })
     it("cannot create a v3 agent using eth with insufficient value pt 2", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       deposit0.token = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount.sub(1)}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount.sub(1)}
       )).to.be.revertedWithCustomError(clAgentFactory, "InsufficientBalance");
     })
     it("cannot create a v3 agent using eth with insufficient value pt 3", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       deposit0.token = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1, {value: deposit0.amount.sub(1)}
+        mintParams, farmParams, deposit0, deposit1, {value: deposit0.amount.sub(1)}
       )).to.be.revertedWithCustomError(clAgentFactory, "InsufficientBalance");
     })
     it("cannot create a v3 agent using eth with insufficient value pt 4", async function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       deposit0.token = AddressZero
       await expect(clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1, {value: deposit0.amount.sub(1)}
+        mintParams, farmParams, deposit0, deposit1, {value: deposit0.amount.sub(1)}
       )).to.be.revertedWithCustomError(clAgentFactory, "InsufficientBalance");
     })
   });
@@ -821,8 +814,8 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   describe("createConcentratedLiquidityAgentForRoot()", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -841,12 +834,12 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
       // create
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )
       let strategyAgentID = 1
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRoot", tx);
       await watchTxForEvents(tx)
@@ -864,33 +857,31 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
       expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
@@ -900,12 +891,12 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       // create
       deposit0.token = AddressZero
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
       )
       let strategyAgentID = 2
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRoot", tx);
       await watchTxForEvents(tx)
@@ -923,33 +914,31 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
       expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
@@ -968,11 +957,11 @@ describe("ConcentratedLiquidityAgentFactory", function () {
         amount: WeiPerEther.div(10)
       }
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRoot(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRoot", tx);
       await watchTxForEvents(tx)
@@ -990,33 +979,31 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
       expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
       expect(await explorerAgentNft.totalSupply()).eq(0)
@@ -1026,8 +1013,8 @@ describe("ConcentratedLiquidityAgentFactory", function () {
   describe("createConcentratedLiquidityAgentAndExplorer()", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -1047,12 +1034,12 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let strategyAgentID = 4
       let explorerAgentID = 1
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       expect(staticRes.explorerAgentID).eq(explorerAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorer(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorer", tx);
       await watchTxForEvents(tx)
@@ -1068,11 +1055,10 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
       expect(explorerBalances.genesisAgents).eq(0)
       expect(explorerBalances.strategyAgents).eq(1)
       expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
       // created a new agent
       expect(await strategyAgentNft.totalSupply()).eq(4)
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
@@ -1087,429 +1073,40 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(strategyBalances.weth).gte(0)
       expect(strategyBalances.usdb).gte(0)
       expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
       expect(strategyBalances.genesisAgents).eq(0)
       expect(strategyBalances.strategyAgents).eq(0)
       expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
+      expect(strategyBalances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", strategyAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
     })
   });
 
-  describe("ways to not create agents pt 3", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("cannot migrate zero balance pt 1", async function () {
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
-      await expect(clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("cannot migrate zero balance pt 2", async function () {
-      await expect(clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("can deposit liquidity", async function () {
-      await usdb.connect(user1).approve(THRUSTER_ROUTER_ADDRESS_030, MaxUint256)
-      await thrusterRouter_030.connect(user1).addLiquidityETH(USDB_ADDRESS, WeiPerEther.mul(100), 0, 0, user1.address, MaxUint256, {value: WeiPerEther.div(30)})
-      expect(await thrusterLpToken.balanceOf(user1.address)).gt(0)
-    })
-    it("cannot migrate with insufficient allowance pt 1", async function () {
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, 1))[0].agentAddress
-      await expect(clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("cannot migrate with insufficient allowance pt 2", async function () {
-      await expect(clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )).to.be.revertedWith("ds-math-sub-underflow")
-    })
-    it("can approve liquidity", async function () {
-      await thrusterLpToken.connect(user1).approve(clAgentFactory.address, MaxUint256)
-    })
-  })
-
-  describe("createConcentratedLiquidityAgentForRootAndMigrate()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a v3 agent for a root agent you do own", async function () {
-      let genesisAgentID = 3
-      let strategyAgentID = 5
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // create
-      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndMigrate(
-        mintParams, depositLpToken, rootAgentAddress
-      )
-      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRootAndMigrate", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(5)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, false, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Concentrated Liquidity")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(1)
-    })
-  })
-
-  describe("createConcentratedLiquidityAgentAndExplorerAndMigrate()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a v3 agent and new explorer agent", async function () {
-      // create
-      let strategyAgentID = 6
-      let explorerAgentID = 2
-      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
-      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndMigrate(
-        mintParams, depositLpToken
-      )
-      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndMigrate", tx);
-      await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(2)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(2)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(6)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).gte(0)
-      expect(strategyBalances.usdb).gte(0)
-      expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", strategyAddress) as ConcentratedLiquidityGatewayModuleC
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Concentrated Liquidity")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-    })
-  })
-
-  describe("createConcentratedLiquidityAgentForRootAndMigrateWithPermit()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a v3 agent for a root agent you do own", async function () {
-      let genesisAgentID = 4
-      let strategyAgentID = 7
-      let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
-      // sign
-      let { v, r, s } = await getERC20PermitSignature(user1, clAgentFactory.address, thrusterLpToken, depositLpToken.amount, MaxUint256, MaxUint256, 81457);
-      let deadline = MaxUint256
-      // create
-      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndMigrateWithPermit(
-        mintParams, depositLpToken, rootAgentAddress, deadline, v, r, s
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndMigrateWithPermit(
-        mintParams, depositLpToken, rootAgentAddress, deadline, v, r, s
-      )
-      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRootAndMigrateWithPermit", tx);
-      await watchTxForEvents(tx)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(7)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(rootAgentAddress)).eq(1)
-      let tbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(tbas.length).eq(1)
-      let agentAddress = tbas[0].agentAddress
-      await expectDeployed(agentAddress)
-      expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, false, "strategy agent")
-      expect(balances.eth).eq(0)
-      expect(balances.weth).gte(0)
-      expect(balances.usdb).gte(0)
-      expect(balances.weth.add(balances.usdb)).gt(0) // should keep dust amounts
-      expect(balances.blasterLpToken).eq(0)
-      expect(balances.genesisAgents).eq(0)
-      expect(balances.strategyAgents).eq(0)
-      expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Concentrated Liquidity")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-      // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(2)
-    })
-  })
-
-  describe("createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit()", function () {
-    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
-    let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
-      slippageLiquidity: 1_000_000,
-      tickLower: -82920,
-      tickUpper: -76020,
-      sqrtPriceX96: sqrtPriceX96,
-    }
-    let depositLpToken = {
-      token: THRUSTER_LP_TOKEN_ADDRESS,
-      amount: WeiPerEther.div(10000)
-    }
-
-    it("can create a v3 agent and new explorer agent", async function () {
-      // create
-      let strategyAgentID = 8
-      let explorerAgentID = 3
-      let { v, r, s } = await getERC20PermitSignature(user1, clAgentFactory.address, thrusterLpToken, depositLpToken.amount, MaxUint256, MaxUint256, 81457);
-      let deadline = MaxUint256
-      // create
-      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit(
-        mintParams, depositLpToken, deadline, v, r, s
-      )
-      expect(staticRes.strategyAgentID).eq(strategyAgentID)
-      expect(staticRes.explorerAgentID).eq(explorerAgentID)
-      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit(
-        mintParams, depositLpToken, deadline, v, r, s
-      )
-      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndMigrateWithPermit", tx);
-      await watchTxForEvents(tx)
-      // created a new explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
-      expect(await explorerAgentNft.balanceOf(user1.address)).eq(3)
-      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
-      expect(explorerTbas.length).eq(1)
-      let explorerAddress = explorerTbas[0].agentAddress
-      await expectDeployed(explorerAddress)
-      expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
-      expect(explorerBalances.eth).eq(0)
-      expect(explorerBalances.weth).eq(0)
-      expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
-      expect(explorerBalances.genesisAgents).eq(0)
-      expect(explorerBalances.strategyAgents).eq(1)
-      expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
-      // created a new agent
-      expect(await strategyAgentNft.totalSupply()).eq(8)
-      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
-      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
-      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
-      expect(strategyTbas.length).eq(1)
-      let strategyAddress = strategyTbas[0].agentAddress
-      await expectDeployed(strategyAddress)
-      expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
-      expect(strategyBalances.eth).eq(0)
-      expect(strategyBalances.weth).gte(0)
-      expect(strategyBalances.usdb).gte(0)
-      expect(strategyBalances.weth.add(strategyBalances.usdb)).gt(0) // should keep dust amounts
-      expect(strategyBalances.blasterLpToken).eq(0)
-      expect(strategyBalances.genesisAgents).eq(0)
-      expect(strategyBalances.strategyAgents).eq(0)
-      expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
-      // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", strategyAddress) as ConcentratedLiquidityGatewayModuleC
-      let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
-      let strategyType = await moduleContract.strategyType()
-      expect(strategyType).eq("Concentrated Liquidity")
-      let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
-      let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
-      let tokenId = await moduleContract.tokenId()
-      expect(tokenId).gt(0)
-      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
-      //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
-      //expect().eq("")
-      let position = await moduleContract.position()
-      //console.log(`position`, position)
-      expect(position.token0).eq(USDB_ADDRESS)
-      expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
-      expect(position.liquidity).gt(0)
-    })
-  })
-
   describe("createConcentratedLiquidityAgentForRootAndRefundExcess()", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -1526,15 +1123,15 @@ describe("ConcentratedLiquidityAgentFactory", function () {
 
     it("can create a v3 agent for a root agent you do own", async function () {
       let genesisAgentID = 5
-      let strategyAgentID = 9
+      let strategyAgentID = 5
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
       // create
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRootAndRefundExcess", tx);
       await watchTxForEvents(tx)
@@ -1551,49 +1148,47 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
+      expect(await explorerAgentNft.totalSupply()).eq(1)
     })
     it("can create a v3 agent using eth pt 1", async function () {
       let genesisAgentID = 5
-      let strategyAgentID = 10
+      let strategyAgentID = 6
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
       // create
       deposit0.token = AddressZero
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit0.amount}
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRootAndRefundExcess", tx);
       await watchTxForEvents(tx)
@@ -1610,40 +1205,38 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
+      expect(await explorerAgentNft.totalSupply()).eq(1)
     })
     it("can create a v3 agent using eth pt 2", async function () {
       let genesisAgentID = 5
-      let strategyAgentID = 11
+      let strategyAgentID = 7
       let rootAgentAddress = (await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID))[0].agentAddress
       // create
       deposit0 = {
@@ -1655,11 +1248,11 @@ describe("ConcentratedLiquidityAgentFactory", function () {
         amount: WeiPerEther.div(10)
       }
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentForRootAndRefundExcess(
-        mintParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
+        mintParams, farmParams, deposit0, deposit1, rootAgentAddress, {value: deposit1.amount}
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentForRootAndRefundExcess", tx);
       await watchTxForEvents(tx)
@@ -1676,44 +1269,42 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
-      expect(balances.blasterLpToken).eq(0)
       expect(balances.genesisAgents).eq(0)
       expect(balances.strategyAgents).eq(0)
       expect(balances.explorerAgents).eq(0)
-      expect(balances.thrusterPositions).eq(1)
+      expect(balances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", agentAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", agentAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
       // does not create an explorer agent
-      expect(await explorerAgentNft.totalSupply()).eq(3)
+      expect(await explorerAgentNft.totalSupply()).eq(1)
     })
   });
 
   describe("createConcentratedLiquidityAgentAndExplorerAndRefundExcess()", function () {
     const sqrtPriceX96 = BN.from("1392486909633467119786647344");
     let mintParams = {
-      manager: THRUSTER_POSITION_MANAGER_ADDRESS,
-      pool: THRUSTER_POOL_WETH_USDB_030_ADDRESS,
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
       slippageLiquidity: 1_000_000,
       tickLower: -82920,
       tickUpper: -76020,
@@ -1730,15 +1321,15 @@ describe("ConcentratedLiquidityAgentFactory", function () {
 
     it("can create a v3 agent and new explorer agent", async function () {
       // create
-      let strategyAgentID = 12
-      let explorerAgentID = 4
+      let strategyAgentID = 8
+      let explorerAgentID = 2
       let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )
       expect(staticRes.strategyAgentID).eq(strategyAgentID)
       expect(staticRes.explorerAgentID).eq(explorerAgentID)
       let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
-        mintParams, deposit0, deposit1
+        mintParams, farmParams, deposit0, deposit1
       )
       l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndRefundExcess", tx);
       await watchTxForEvents(tx)
@@ -1754,11 +1345,10 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
-      expect(explorerBalances.blasterLpToken).eq(0)
       expect(explorerBalances.genesisAgents).eq(0)
       expect(explorerBalances.strategyAgents).eq(1)
       expect(explorerBalances.explorerAgents).eq(0)
-      expect(explorerBalances.thrusterPositions).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
       // created a new agent
       expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
       expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
@@ -1772,36 +1362,567 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       expect(strategyBalances.eth).eq(0)
       expect(strategyBalances.weth).eq(0) // should not keep dust amounts
       expect(strategyBalances.usdb).eq(0)
-      expect(strategyBalances.blasterLpToken).eq(0)
       expect(strategyBalances.genesisAgents).eq(0)
       expect(strategyBalances.strategyAgents).eq(0)
       expect(strategyBalances.explorerAgents).eq(0)
-      expect(strategyBalances.thrusterPositions).eq(1)
+      expect(strategyBalances.bladeswapPositions).eq(1)
       // agent has a v3 position
-      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityGatewayModuleC", strategyAddress) as ConcentratedLiquidityGatewayModuleC
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
       let moduleName = await moduleContract.moduleName()
-      expect(moduleName).eq("ConcentratedLiquidityModuleC")
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
       let strategyType = await moduleContract.strategyType()
       expect(strategyType).eq("Concentrated Liquidity")
       let manager = await moduleContract.manager()
-      expect(manager).eq(THRUSTER_POSITION_MANAGER_ADDRESS)
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
       let pool = await moduleContract.pool()
-      expect(pool).eq(THRUSTER_POOL_WETH_USDB_030_ADDRESS)
+      expect(pool).eq(POOL_ADDRESS)
       let tokenId = await moduleContract.tokenId()
       expect(tokenId).gt(0)
       expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
       //console.log(`tokenId ${tokenId.toString()}`)
-      let slot0 = await moduleContract.slot0()
-      //console.log(`slot0`, slot0)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
       //expect().eq("")
       let position = await moduleContract.position()
       //console.log(`position`, position)
       expect(position.token0).eq(USDB_ADDRESS)
       expect(position.token1).eq(WETH_ADDRESS)
-      expect(position.fee).eq(3000)
       expect(position.liquidity).gt(0)
     })
   });
+
+  describe("farming", function () {
+    let strategyAgent: any
+    let tokenId: any
+    let incentiveKey: any
+
+    const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+    let mintParams = {
+      manager: POSITION_MANAGER_ADDRESS,
+      pool: POOL_ADDRESS,
+      slippageLiquidity: 1_000_000,
+      tickLower: -82920,
+      tickUpper: -76020,
+      sqrtPriceX96: sqrtPriceX96,
+    }
+    let deposit0 = {
+      token: WETH_ADDRESS,
+      amount: WeiPerEther.div(10)
+    }
+    let deposit1 = {
+      token: USDB_ADDRESS,
+      amount: WeiPerEther.mul(300)
+    }
+
+    it("the constants are set in the module", async function () {
+      expect(await moduleE.weth()).eq(WETH_ADDRESS)
+      expect(await moduleE.farmingCenter()).eq(FARMING_CENTER_ADDRESS)
+      expect(await moduleE.eternalFarming()).eq(ETERNAL_FARMING_ADDRESS)
+    })
+    it("create a new agent with farming", async function () {
+      // set to blade rewards
+      farmParams.rewardToken = BLADE_ADDRESS
+
+      // create
+      let strategyAgentID = 9
+      let explorerAgentID = 3
+      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      expect(staticRes.explorerAgentID).eq(explorerAgentID)
+      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndRefundExcess", tx);
+      await watchTxForEvents(tx)
+      // created a new explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(explorerAgentID)
+      expect(await explorerAgentNft.balanceOf(user1.address)).eq(explorerAgentID)
+      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
+      expect(explorerTbas.length).eq(1)
+      let explorerAddress = explorerTbas[0].agentAddress
+      await expectDeployed(explorerAddress)
+      expect(explorerAddress).eq(staticRes.explorerAddress)
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
+      expect(explorerBalances.eth).eq(0)
+      expect(explorerBalances.weth).eq(0)
+      expect(explorerBalances.usdb).eq(0)
+      expect(explorerBalances.genesisAgents).eq(0)
+      expect(explorerBalances.strategyAgents).eq(1)
+      expect(explorerBalances.explorerAgents).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
+      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(strategyTbas.length).eq(1)
+      let strategyAddress = strategyTbas[0].agentAddress
+      await expectDeployed(strategyAddress)
+      expect(strategyAddress).eq(staticRes.strategyAddress)
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
+      expect(strategyBalances.eth).eq(0)
+      expect(strategyBalances.weth).eq(0) // should not keep dust amounts
+      expect(strategyBalances.usdb).eq(0)
+      expect(strategyBalances.genesisAgents).eq(0)
+      expect(strategyBalances.strategyAgents).eq(0)
+      expect(strategyBalances.explorerAgents).eq(0)
+      expect(strategyBalances.bladeswapPositions).eq(1)
+      // agent has a v3 position
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
+      strategyAgent = moduleContract
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Concentrated Liquidity")
+      let manager = await moduleContract.manager()
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
+      let pool = await moduleContract.pool()
+      expect(pool).eq(POOL_ADDRESS)
+      tokenId = await moduleContract.tokenId()
+      expect(tokenId).gt(0)
+      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
+      //console.log(`tokenId ${tokenId.toString()}`)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
+      //expect().eq("")
+      let position = await moduleContract.position()
+      //console.log(`position`, position)
+      expect(position.token0).eq(USDB_ADDRESS)
+      expect(position.token1).eq(WETH_ADDRESS)
+      expect(position.liquidity).gt(0)
+
+      incentiveKey = {
+        rewardToken: BLADE_ADDRESS,
+        bonusRewardToken: AddressZero,
+        pool: POOL_ADDRESS,
+        nonce: 0
+      }
+    })
+    it("the constants can be fetched from the agent", async function () {
+      expect(await strategyAgent.weth()).eq(WETH_ADDRESS)
+      expect(await strategyAgent.farmingCenter()).eq(FARMING_CENTER_ADDRESS)
+      expect(await strategyAgent.eternalFarming()).eq(ETERNAL_FARMING_ADDRESS)
+    })
+    it("the agent is farming", async function () {
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+    })
+    it("can view rewards", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).gt(0) // earned rewards
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).gt(0) // earned rewards
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+      expect(rewardInfo2.reward).eq(rewardInfo3.reward) // same value
+    })
+    it("can claim rewards without withdrawing", async function () {
+      let bal1 = await blade.balanceOf(user1.address);
+      expect(bal1).eq(0)
+      let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      let tx = await strategyAgent.moduleE_claimRewardsTo(user1.address)
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).eq(0) // reset
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).eq(0)  // reset
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+      let bal2 = await blade.balanceOf(user1.address);
+      expect(bal2).gte(rewardInfo0.reward) // gt for extra block
+    })
+    it("auto claims rewards during partialWithdrawTo", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let bal1 = await blade.balanceOf(user1.address);
+      let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      let state = await strategyAgent.safelyGetStateOfAMM()
+      let position = await strategyAgent.position()
+      expect(position.token0).eq(USDB_ADDRESS)
+      expect(position.token1).eq(WETH_ADDRESS)
+      expect(position.liquidity).gt(0)
+
+      let tx = await strategyAgent.moduleE_partialWithdrawTo(user1.address, position.liquidity.div(4), state.sqrtPrice, 1_000_000)
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).eq(0) // reset
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).eq(0)  // reset
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+      let bal2 = await blade.balanceOf(user1.address);
+      expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
+    })
+    it("auto claims rewards during fullWithdrawTo", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let bal1 = await blade.balanceOf(user1.address);
+      let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      let state = await strategyAgent.safelyGetStateOfAMM()
+      let position = await strategyAgent.position()
+
+      let tx = await strategyAgent.moduleE_fullWithdrawTo(user1.address, state.sqrtPrice, 1_000_000)
+
+      // this now fails since token burned
+      await expect(eternalFarming.getRewardInfo(incentiveKey, tokenId)).to.be.reverted
+
+      // these return zeros
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x0000000000000000000000000000000000000000000000000000000000000000") // no key
+      expect(rewardInfo3.rewardToken).eq(AddressZero) // set to zero
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero)
+      expect(rewardInfo3.nonce).eq(0)
+      expect(rewardInfo3.reward).eq(0)
+      expect(rewardInfo3.bonusReward).eq(0)
+
+      let bal2 = await blade.balanceOf(user1.address);
+      expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
+    })
+    it("create a new agent with farming", async function () {
+      // create
+      let strategyAgentID = 10
+      let explorerAgentID = 4
+      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      expect(staticRes.explorerAgentID).eq(explorerAgentID)
+      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndRefundExcess", tx);
+      await watchTxForEvents(tx)
+      // created a new explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(explorerAgentID)
+      expect(await explorerAgentNft.balanceOf(user1.address)).eq(explorerAgentID)
+      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
+      expect(explorerTbas.length).eq(1)
+      let explorerAddress = explorerTbas[0].agentAddress
+      await expectDeployed(explorerAddress)
+      expect(explorerAddress).eq(staticRes.explorerAddress)
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
+      expect(explorerBalances.eth).eq(0)
+      expect(explorerBalances.weth).eq(0)
+      expect(explorerBalances.usdb).eq(0)
+      expect(explorerBalances.genesisAgents).eq(0)
+      expect(explorerBalances.strategyAgents).eq(1)
+      expect(explorerBalances.explorerAgents).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
+      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(strategyTbas.length).eq(1)
+      let strategyAddress = strategyTbas[0].agentAddress
+      await expectDeployed(strategyAddress)
+      expect(strategyAddress).eq(staticRes.strategyAddress)
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
+      expect(strategyBalances.eth).eq(0)
+      expect(strategyBalances.weth).eq(0) // should not keep dust amounts
+      expect(strategyBalances.usdb).eq(0)
+      expect(strategyBalances.genesisAgents).eq(0)
+      expect(strategyBalances.strategyAgents).eq(0)
+      expect(strategyBalances.explorerAgents).eq(0)
+      expect(strategyBalances.bladeswapPositions).eq(1)
+      // agent has a v3 position
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
+      strategyAgent = moduleContract
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Concentrated Liquidity")
+      let manager = await moduleContract.manager()
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
+      let pool = await moduleContract.pool()
+      expect(pool).eq(POOL_ADDRESS)
+      tokenId = await moduleContract.tokenId()
+      expect(tokenId).gt(0)
+      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
+      //console.log(`tokenId ${tokenId.toString()}`)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
+      //expect().eq("")
+      let position = await moduleContract.position()
+      //console.log(`position`, position)
+      expect(position.token0).eq(USDB_ADDRESS)
+      expect(position.token1).eq(WETH_ADDRESS)
+      expect(position.liquidity).gt(0)
+    })
+    it("the agent is farming", async function () {
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).eq(0) // just deposited, no rewards yet
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+    })
+    it("can exit farming", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let bal1 = await blade.balanceOf(user1.address);
+      let rewardInfo0 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      let state = await strategyAgent.safelyGetStateOfAMM()
+      let position = await strategyAgent.position()
+
+      let tx = await strategyAgent.moduleE_exitFarming(user1.address)
+
+      // this now fails since farm exited
+      await expect(eternalFarming.getRewardInfo(incentiveKey, tokenId)).to.be.reverted
+
+      // these return zeros
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x0000000000000000000000000000000000000000000000000000000000000000") // no key
+      expect(rewardInfo3.rewardToken).eq(AddressZero) // set to zero
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero)
+      expect(rewardInfo3.nonce).eq(0)
+      expect(rewardInfo3.reward).eq(0)
+      expect(rewardInfo3.bonusReward).eq(0)
+
+      let bal2 = await blade.balanceOf(user1.address);
+      expect(bal2).gte(bal1.add(rewardInfo0.reward)) // gt for extra block
+    })
+    it("create a new agent with farming", async function () {
+      // create
+      let strategyAgentID = 11
+      let explorerAgentID = 5
+      let staticRes = await clAgentFactory.connect(user1).callStatic.createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      expect(staticRes.strategyAgentID).eq(strategyAgentID)
+      expect(staticRes.explorerAgentID).eq(explorerAgentID)
+      let tx = await clAgentFactory.connect(user1).createConcentratedLiquidityAgentAndExplorerAndRefundExcess(
+        mintParams, farmParams, deposit0, deposit1
+      )
+      l1DataFeeAnalyzer.register("createConcentratedLiquidityAgentAndExplorerAndRefundExcess", tx);
+      await watchTxForEvents(tx)
+      // created a new explorer agent
+      expect(await explorerAgentNft.totalSupply()).eq(explorerAgentID)
+      expect(await explorerAgentNft.balanceOf(user1.address)).eq(explorerAgentID)
+      let explorerTbas = await agentRegistry.getTbasOfNft(explorerAgentNft.address, explorerAgentID)
+      expect(explorerTbas.length).eq(1)
+      let explorerAddress = explorerTbas[0].agentAddress
+      await expectDeployed(explorerAddress)
+      expect(explorerAddress).eq(staticRes.explorerAddress)
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
+      expect(explorerBalances.eth).eq(0)
+      expect(explorerBalances.weth).eq(0)
+      expect(explorerBalances.usdb).eq(0)
+      expect(explorerBalances.genesisAgents).eq(0)
+      expect(explorerBalances.strategyAgents).eq(1)
+      expect(explorerBalances.explorerAgents).eq(0)
+      expect(explorerBalances.bladeswapPositions).eq(0)
+      // created a new agent
+      expect(await strategyAgentNft.totalSupply()).eq(strategyAgentID)
+      expect(await strategyAgentNft.balanceOf(user1.address)).eq(0)
+      expect(await strategyAgentNft.balanceOf(explorerAddress)).eq(1)
+      let strategyTbas = await agentRegistry.getTbasOfNft(strategyAgentNft.address, strategyAgentID)
+      expect(strategyTbas.length).eq(1)
+      let strategyAddress = strategyTbas[0].agentAddress
+      await expectDeployed(strategyAddress)
+      expect(strategyAddress).eq(staticRes.strategyAddress)
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
+      expect(strategyBalances.eth).eq(0)
+      expect(strategyBalances.weth).eq(0) // should not keep dust amounts
+      expect(strategyBalances.usdb).eq(0)
+      expect(strategyBalances.genesisAgents).eq(0)
+      expect(strategyBalances.strategyAgents).eq(0)
+      expect(strategyBalances.explorerAgents).eq(0)
+      expect(strategyBalances.bladeswapPositions).eq(1)
+      // agent has a v3 position
+      let moduleContract = await ethers.getContractAt("ConcentratedLiquidityModuleE", strategyAddress) as ConcentratedLiquidityModuleE
+      strategyAgent = moduleContract
+      let moduleName = await moduleContract.moduleName()
+      expect(moduleName).eq("ConcentratedLiquidityModuleE")
+      let strategyType = await moduleContract.strategyType()
+      expect(strategyType).eq("Concentrated Liquidity")
+      let manager = await moduleContract.manager()
+      expect(manager).eq(POSITION_MANAGER_ADDRESS)
+      let pool = await moduleContract.pool()
+      expect(pool).eq(POOL_ADDRESS)
+      tokenId = await moduleContract.tokenId()
+      expect(tokenId).gt(0)
+      expect(tokenId).eq(staticRes.nonfungiblePositionTokenId)
+      //console.log(`tokenId ${tokenId.toString()}`)
+      let state = await moduleContract.safelyGetStateOfAMM()
+      //console.log(`state`, state)
+      //expect().eq("")
+      let position = await moduleContract.position()
+      //console.log(`position`, position)
+      expect(position.token0).eq(USDB_ADDRESS)
+      expect(position.token1).eq(WETH_ADDRESS)
+      expect(position.liquidity).gt(0)
+    })
+    it("stays farming across rebalance", async function () {
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let rewardInfo1 = await farmingCenter.deposits(tokenId)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId)
+      let rewardInfo3 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo1).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo2.reward).gt(0) // earned rewards
+      expect(rewardInfo2.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo3.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo3.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo3.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo3.reward).gt(0) // earned rewards
+      expect(rewardInfo3.bonusReward).eq(0) // no bonus token
+
+      expect(rewardInfo2.reward).eq(rewardInfo3.reward) // same value
+
+      const state = await bladeswapPool.safelyGetStateOfAMM()
+      const tokenId1 = await strategyAgent.tokenId()
+
+      let rebalanceParams = {
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 1_000_000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -83520,
+        tickUpper: -75420,
+        sqrtPriceX96: state.sqrtPrice,
+      }
+
+      let tx = await strategyAgent.moduleE_rebalance(rebalanceParams)
+      await expect(tx).to.emit(bladeswapPool, "Swap")
+
+      const tokenId2 = await strategyAgent.tokenId()
+      expect(tokenId2).not.eq(tokenId1)
+
+      const position2 = await strategyAgent.position()
+      expect(position2.nonce).eq(0)
+      expect(position2.operator).eq(AddressZero)
+      expect(position2.token0).eq(USDB_ADDRESS)
+      expect(position2.token1).eq(WETH_ADDRESS)
+      expect(position2.tickLower).eq(rebalanceParams.tickLower)
+      expect(position2.tickUpper).eq(rebalanceParams.tickUpper)
+      almostEqual(BN.from(position2.liquidity), BN.from("15626207072790802686"))
+      //expect(position2.feeGrowthInside0LastX128).eq(0)
+      //expect(position2.feeGrowthInside1LastX128).eq(0)
+      expect(position2.tokensOwed0).eq(0)
+      expect(position2.tokensOwed1).eq(0)
+
+      // Only leftover on one side
+      let balances = await Promise.all([
+        usdb.balanceOf(strategyAgent.address),
+        weth.balanceOf(strategyAgent.address),
+      ])
+      almostEqual(balances[0], "9", 0.01)
+      almostEqual(balances[1], "8548396759847712", 0.01)
+
+      // agent claims blade
+      let bladeBalance = await blade.balanceOf(strategyAgent.address)
+      expect(bladeBalance).gte(rewardInfo2.reward)
+
+      // burn some blocks to earn rewards
+      for(let i = 0; i < 3; i++) {
+        await user1.sendTransaction({to:user1.address})
+      }
+
+      let rewardInfo4 = await farmingCenter.deposits(tokenId2)
+      let rewardInfo5 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId2)
+      let rewardInfo6 = await strategyAgent.callStatic.moduleE_getRewardInfo()
+
+      expect(rewardInfo4).eq("0x7f2d0b6bafa79d839bc1f3419b0cc0a000abf422a86cd5d745f8a1ed5ab059b0") // bytes32 hash of the key
+      expect(rewardInfo5.reward).gt(0) // earned rewards
+      expect(rewardInfo5.bonusReward).eq(0) // no bonus token
+      expect(rewardInfo6.rewardToken).eq(BLADE_ADDRESS)
+      expect(rewardInfo6.bonusRewardToken).eq(AddressZero) // no bonus token
+      expect(rewardInfo6.nonce).eq(incentiveKey.nonce)
+      expect(rewardInfo6.reward).gt(0) // earned rewards
+      expect(rewardInfo6.bonusReward).eq(0) // no bonus token
+
+      expect(rewardInfo5.reward).eq(rewardInfo6.reward) // same value
+
+    })
+    it("claims withheld blade during withdraw", async function () {
+      const tokenId2 = await strategyAgent.tokenId()
+      let bladeBalance_a1 = await blade.balanceOf(strategyAgent.address)
+      let bladeBalance_u1 = await blade.balanceOf(user1.address)
+      expect(bladeBalance_a1).gt(0)
+      let rewardInfo2 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId2)
+
+      let state = await strategyAgent.safelyGetStateOfAMM()
+      let position = await strategyAgent.position()
+      expect(position.liquidity).gt(0)
+
+      let tx = await strategyAgent.moduleE_partialWithdrawTo(user1.address, position.liquidity.div(4), state.sqrtPrice, 1_000_000)
+
+      let bladeBalance_a2 = await blade.balanceOf(strategyAgent.address)
+      let bladeBalance_u2 = await blade.balanceOf(user1.address)
+      expect(bladeBalance_a2).eq(0)
+      let rewardInfo5 = await eternalFarming.callStatic.getRewardInfo(incentiveKey, tokenId2)
+      expect(bladeBalance_u2).gte(bladeBalance_u1.add(bladeBalance_a1).add(rewardInfo2.reward))
+    })
+  })
 
   async function watchTxForEvents(tx:any, debug=false) {
     //console.log("tx:", tx);
@@ -1854,14 +1975,11 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       else if(address == usdb.address) {
         console.log("Transferred USDB")
       }
-      else if(address == THRUSTER_POSITION_MANAGER_ADDRESS) {
-        console.log("Did something with a Thruster CL Position")
+      else if(address == POSITION_MANAGER_ADDRESS) {
+        console.log("Did something with a Bladeswap CL Position")
       }
-      else if(address == THRUSTER_POOL_WETH_USDB_030_ADDRESS) {
-        console.log("Did something in the Thruster WETH/USDB 0.30% v3 pool")
-      }
-      else if(address == THRUSTER_LP_TOKEN_ADDRESS) {
-        console.log("Did something in the Thruster WETH/USDB 0.30% v2 pool")
+      else if(address == POOL_ADDRESS) {
+        console.log("Did something in the Bladeswap WETH/USDB v3 pool")
       }
       else if(address == BLAST_POINTS_ADDRESS) {
         console.log("Did something with Blast Points")
@@ -1882,8 +2000,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       strategyAgents: await strategyAgentNft.balanceOf(account),
       explorerAgents: await explorerAgentNft.balanceOf(account),
 
-      blasterLpToken: await blasterLpToken.balanceOf(account),
-      thrusterPositions: await thrusterPositionManager.balanceOf(account),
+      bladeswapPositions: await algebraPositionManager.balanceOf(account),
     }
     if(log) {
       console.log(`Balances of ${accountName || account}`)
@@ -1891,11 +2008,10 @@ describe("ConcentratedLiquidityAgentFactory", function () {
         eth: formatUnits(res.eth),
         weth: formatUnits(res.weth),
         usdb: formatUnits(res.usdb),
-        blasterLpToken: formatUnits(res.blasterLpToken),
         genesisAgents: res.genesisAgents.toString(),
         strategyAgents: res.strategyAgents.toString(),
         explorerAgents: res.explorerAgents.toString(),
-        thrusterPositions: res.thrusterPositions.toString(),
+        bladeswapPositions: res.bladeswapPositions.toString(),
       })
     }
     return res

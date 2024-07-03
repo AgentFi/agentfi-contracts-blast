@@ -555,7 +555,7 @@ describe("DexBalancerModuleA", function () {
       ]
       let tx = await multicallForwarder.connect(user1).aggregate(calls)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
@@ -591,7 +591,7 @@ describe("DexBalancerModuleA", function () {
       expect(await usdb.balanceOf(user1.address)).eq(0)
       let tx = await thrusterRouter_030.connect(user1).swapExactETHForTokens(amountOutMin, path, user1.address, MaxUint256, {value:amountIn})
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       expect(await weth.balanceOf(user1.address)).eq(0)
       expect(await usdb.balanceOf(user1.address)).gt(0)
     });
@@ -656,7 +656,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = tbaccountS1.interface.encodeFunctionData("setOverrides", [overrides])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       for(const param of functionParams) {
         let { selector, isProtected } = param
         let res = await tbaccountS1.overrides(selector)
@@ -772,7 +772,7 @@ describe("DexBalancerModuleA", function () {
 
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata2, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       for(const param of functionParams) {
         let { selector, isProtected } = param
@@ -812,7 +812,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalance", [])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let balances3 = await getBalances(tbaccountS1.address)
       expect(balances3.eth).eq(0)
@@ -852,7 +852,7 @@ describe("DexBalancerModuleA", function () {
       let calldata = accountProxy.interface.encodeFunctionData("moduleA_withdrawBalanceTo", [user1.address])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let balances3 = await getBalances(tbaccountS1.address)
       expect(balances3.eth).eq(0)
@@ -976,7 +976,7 @@ describe("DexBalancerModuleA", function () {
       let tx = await multicallForwarder.connect(user1).aggregate3Value(calls, {value: depositAmountETH})
 
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
