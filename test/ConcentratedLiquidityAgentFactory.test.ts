@@ -198,7 +198,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
     thrusterRouter_100 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_100) as IThrusterRouter;
     thrusterLpToken = await ethers.getContractAt("MockERC20Permit", THRUSTER_LP_TOKEN_ADDRESS) as MockERC20;
-    thrusterPositionManager = await ethers.getContractAt("INonfungiblePositionManager", THRUSTER_POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
+    thrusterPositionManager = await ethers.getContractAt("contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager", THRUSTER_POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
 
     hyperlockStaking = await ethers.getContractAt("IHyperlockStaking", HYPERLOCK_STAKING_ADDRESS) as IHyperlockStaking;
 
@@ -512,7 +512,6 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let setOverridesCalldata = strategyAccountImplementation.interface.encodeFunctionData("setOverrides", [overrides])
       let txdatas = [blastConfigureCalldata, setOverridesCalldata]
       let multicallCalldata = strategyAccountImplementation.interface.encodeFunctionData("multicall", [txdatas])
-      console.log((blastConfigureCalldata.length-2)/2, (setOverridesCalldata.length-2)/2, (multicallCalldata.length-2)/2)
       let settings1 = {
         strategyAccountImpl: strategyAccountImplementation.address,
         explorerAccountImpl: explorerAccountImplementation.address,
@@ -860,7 +859,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
@@ -919,7 +918,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
@@ -986,7 +985,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
@@ -1065,7 +1064,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let explorerAddress = explorerTbas[0].agentAddress
       await expectDeployed(explorerAddress)
       expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
@@ -1083,7 +1082,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let strategyAddress = strategyTbas[0].agentAddress
       await expectDeployed(strategyAddress)
       expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
       expect(strategyBalances.eth).eq(0)
       expect(strategyBalances.weth).gte(0)
       expect(strategyBalances.usdb).gte(0)
@@ -1204,7 +1203,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
@@ -1279,7 +1278,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let explorerAddress = explorerTbas[0].agentAddress
       await expectDeployed(explorerAddress)
       expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
@@ -1297,7 +1296,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let strategyAddress = strategyTbas[0].agentAddress
       await expectDeployed(strategyAddress)
       expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
       expect(strategyBalances.eth).eq(0)
       expect(strategyBalances.weth).gte(0)
       expect(strategyBalances.usdb).gte(0)
@@ -1374,7 +1373,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).gte(0)
       expect(balances.usdb).gte(0)
@@ -1452,7 +1451,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let explorerAddress = explorerTbas[0].agentAddress
       await expectDeployed(explorerAddress)
       expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
@@ -1470,7 +1469,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let strategyAddress = strategyTbas[0].agentAddress
       await expectDeployed(strategyAddress)
       expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
       expect(strategyBalances.eth).eq(0)
       expect(strategyBalances.weth).gte(0)
       expect(strategyBalances.usdb).gte(0)
@@ -1548,7 +1547,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
@@ -1607,7 +1606,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
@@ -1673,7 +1672,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0) // should not keep dust amounts
       expect(balances.usdb).eq(0)
@@ -1751,7 +1750,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let explorerAddress = explorerTbas[0].agentAddress
       await expectDeployed(explorerAddress)
       expect(explorerAddress).eq(staticRes.explorerAddress)
-      let explorerBalances = await getBalances(explorerAddress, true, "explorer agent")
+      let explorerBalances = await getBalances(explorerAddress, false, "explorer agent")
       expect(explorerBalances.eth).eq(0)
       expect(explorerBalances.weth).eq(0)
       expect(explorerBalances.usdb).eq(0)
@@ -1769,7 +1768,7 @@ describe("ConcentratedLiquidityAgentFactory", function () {
       let strategyAddress = strategyTbas[0].agentAddress
       await expectDeployed(strategyAddress)
       expect(strategyAddress).eq(staticRes.strategyAddress)
-      let strategyBalances = await getBalances(strategyAddress, true, "strategy agent")
+      let strategyBalances = await getBalances(strategyAddress, false, "strategy agent")
       expect(strategyBalances.eth).eq(0)
       expect(strategyBalances.weth).eq(0) // should not keep dust amounts
       expect(strategyBalances.usdb).eq(0)
@@ -1804,17 +1803,18 @@ describe("ConcentratedLiquidityAgentFactory", function () {
     })
   });
 
-  async function watchTxForEvents(tx:any) {
+  async function watchTxForEvents(tx:any, debug=false) {
     //console.log("tx:", tx);
-    console.log("tx:", tx.hash);
+    if(debug) console.log("tx:", tx.hash);
     let receipt = await tx.wait(networkSettings.confirmations);
     //let receipt = await tx.wait(0);
-    console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+    //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
     if(!receipt || !receipt.logs || receipt.logs.length == 0) {
       console.log(receipt)
       //throw new Error("events not found");
       console.log("No events found")
     }
+    if(!debug) return
     /*
     console.log('logs:')
     for(let i = 0; i < receipt.logs.length; i++) {

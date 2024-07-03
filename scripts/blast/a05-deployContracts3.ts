@@ -53,16 +53,20 @@ const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 
 const DEX_BALANCER_MODULE_A_ADDRESS   = "0x7e8280f5Ee5137f89d09FA61B356fa322a93415a"; // v1.0.3
+const DEX_BALANCER_MODULE_G_ADDRESS   = "0x9Ff3725ad84694D066704B4130f15bC2D2dac331"; // v1.0.?
 const DEX_BALANCER_FACTORY_ADDRESS    = "0xB52274826621B6886787eC29E4C25cd3493B4930"; // v1.0.3
 
 const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
 const MULTIPLIOOOR_FACTORY_ADDRESS          = "0xE42ECCA759813Ceed368Ca08d8F0F6780D0c41E1"; // v1.0.3
 
-const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x10C02a975a748Db5B749Dc420154dD945e2e8657"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x96E50f33079F749cb20f32C05DBb62B09620a817"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x36246FF90d44fA6f171e392796d0872E138c34a7"; // v1.0.4
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1eDCa309ECcd0A6e8Ab77F"; // v1.0.4
 
-const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
+const LOOPOOOR_MODULE_D_ADDRESS                         = "0x8220512520db5D3295EA41308601FD0974405975"; // v1.0.3
 const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
+
+const LOOPOOOR_MODULE_F_ADDRESS                         = "0x4FD3e9e59F339145e157766d4d916b8C697b0A63"; // v1.0.5
+const PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS                = "0x423b7688Ef986835590612b6578293d2Ee895e1b"; // v1.0.5
 
 // tokens
 const ETH_ADDRESS                = "0x0000000000000000000000000000000000000000";
@@ -96,6 +100,7 @@ let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
 
 let dexBalancerModuleA: DexBalancerModuleA;
+let dexBalancerModuleG: DexBalancerModuleG;
 let dexBalancerAgentFactory: DexBalancerAgentFactory;
 
 let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
@@ -106,6 +111,9 @@ let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
 
 let loopooorModuleD: LoopooorModuleD;
 let loopooorAgentFactory: LoopooorAgentFactory;
+
+let loopooorModuleF: LoopooorModuleF;
+let pacLoopooorAgentFactory: PacLoopooorAgentFactory;
 
 let contractsToVerify = []
 
@@ -136,12 +144,14 @@ async function main() {
   //dispatcher = await ethers.getContractAt("Dispatcher", DISPATCHER_ADDRESS, agentfideployer) as Dispatcher;
   //multicallForwarder = await ethers.getContractAt("MulticallForwarder", MULTICALL_FORWARDER_ADDRESS, agentfideployer) as MulticallForwarder;
   //dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  //dexBalancerModuleG = await ethers.getContractAt("DexBalancerModuleG", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleG;
   //multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
   //usdb = await ethers.getContractAt("MockERC20", USDB_ADDRESS, agentfideployer) as MockERC20;
   //explorerCollection = await ethers.getContractAt("ExplorerAgents", EXPLORER_COLLECTION_ADDRESS, agentfideployer) as ExplorerAgents;
   //explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
 
   await deployDexBalancerModuleA();
+  await deployDexBalancerModuleG();
   await deployDexBalancerAgentFactory();
 
   await deployMultiplierMaxxooorModuleB();
@@ -149,6 +159,9 @@ async function main() {
 
   await deployLoopooorModuleD();
   await deployLoopooorAgentFactory();
+
+  await deployLoopooorModuleF();
+  await deployPacLoopooorAgentFactory();
 
   await verifyContracts();
   logAddresses()
@@ -164,6 +177,19 @@ async function deployDexBalancerModuleA() {
     console.log(`Deployed DexBalancerModuleA to ${dexBalancerModuleA.address}`);
     contractsToVerify.push({ address: dexBalancerModuleA.address, args, contractName: "contracts/modules/DexBalancerModuleA.sol:DexBalancerModuleA" })
     if(!!DEX_BALANCER_MODULE_A_ADDRESS && dexBalancerModuleA.address != DEX_BALANCER_MODULE_A_ADDRESS) throw new Error(`Deployed DexBalancerModuleA to ${dexBalancerModuleA.address}, expected ${DEX_BALANCER_MODULE_A_ADDRESS}`)
+  }
+}
+
+async function deployDexBalancerModuleG() {
+  if(await isDeployed(DEX_BALANCER_MODULE_G_ADDRESS)) {
+    dexBalancerModuleG = await ethers.getContractAt("DexBalancerModuleG", DEX_BALANCER_MODULE_G_ADDRESS, agentfideployer) as DexBalancerModuleG;
+  } else {
+    console.log("Deploying DexBalancerModuleG");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    dexBalancerModuleG = await deployContractUsingContractFactory(agentfideployer, "DexBalancerModuleG", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as DexBalancerModuleG;
+    console.log(`Deployed DexBalancerModuleG to ${dexBalancerModuleG.address}`);
+    contractsToVerify.push({ address: dexBalancerModuleG.address, args, contractName: "contracts/modules/DexBalancerModuleG.sol:DexBalancerModuleG" })
+    if(!!DEX_BALANCER_MODULE_G_ADDRESS && dexBalancerModuleG.address != DEX_BALANCER_MODULE_G_ADDRESS) throw new Error(`Deployed DexBalancerModuleG to ${dexBalancerModuleG.address}, expected ${DEX_BALANCER_MODULE_G_ADDRESS}`)
   }
 }
 
@@ -232,6 +258,32 @@ async function deployLoopooorAgentFactory() {
   }
 }
 
+async function deployLoopooorModuleF() {
+  if(await isDeployed(LOOPOOOR_MODULE_F_ADDRESS)) {
+    loopooorModuleF = await ethers.getContractAt("LoopooorModuleF", LOOPOOOR_MODULE_F_ADDRESS, agentfideployer) as LoopooorModuleF;
+  } else {
+    console.log("Deploying LoopooorModuleF");
+    let args = [BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS];
+    loopooorModuleF = await deployContractUsingContractFactory(agentfideployer, "LoopooorModuleF", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as LoopooorModuleF;
+    console.log(`Deployed LoopooorModuleF to ${loopooorModuleF.address}`);
+    contractsToVerify.push({ address: loopooorModuleF.address, args, contractName: "contracts/modules/LoopooorModuleF.sol:LoopooorModuleF" })
+    if(!!LOOPOOOR_MODULE_F_ADDRESS && loopooorModuleF.address != LOOPOOOR_MODULE_F_ADDRESS) throw new Error(`Deployed LoopooorModuleF to ${loopooorModuleF.address}, expected ${LOOPOOOR_MODULE_F_ADDRESS}`)
+  }
+}
+
+async function deployPacLoopooorAgentFactory() {
+  if(await isDeployed(PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS)) {
+    pacLoopooorAgentFactory = await ethers.getContractAt("PacLoopooorAgentFactory", PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as PacLoopooorAgentFactory;
+  } else {
+    console.log("Deploying PacLoopooorAgentFactory");
+    let args = [agentfideployer.address, BLAST_ADDRESS, GAS_COLLECTOR_ADDRESS, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS, MULTICALL_FORWARDER_ADDRESS, GENESIS_COLLECTION_ADDRESS, STRATEGY_COLLECTION_ADDRESS, EXPLORER_COLLECTION_ADDRESS, ERC6551_REGISTRY_ADDRESS, AGENT_REGISTRY_ADDRESS, WETH_ADDRESS];
+    pacLoopooorAgentFactory = await deployContractUsingContractFactory(agentfideployer, "PacLoopooorAgentFactory", args, toBytes32(0), undefined, {...networkSettings.overrides, gasLimit: 6_000_000}, networkSettings.confirmations) as PacLoopooorAgentFactory;
+    console.log(`Deployed PacLoopooorAgentFactory to ${pacLoopooorAgentFactory.address}`);
+    contractsToVerify.push({ address: pacLoopooorAgentFactory.address, args, contractName: "contracts/factory/PacLoopooorAgentFactory.sol:PacLoopooorAgentFactory" })
+    if(!!PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS && pacLoopooorAgentFactory.address != PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS) throw new Error(`Deployed PacLoopooorAgentFactory to ${pacLoopooorAgentFactory.address}, expected ${PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS}`)
+  }
+}
+
 async function verifyContracts() {
   if(chainID == 31337) return
   if(contractsToVerify.length == 0) return
@@ -248,11 +300,14 @@ function logAddresses() {
   console.log("| Contract Name                        | Address                                      |");
   console.log("|--------------------------------------|----------------------------------------------|");
   logContractAddress("DexBalancerModuleA", dexBalancerModuleA.address);
+  logContractAddress("DexBalancerModuleG", dexBalancerModuleG.address);
   logContractAddress("DexBalancerAgentFactory", dexBalancerAgentFactory.address);
   logContractAddress("MultiplierMaxxooorModuleB", multiplierMaxxooorModuleB.address);
   logContractAddress("MultipliooorAgentFactory", multipliooorAgentFactory.address);
   logContractAddress("LoopooorModuleD", loopooorModuleD.address);
   logContractAddress("LoopooorAgentFactory", loopooorAgentFactory.address);
+  logContractAddress("LoopooorModuleF", loopooorModuleF.address);
+  logContractAddress("PacLoopooorAgentFactory", pacLoopooorAgentFactory.address);
 }
 
 main()

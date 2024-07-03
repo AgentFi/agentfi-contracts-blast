@@ -83,7 +83,7 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
 
     const signer = await provider.getSigner(whale);
     const router = await ethers.getContractAt(
-      "ISwapRouter",
+      "contracts/interfaces/external/Thruster/ISwapRouter.sol:ISwapRouter",
       SWAP_ROUTER_ADDRESS,
       signer,
     );
@@ -436,17 +436,16 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 10_000, // 1%
-          tickLower: -82020,
-          tickUpper: -79620,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 10_000, // 1%
+        tickLower: -82020,
+        tickUpper: -79620,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,

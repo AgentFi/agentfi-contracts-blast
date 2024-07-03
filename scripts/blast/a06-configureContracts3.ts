@@ -22,7 +22,9 @@ import { deployContractUsingContractFactory, verifyContract } from "./../utils/d
 import { toBytes32 } from "./../utils/setStorage";
 import { getSelectors, FacetCutAction, calcSighash, calcSighashes, getCombinedAbi } from "./../utils/diamond"
 import { moduleAFunctionParams } from "./../configuration/DexBalancerModuleA";
+import { moduleGFunctionParams } from "./../configuration/DexBalancerModuleG";
 import { moduleDFunctionParams } from "./../configuration/LoopooorModuleD";
+import { moduleFFunctionParams } from "./../configuration/LoopooorModuleF";
 
 const { AddressZero, WeiPerEther, MaxUint256 } = ethers.constants;
 const { formatUnits } = ethers.utils;
@@ -59,16 +61,20 @@ const EXPLORER_COLLECTION_ADDRESS                       = "0xFB0B3C31eAf58743603
 const EXPLORER_ACCOUNT_IMPL_ADDRESS                     = "0xC429897531D8F70093C862C81a7B3F18b6F46426"; // v1.0.2
 
 const DEX_BALANCER_MODULE_A_ADDRESS   = "0x7e8280f5Ee5137f89d09FA61B356fa322a93415a"; // v1.0.3
+const DEX_BALANCER_MODULE_G_ADDRESS   = "0x9Ff3725ad84694D066704B4130f15bC2D2dac331"; // v1.0.?
 const DEX_BALANCER_FACTORY_ADDRESS    = "0xB52274826621B6886787eC29E4C25cd3493B4930"; // v1.0.3
 
 const MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS  = "0x54D588243976F7fA4eaf68d77122Da4e6C811167"; // v1.0.1
 const MULTIPLIOOOR_FACTORY_ADDRESS          = "0xE42ECCA759813Ceed368Ca08d8F0F6780D0c41E1"; // v1.0.3
 
-const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x10C02a975a748Db5B749Dc420154dD945e2e8657"; // v1.0.2
-const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x96E50f33079F749cb20f32C05DBb62B09620a817"; // v1.0.2
+const CONCENTRATED_LIQUIDITY_GATEWAY_MODULE_C_ADDRESS   = "0x36246FF90d44fA6f171e392796d0872E138c34a7"; // v1.0.4
+const CONCENTRATED_LIQUIDITY_AGENT_FACTORY_ADDRESS      = "0x5eAda3477F15A0636D1eDCa309ECcd0A6e8Ab77F"; // v1.0.4
 
-const LOOPOOOR_MODULE_D_ADDRESS                         = "0x6A9D21A09A76808C444a89fE5fCc0a5f38dc0523"; // v1.0.3
+const LOOPOOOR_MODULE_D_ADDRESS                         = "0x8220512520db5D3295EA41308601FD0974405975"; // v1.0.3
 const LOOPOOOR_AGENT_FACTORY_ADDRESS                    = "0xf6B6C15256de133cC722313bfFBb75280Bb2B228"; // v1.0.3
+
+const LOOPOOOR_MODULE_F_ADDRESS                         = "0x4FD3e9e59F339145e157766d4d916b8C697b0A63"; // v1.0.5
+const PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS                = "0x423b7688Ef986835590612b6578293d2Ee895e1b"; // v1.0.5
 
 const STRATEGY_MANAGER_ROLE = "0x4170d100a3a3728ae51207936ee755ecaa64a7f6e9383c642ab204a136f90b1b";
 
@@ -104,6 +110,7 @@ let explorerCollection: ExplorerAgents;
 let explorerAccountImpl: ExplorerAgentAccount;
 
 let dexBalancerModuleA: DexBalancerModuleA;
+let dexBalancerModuleG: DexBalancerModuleG;
 let dexBalancerAgentFactory: DexBalancerAgentFactory;
 
 let multiplierMaxxooorModuleB: MultiplierMaxxooorModuleB;
@@ -114,6 +121,9 @@ let concentratedLiquidityAgentFactory: ConcentratedLiquidityAgentFactory;
 
 let loopooorModuleD: LoopooorModuleD;
 let loopooorAgentFactory: LoopooorAgentFactory;
+
+let loopooorModuleF: LoopooorModuleF;
+let pacLoopooorAgentFactory: PacLoopooorAgentFactory;
 
 let usdb: MockERC20;
 
@@ -152,6 +162,9 @@ async function main() {
   await expectDeployed(LOOPOOOR_MODULE_D_ADDRESS)
   await expectDeployed(LOOPOOOR_AGENT_FACTORY_ADDRESS)
 
+  await expectDeployed(LOOPOOOR_MODULE_F_ADDRESS)
+  await expectDeployed(PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS)
+
   iblast = await ethers.getContractAt("IBlast", BLAST_ADDRESS, agentfideployer) as IBlast;
   iblastpoints = await ethers.getContractAt("IBlastPoints", BLAST_POINTS_ADDRESS, agentfideployer) as IBlastPoints;
 
@@ -178,6 +191,7 @@ async function main() {
   explorerAccountImpl = await ethers.getContractAt("ExplorerAgentAccount", EXPLORER_ACCOUNT_IMPL_ADDRESS, agentfideployer) as ExplorerAgentAccount;
 
   dexBalancerModuleA = await ethers.getContractAt("DexBalancerModuleA", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleA;
+  dexBalancerModuleG = await ethers.getContractAt("DexBalancerModuleG", DEX_BALANCER_MODULE_A_ADDRESS, agentfideployer) as DexBalancerModuleG;
   dexBalancerAgentFactory = await ethers.getContractAt("DexBalancerAgentFactory", DEX_BALANCER_FACTORY_ADDRESS, agentfideployer) as DexBalancerAgentFactory;
 
   multiplierMaxxooorModuleB = await ethers.getContractAt("MultiplierMaxxooorModuleB", MULTIPLIER_MAXXOOOR_MODULE_B_ADDRESS, agentfideployer) as MultiplierMaxxooorModuleB;
@@ -189,6 +203,9 @@ async function main() {
   loopooorModuleD = await ethers.getContractAt("LoopooorModuleD", LOOPOOOR_MODULE_D_ADDRESS, agentfideployer) as LoopooorModuleD;
   loopooorAgentFactory = await ethers.getContractAt("LoopooorAgentFactory", LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as LoopooorAgentFactory;
 
+  loopooorModuleF = await ethers.getContractAt("LoopooorModuleF", LOOPOOOR_MODULE_F_ADDRESS, agentfideployer) as LoopooorModuleF;
+  pacLoopooorAgentFactory = await ethers.getContractAt("PacLoopooorAgentFactory", PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS, agentfideployer) as PacLoopooorAgentFactory;
+
   await whitelistStrategyFactories();
   await whitelistExplorerFactories();
 
@@ -197,6 +214,7 @@ async function main() {
   await postDexBalancerAccountCreationSettings();
   await postMultipliooorAccountCreationSettings();
   await postLoopooorAccountCreationSettings();
+  await postPacLoopooorAccountCreationSettings();
 }
 
 async function whitelistStrategyFactories() {
@@ -215,6 +233,10 @@ async function whitelistStrategyFactories() {
     },
     {
       factory: LOOPOOOR_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -248,6 +270,10 @@ async function whitelistExplorerFactories() {
     },
     {
       factory: LOOPOOOR_AGENT_FACTORY_ADDRESS,
+      shouldWhitelist: true,
+    },
+    {
+      factory: PAC_LOOPOOOR_AGENT_FACTORY_ADDRESS,
       shouldWhitelist: true,
     },
   ]
@@ -293,6 +319,10 @@ async function agentRegistrySetOperators() {
       account: loopooorAgentFactory.address,
       isAuthorized: true,
     },
+    {
+      account: pacLoopooorAgentFactory.address,
+      isAuthorized: true,
+    },
   ]
   let diffs = [] as any[]
   for(let i = 0; i < expectedSettings.length; i++) {
@@ -317,7 +347,11 @@ async function postDexBalancerAccountCreationSettings() {
     {
       implementation: DEX_BALANCER_MODULE_A_ADDRESS,
       functionParams: moduleAFunctionParams
-    }
+    },
+    {
+      implementation: DEX_BALANCER_MODULE_G_ADDRESS,
+      functionParams: moduleGFunctionParams
+    },
   ]
   let setOverridesCalldata = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata]
@@ -357,6 +391,7 @@ async function postDexBalancerAccountCreationSettings() {
 
 async function postMultipliooorAccountCreationSettings() {
   // assemble expected settings
+  /*
   let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
   let functionParamsB = [
     { selector: "0x82ccd330", requiredRole: "0x0000000000000000000000000000000000000000000000000000000000000000" }, // strategyType()
@@ -387,12 +422,16 @@ async function postMultipliooorAccountCreationSettings() {
   let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
   let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
   let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
+  */
   let expectedSettings = {
     strategyAccountImpl: strategyAccountImpl.address,
     explorerAccountImpl: explorerAccountImpl.address,
-    strategyInitializationCall: multicallCalldata,
-    explorerInitializationCall: blastConfigureCalldata,
-    isActive: true,
+    //strategyInitializationCall: multicallCalldata,
+    //explorerInitializationCall: blastConfigureCalldata,
+    //isActive: true,
+    strategyInitializationCall: "0x",
+    explorerInitializationCall: "0x",
+    isActive: false,
   }
   // fetch current settings
   let currentSettings = await multipliooorAgentFactory.getAgentCreationSettings()
@@ -471,6 +510,58 @@ async function postLoopooorAccountCreationSettings() {
   }
 }
 
+// PacLoopooorAgentFactory
+
+async function postPacLoopooorAccountCreationSettings() {
+  // assemble expected settings
+  let blastConfigureCalldata = strategyAccountImpl.interface.encodeFunctionData("blastConfigure()")
+  let overrides = [
+    {
+      implementation: LOOPOOOR_MODULE_F_ADDRESS,
+      functionParams: moduleFFunctionParams
+    }
+  ]
+  let roles = [
+    {
+      role: toBytes32(9),
+      account: DISPATCHER_ADDRESS,
+      grantAccess: true,
+    },
+  ]
+  let setOverridesCalldata = strategyAccountImpl.interface.encodeFunctionData("setOverrides", [overrides])
+  let setRolesCalldata = strategyAccountImpl.interface.encodeFunctionData("setRoles", [roles])
+  let txdatas = [blastConfigureCalldata, setOverridesCalldata, setRolesCalldata]
+  let multicallCalldata = strategyAccountImpl.interface.encodeFunctionData("multicall", [txdatas])
+  let expectedSettings = {
+    strategyAccountImpl: strategyAccountImpl.address,
+    explorerAccountImpl: explorerAccountImpl.address,
+    strategyInitializationCall: multicallCalldata,
+    explorerInitializationCall: blastConfigureCalldata,
+    isActive: true,
+  }
+  // fetch current settings
+  let currentSettings = await pacLoopooorAgentFactory.getAgentCreationSettings()
+  // compare
+  let isDiff = (
+    expectedSettings.strategyAccountImpl != currentSettings.strategyAccountImpl_ ||
+    expectedSettings.explorerAccountImpl != currentSettings.explorerAccountImpl_ ||
+    expectedSettings.strategyInitializationCall != currentSettings.strategyInitializationCall_ ||
+    expectedSettings.explorerInitializationCall != currentSettings.explorerInitializationCall_ ||
+    expectedSettings.isActive != currentSettings.isActive_
+  )
+  // only post if necessary
+  if(isDiff) {
+    console.log(`Calling pacLoopooorAgentFactory.postAgentCreationSettings()`)
+
+    let tx = await pacLoopooorAgentFactory.connect(agentfideployer).postAgentCreationSettings(expectedSettings, networkSettings.overrides)
+    let receipt = await tx.wait(networkSettings.confirmations)
+
+    console.log(`Called pacLoopooorAgentFactory.postAgentCreationSettings()`)
+  }
+  else {
+    //console.log(`No diff detected, skip calling pacLoopooorAgentFactory.postAgentCreationSettings()`)
+  }
+}
 
 main()
     .then(() => process.exit(0))

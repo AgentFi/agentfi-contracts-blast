@@ -202,7 +202,7 @@ describe("DexBalancerAgentFactory", function () {
     thrusterRouter_030 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_030) as IThrusterRouter;
     thrusterRouter_100 = await ethers.getContractAt("IThrusterRouter", THRUSTER_ROUTER_ADDRESS_100) as IThrusterRouter;
     thrusterLpToken = await ethers.getContractAt("MockERC20Permit", THRUSTER_LP_TOKEN_ADDRESS) as MockERC20;
-    thrusterPositionManager = await ethers.getContractAt("INonfungiblePositionManager", THRUSTER_POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
+    thrusterPositionManager = await ethers.getContractAt("contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager", THRUSTER_POSITION_MANAGER_ADDRESS) as INonfungiblePositionManager;
 
     hyperlockStaking = await ethers.getContractAt("IHyperlockStaking", HYPERLOCK_STAKING_ADDRESS) as IHyperlockStaking;
 
@@ -474,7 +474,6 @@ describe("DexBalancerAgentFactory", function () {
       let setOverridesCalldata = strategyAccountImplementation.interface.encodeFunctionData("setOverrides", [overrides])
       let txdatas = [blastConfigureCalldata, setOverridesCalldata]
       let multicallCalldata = strategyAccountImplementation.interface.encodeFunctionData("multicall", [txdatas])
-      console.log((blastConfigureCalldata.length-2)/2, (setOverridesCalldata.length-2)/2, (multicallCalldata.length-2)/2)
       let settings1 = {
         strategyAccountImpl: strategyAccountImplementation.address,
         explorerAccountImpl: explorerAccountImplementation.address,
@@ -772,7 +771,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -815,7 +814,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -872,7 +871,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -915,7 +914,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -973,7 +972,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1028,7 +1027,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1083,7 +1082,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1138,7 +1137,7 @@ describe("DexBalancerAgentFactory", function () {
       let agentAddress = tbas[0].agentAddress
       await expectDeployed(agentAddress)
       expect(agentAddress).eq(staticRes.strategyAddress)
-      let balances = await getBalances(agentAddress, true, "strategy agent")
+      let balances = await getBalances(agentAddress, false, "strategy agent")
       expect(balances.eth).eq(0)
       expect(balances.weth).eq(0)
       expect(balances.usdb).eq(0)
@@ -1160,17 +1159,18 @@ describe("DexBalancerAgentFactory", function () {
     })
   })
   */
-  async function watchTxForEvents(tx:any) {
+  async function watchTxForEvents(tx:any, debug=false) {
     //console.log("tx:", tx);
-    console.log("tx:", tx.hash);
+    if(debug) console.log("tx:", tx.hash);
     let receipt = await tx.wait(networkSettings.confirmations);
     //let receipt = await tx.wait(0);
-    console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+    //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
     if(!receipt || !receipt.logs || receipt.logs.length == 0) {
       console.log(receipt)
       //throw new Error("events not found");
       console.log("No events found")
     }
+    if(!debug) return
     /*
     console.log('logs:')
     for(let i = 0; i < receipt.logs.length; i++) {

@@ -9,6 +9,7 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
 import { Errors } from "./../libraries/Errors.sol";
 import { FixedPoint128 } from "./../libraries/FixedPoint128.sol";
 import { ConcentratedLiquidityGatewayModuleC } from "./ConcentratedLiquidityGatewayModuleC.sol";
+import { IConcentratedLiquidityHyperlockModuleC } from "./../interfaces/modules/IConcentratedLiquidityHyperlockModuleC.sol";
 
 /**
  * @title ConcentratedLiquidityHyperlockModuleC
@@ -18,7 +19,7 @@ import { ConcentratedLiquidityGatewayModuleC } from "./ConcentratedLiquidityGate
  * Designed for use on Blast Mainnet only.
  */
 
-contract ConcentratedLiquidityHyperlockModuleC is ConcentratedLiquidityGatewayModuleC {
+contract ConcentratedLiquidityHyperlockModuleC is ConcentratedLiquidityGatewayModuleC, IConcentratedLiquidityHyperlockModuleC {
     address internal constant _hyperlockStaking = 0xc28EffdfEF75448243c1d9bA972b97e32dF60d06;
     address internal constant _thrusterManager = 0x434575EaEa081b735C985FA9bf63CD7b87e227F9;
 
@@ -39,7 +40,7 @@ contract ConcentratedLiquidityHyperlockModuleC is ConcentratedLiquidityGatewayMo
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-    function hyperlockStaking() external pure returns (address hyperlockStaking_) {
+    function hyperlockStaking() external pure override returns (address hyperlockStaking_) {
         hyperlockStaking_ = _hyperlockStaking;
     }
 

@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Blastable } from "./../utils/Blastable.sol";
+import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
@@ -13,7 +14,6 @@ import { IOErc20Delegator } from "./../interfaces/external/Orbit/IOErc20Delegato
 import { IPriceOracle } from "./../interfaces/external/Orbit/IPriceOracle.sol";
 import { IOrbitSpaceStationV4 } from "./../interfaces/external/Orbit/IOrbitSpaceStationV4.sol";
 import { IWETH } from "./../interfaces/external/tokens/IWETH.sol";
-
 
 /**
  * @title LoopooorModuleD
@@ -35,9 +35,6 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
     address internal constant _eth = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
     address internal constant _weth = 0x4300000000000000000000000000000000000004; // wrapped eth
-
-    address internal constant _spaceStation = 0xe9266ae95bB637A7Ad598CB0390d44262130F433;
-    address internal constant _orbit        = 0x42E12D42b3d6C4A74a88A61063856756Ea2DB357;
 
     /***************************************
     STATE
@@ -126,6 +123,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         return getDuoAssetFromOToken(address(oToken()));
     }
 
+    function leverage() public view override returns (uint256) {
+        uint256 supply = supplyBalance();
+        uint256 borrow = borrowBalance();
+        return Math.mulDiv(supply, PRECISION_LEVERAGE, supply - borrow);
+    }
+
     function supplyBalance() public view override returns (uint256 supply_) {
         IOErc20Delegator oToken_ = oToken();
         if (address(oToken_) == address(0)) {
@@ -166,6 +169,33 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
             return IERC20(address(0));
         }
         return IERC20(IWrapMintV2(wrapMint_).duoAssetToken());
+    }
+
+    function _quoteClaimWithRevert() external {
+        moduleD_claim();
+        uint256 balance = IERC20(comptroller().getTokenAddress()).balanceOf(address(this));
+        revert Errors.RevertForAmount(balance);
+    }
+
+    function quoteClaim() external returns (uint256 balance_) {
+        try LoopooorModuleD(payable(address(this)))._quoteClaimWithRevert() {} catch (bytes memory reason) {
+            balance_ = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
+    }
+
+    function _quoteBalanceWithRevert() external {
+        uint256 balance = moduleD_withdrawBalance();
+        revert Errors.RevertForAmount(balance);
+    }
+
+    /**
+     * @notice Returns the balance in underlying asset of the contract.
+     * @dev Should be a view function, but requires on state change and revert
+     */
+    function quoteBalance() external returns (uint256 balance) {
+        try LoopooorModuleD(payable(address(this)))._quoteBalanceWithRevert() {} catch (bytes memory reason) {
+            balance = BlastableLibrary.parseRevertReasonForAmount(reason);
+        }
     }
 
     /***************************************
@@ -287,13 +317,20 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         return IOErc20Delegator(oToken_).redeem(redeemTokens);
     }
 
-    function moduleD_enterMarkets(address comptroller_, address[] memory oTokens) public payable override returns (uint[] memory) {
+    function moduleD_enterMarkets(
+        address comptroller_,
+        address[] memory oTokens
+    ) public payable override returns (uint[] memory) {
         return IOrbitSpaceStationV4(comptroller_).enterMarkets(oTokens);
     }
 
     /***************************************
     HIGH LEVEL AGENT MUTATOR FUNCTIONS
     ***************************************/
+    function moduleD_claim() internal {
+        comptroller().claimOrb(address(this));
+    }
+
     function moduleD_enterMarket() internal {
         address[] memory oTokens = new address[](1);
         oTokens[0] = address(oToken());
@@ -305,12 +342,12 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         address oToken_,
         address underlying_,
         MODE mode_,
-        uint256 leverage
-    ) external payable override {
+        uint256 leverage_
+    ) public payable override {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         if (state.rateContract != address(0)) {
-            revert Errors.PositionAlreadyExists();
+            moduleD_withdrawBalance();
         }
 
         state.mode = mode_;
@@ -326,7 +363,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
 
         uint256 balance = IERC20(underlying_).balanceOf(address(this));
-        uint256 total = Math.mulDiv(balance, leverage, PRECISION_LEVERAGE);
+        uint256 total = Math.mulDiv(balance, leverage_, PRECISION_LEVERAGE);
 
         if (mode_ == MODE.FIXED_RATE) {
             (address fixedRateContract_, , ) = moduleD_mintFixedRate(
@@ -372,7 +409,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         }
     }
 
-    function moduleD_withdrawBalance() public payable override {
+    function moduleD_withdrawBalance() public payable override returns (uint256 amount_) {
         LoopooorModuleDStorage storage state = loopooorModuleDStorage();
 
         IOErc20Delegator oToken_ = IOErc20Delegator(state.oToken);
@@ -421,30 +458,66 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
 
         // Unwrap if necesary
         if (underlying() == _eth) {
-            uint256 balance = IERC20(_weth).balanceOf(address(this));
-            IWETH(_weth).withdraw(balance);
+            amount_ = IERC20(_weth).balanceOf(address(this));
+            IWETH(_weth).withdraw(amount_);
+        } else {
+            amount_ = IERC20(state.underlying).balanceOf(address(this));
         }
 
         // claim orbit token
-        IOrbitSpaceStationV4(_spaceStation).claimOrb(address(this));
+        moduleD_claim();
     }
 
     function moduleD_withdrawBalanceTo(address receiver) external payable override {
         moduleD_withdrawBalance();
         moduleD_sendBalanceTo(receiver, underlying());
+        // Send any orbit.
+        moduleD_sendBalanceTo(receiver, comptroller().getTokenAddress());
     }
 
-    // Send funds to reciever
+    // Send funds to receiver
     function moduleD_sendBalanceTo(address receiver, address token) public payable override {
         if (token == _eth) {
             Calls.sendValue(receiver, address(this).balance);
         } else {
             SafeERC20.safeTransfer(IERC20(token), receiver, IERC20(token).balanceOf(address(this)));
         }
+    }
 
-        // withdraw orbit
-        uint256 balance = IERC20(_orbit).balanceOf(address(this));
-        if(balance > 0) SafeERC20.safeTransfer(IERC20(_orbit), receiver, balance);
+    function moduleD_claimTo(address receiver) public {
+        // Claim all orbs first
+        moduleD_claim();
+
+        // Send balance. Note in the event comptroller is empty, might not get full claim
+        moduleD_sendBalanceTo(receiver, comptroller().getTokenAddress());
+    }
+
+    function moduleD_sendAmountTo(address receiver, address token, uint256 amount) public payable override {
+        if (token == _eth) {
+            Calls.sendValue(receiver, amount);
+        } else {
+            SafeERC20.safeTransfer(IERC20(token), receiver, amount);
+        }
+    }
+
+    function moduleD_increaseWithBalance() public payable override {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
+    }
+
+    function moduleD_partialWithdrawTo(address receiver, uint256 amount) external {
+        LoopooorModuleDStorage storage state = loopooorModuleDStorage();
+        uint256 leverage_ = leverage();
+
+        moduleD_withdrawBalance();
+
+        moduleD_sendAmountTo(receiver, state.underlying, amount);
+
+        moduleD_depositBalance(state.wrapMint, state.oToken, state.underlying, state.mode, leverage_);
     }
 
     /***************************************
@@ -459,7 +532,7 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
      */
     function _checkApproval(address token, address recipient, uint256 minAmount) internal {
         // if current allowance is insufficient
-        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+        if (IERC20(token).allowance(address(this), recipient) < minAmount) {
             // set allowance to max
             SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
         }

@@ -15,7 +15,7 @@ import { IConcentratedLiquidityAgentFactory } from "./../interfaces/factory/ICon
 import { IUniswapV2Pair } from "./../interfaces/external/UniswapV2/IUniswapV2Pair.sol";
 import { Blastable } from "./../utils/Blastable.sol";
 import { Ownable2Step } from "./../utils/Ownable2Step.sol";
-import { ConcentratedLiquidityModuleC } from "./../modules/ConcentratedLiquidityModuleC.sol";
+import { IConcentratedLiquidityModuleC } from "./../interfaces/modules/IConcentratedLiquidityModuleC.sol";
 
 
 /**
@@ -458,8 +458,8 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         }
         // create the position in the strategy agent
         (nonfungiblePositionTokenId, , , ) =
-            ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
-                ConcentratedLiquidityModuleC.MintBalanceParams({
+            IConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
+                IConcentratedLiquidityModuleC.MintBalanceParams({
                   manager: mintParams.manager,
                   pool: mintParams.pool,
                   slippageLiquidity: mintParams.slippageLiquidity,
@@ -508,8 +508,8 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         }
         // create the position in the strategy agent
         (nonfungiblePositionTokenId, , , ) =
-            ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalanceAndRefundTo(
-                ConcentratedLiquidityModuleC.MintBalanceAndRefundParams({
+            IConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalanceAndRefundTo(
+                IConcentratedLiquidityModuleC.MintBalanceAndRefundParams({
                   manager: mintParams.manager,
                   pool: mintParams.pool,
                   slippageLiquidity: mintParams.slippageLiquidity,
@@ -544,8 +544,8 @@ contract ConcentratedLiquidityAgentFactory is Blastable, Ownable2Step, Multicall
         IUniswapV2Pair(depositLpToken.token).burn(strategyAddress);
         // create the position in the strategy agent
         (nonfungiblePositionTokenId, , , ) =
-            ConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
-                ConcentratedLiquidityModuleC.MintBalanceParams({
+            IConcentratedLiquidityModuleC(payable(strategyAddress)).moduleC_mintWithBalance(
+                IConcentratedLiquidityModuleC.MintBalanceParams({
                   manager: mintParams.manager,
                   pool: mintParams.pool,
                   slippageLiquidity: mintParams.slippageLiquidity,

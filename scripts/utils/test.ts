@@ -1,5 +1,6 @@
 import { expect } from "chai";
-import { BigNumber } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
+const BN = ethers.BigNumber;
 
 // Default 0.001%
 export async function almostEqual(actualOrPromise: Promise<BigNumber> | BigNumber, expected: BigNumber, percentage = 0.001) {

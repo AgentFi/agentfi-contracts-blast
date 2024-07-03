@@ -8,6 +8,7 @@ import { INonfungiblePositionManager } from "./../interfaces/external/Thruster/I
 import { ISwapRouter } from "./../interfaces/external/Thruster/ISwapRouter.sol";
 import { ISwapRouter02 } from "./../interfaces/external/Thruster/ISwapRouter02.sol";
 import { IThrusterPool as IV3Pool } from "./../interfaces/external/Thruster/IThrusterPool.sol";
+import { IConcentratedLiquidityModuleC } from "./../interfaces/modules/IConcentratedLiquidityModuleC.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { LiquidityAmounts } from "./../libraries/LiquidityAmounts.sol";
@@ -21,7 +22,7 @@ import { Blastable } from "./../utils/Blastable.sol";
  * @dev Designed for use on Blast Mainnet only. Be careful of signature collisions
  *
  */
-contract ConcentratedLiquidityModuleC is Blastable {
+contract ConcentratedLiquidityModuleC is Blastable, IConcentratedLiquidityModuleC {
     uint24 internal constant SLIPPAGE_SCALE = 1_000_000; // 100%
     /***************************************
     State
@@ -67,26 +68,27 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /***************************************
     VIEW FUNCTIONS
     ***************************************/
-    function moduleName() external pure returns (string memory name_) {
+    function moduleName() external pure override returns (string memory name_) {
         name_ = "ConcentratedLiquidityModuleC";
     }
 
-    function strategyType() external pure returns (string memory type_) {
+    function strategyType() external pure override returns (string memory type_) {
         type_ = "Concentrated Liquidity";
     }
 
     /// @notice Address for the NonfungiblePositionManager
-    function manager() public view virtual returns (address manager_) {
+    function manager() public view virtual override returns (address manager_) {
         manager_ = concentratedLiquidityModuleCStorage().manager;
     }
 
-    function pool() public view returns (address pool_) {
+    function pool() public view override returns (address pool_) {
         pool_ = concentratedLiquidityModuleCStorage().pool;
     }
 
     function slot0()
         public
         view
+        override
         returns (
             uint160 sqrtPriceX96,
             int24 tick,
@@ -101,7 +103,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice TokenId of NFT position (if exists)
-    function tokenId() public view returns (uint256 tokenId_) {
+    function tokenId() public view override returns (uint256 tokenId_) {
         tokenId_ = concentratedLiquidityModuleCStorage().tokenId;
     }
 
@@ -115,6 +117,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function position()
         public
         view
+        override
         returns (
             uint96 nonce,
             address operator,
@@ -131,25 +134,12 @@ contract ConcentratedLiquidityModuleC is Blastable {
         )
     {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        return manager_.positions(state.tokenId);
+        return manager_.positions(tokenId_);
     }
 
-    struct MintParams {
-        address manager;
-        address pool;
-        address token0;
-        address token1;
-        uint24 fee;
-        int24 tickLower;
-        int24 tickUpper;
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
-    }
     /// @notice Creates a new position wrapped in a NFT
     /// @dev Call this when the pool does exist and is initialized. Note that if the pool is created but not initialized
     /// a method does not exist, i.e. the pool is assumed to be initialized.
@@ -160,7 +150,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /// @return amount1 The amount of token1
     function moduleC_mint(
         MintParams memory params
-    ) public payable virtual returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) public payable virtual override returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
         if (params.tickLower >= params.tickUpper) revert Errors.InvalidTickParam();
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         if (state.tokenId != 0) revert Errors.PositionAlreadyExists();
@@ -168,8 +158,8 @@ contract ConcentratedLiquidityModuleC is Blastable {
         state.manager = params.manager;
         state.pool = params.pool;
 
-        _setApproval(params.token0, state.manager, params.amount0Desired);
-        _setApproval(params.token1, state.manager, params.amount1Desired);
+        _checkApproval(params.token0, state.manager, params.amount0Desired);
+        _checkApproval(params.token1, state.manager, params.amount1Desired);
 
         (tokenId_, liquidity, amount0, amount1) = INonfungiblePositionManager(params.manager).mint(
             INonfungiblePositionManager.MintParams({
@@ -191,15 +181,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
         state.tokenId = tokenId_;
     }
 
-    // As INonfungiblePositionManager.IncreaseLiquiditParams, but without tokenId
-    struct IncreaseLiquidityParams {
-        uint256 amount0Desired;
-        uint256 amount1Desired;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
-    }
-
     /// @notice Increases the amount of liquidity in a position, with tokens paid by the `msg.sender`
     /// amount0Desired The desired amount of token0 to be spent,
     /// amount1Desired The desired amount of token1 to be spent,
@@ -211,16 +192,14 @@ contract ConcentratedLiquidityModuleC is Blastable {
     /// @return amount1 The amount of token1 to acheive resulting liquidity
     function moduleC_increaseLiquidity(
         IncreaseLiquidityParams memory params
-    ) public payable returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) public payable override returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         (, , address token0, address token1, , , , , , , , ) = position();
 
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
 
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
-
-        _setApproval(token0, state.manager, params.amount0Desired);
-        _setApproval(token1, state.manager, params.amount1Desired);
+        _checkApproval(token0, state.manager, params.amount0Desired);
+        _checkApproval(token1, state.manager, params.amount1Desired);
 
         (liquidity, amount0, amount1) = manager_.increaseLiquidity(
             INonfungiblePositionManager.IncreaseLiquidityParams({
@@ -234,24 +213,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    // As INonfungiblePositionManager.DecreaseLiquiditParams, but without tokenId
-    struct DecreaseLiquidityParams {
-        uint128 liquidity;
-        uint256 amount0Min;
-        uint256 amount1Min;
-        uint256 deadline;
-    }
-
     function moduleC_decreaseLiquidity(
         DecreaseLiquidityParams memory params
-    ) public payable virtual returns (uint256 amount0, uint256 amount1) {
+    ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.decreaseLiquidity(
             INonfungiblePositionManager.DecreaseLiquidityParams({
-                tokenId: state.tokenId,
+                tokenId: tokenId_,
                 liquidity: params.liquidity,
                 amount0Min: params.amount0Min,
                 amount1Min: params.amount1Min,
@@ -260,22 +232,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    // As INonfungiblePositionManager.CollectParams, but without tokenId and recipient
-    struct CollectParams {
-        uint128 amount0Max;
-        uint128 amount1Max;
-    }
-
     function moduleC_collect(
         CollectParams memory params
-    ) public payable virtual returns (uint256 amount0, uint256 amount1) {
+    ) public payable virtual override returns (uint256 amount0, uint256 amount1) {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
 
         (amount0, amount1) = manager_.collect(
             INonfungiblePositionManager.CollectParams({
-                tokenId: state.tokenId,
+                tokenId: tokenId_,
                 recipient: address(this),
                 amount0Max: params.amount0Max,
                 amount1Max: params.amount1Max
@@ -283,23 +250,14 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    function moduleC_burn() public payable virtual {
+    function moduleC_burn() public payable virtual override {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
-        if (state.tokenId == 0) revert Errors.NoPositionFound();
+        uint256 tokenId_ = state.tokenId;
+        if (tokenId_ == 0) revert Errors.NoPositionFound();
 
         INonfungiblePositionManager manager_ = INonfungiblePositionManager(state.manager);
-        manager_.burn(state.tokenId);
+        manager_.burn(tokenId_);
         state.tokenId = 0;
-    }
-
-    struct ExactInputSingleParams {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        uint256 deadline;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
     }
 
     /// @notice Swaps `amountIn` of one token for as much as possible of another token
@@ -308,11 +266,11 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_exactInputSingle(
         address router,
         ExactInputSingleParams memory params
-    ) public payable returns (uint256 amountOut) {
+    ) public payable override returns (uint256 amountOut) {
         ISwapRouter swapRouter = ISwapRouter(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountIn);
+        _checkApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter.ExactInputSingleParams({
@@ -328,26 +286,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         );
     }
 
-    struct ExactInputSingle02Params {
-        address tokenIn;
-        address tokenOut;
-        uint24 fee;
-        uint256 amountIn;
-        uint256 amountOutMinimum;
-        uint160 sqrtPriceLimitX96;
-    }
-
     /// @notice Swaps `amountIn` of one token for as much as possible of another token
     /// @param params The parameters necessary for the swap, encoded as `ExactInputSingleParams` in calldata
     /// @return amountOut The amount of the received token
     function moduleC_exactInputSingle02(
         address router,
         ExactInputSingle02Params memory params
-    ) public payable returns (uint256 amountOut) {
+    ) public payable override returns (uint256 amountOut) {
         ISwapRouter02 swapRouter = ISwapRouter02(router);
 
         // Set allowance
-        _setApproval(params.tokenIn, router, params.amountIn);
+        _checkApproval(params.tokenIn, router, params.amountIn);
 
         amountOut = swapRouter.exactInputSingle(
             ISwapRouter02.ExactInputSingleParams({
@@ -366,7 +315,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     AGENT HIGH LEVEL FUNCTIONS
     ***************************************/
     /// @notice Sends token balance to a specified receiver.
-    function moduleC_sendBalanceTo(address receiver) public payable virtual {
+    function moduleC_sendBalanceTo(address receiver) public payable virtual override {
         ConcentratedLiquidityModuleCStorage storage state = concentratedLiquidityModuleCStorage();
 
         IV3Pool pool_ = IV3Pool(state.pool);
@@ -381,19 +330,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
         }
     }
 
-    struct MintBalanceParams {
-        address manager;
-        address pool;
-        uint24 slippageLiquidity;
-        int24 tickLower;
-        int24 tickUpper;
-        uint160 sqrtPriceX96;
-    }
-
     /// @notice Mints new position with all assets in this contract
     function moduleC_mintWithBalance(
         MintBalanceParams memory params
-    ) public payable virtual returns (uint256, uint128, uint256, uint256) {
+    ) public payable virtual override returns (uint256, uint128, uint256, uint256) {
         if (params.slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
 
         IV3Pool pool_ = IV3Pool(params.pool);
@@ -427,20 +367,10 @@ contract ConcentratedLiquidityModuleC is Blastable {
             );
     }
 
-    struct MintBalanceAndRefundParams {
-        address manager;
-        address pool;
-        uint24 slippageLiquidity;
-        int24 tickLower;
-        int24 tickUpper;
-        uint160 sqrtPriceX96;
-        address receiver;
-    }
-
     /// @notice Mints new position with all assets in this contract
     function moduleC_mintWithBalanceAndRefundTo(
         MintBalanceAndRefundParams memory params
-    ) external payable virtual returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) external payable virtual override returns (uint256 tokenId_, uint128 liquidity, uint256 amount0, uint256 amount1) {
         (tokenId_, liquidity, amount0, amount1) = moduleC_mintWithBalance(
             MintBalanceParams({
                 manager: params.manager,
@@ -459,7 +389,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_increaseLiquidityWithBalance(
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public payable virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) public payable virtual override returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         if (slippageLiquidity > SLIPPAGE_SCALE) revert Errors.InvalidSlippageParam();
 
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
@@ -487,13 +417,13 @@ contract ConcentratedLiquidityModuleC is Blastable {
         address receiver,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) external payable virtual returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
+    ) external payable virtual override returns (uint128 liquidity, uint256 amount0, uint256 amount1) {
         (liquidity, amount0, amount1) = moduleC_increaseLiquidityWithBalance(sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
 
     /// @notice Collect tokens owned in position, keeping funds in the this contract
-    function moduleC_collectToSelf() public payable returns (uint256, uint256) {
+    function moduleC_collectToSelf() public payable override returns (uint256, uint256) {
         return moduleC_collect(CollectParams({ amount0Max: type(uint128).max, amount1Max: type(uint128).max }));
     }
 
@@ -502,7 +432,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public payable returns (uint256, uint256) {
+    ) public payable override returns (uint256, uint256) {
         (, , , , , int24 tickLower, int24 tickUpper, , , , , ) = position();
         // Get expected amounts, and apply a slippage
         (uint256 amount0Min, uint256 amount1Min) = LiquidityAmounts.getAmountsForLiquidity(
@@ -529,7 +459,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public payable returns (uint256, uint256) {
+    ) public payable override returns (uint256, uint256) {
         moduleC_decreaseLiquidityWithSlippage(liquidity, sqrtPriceX96, slippageLiquidity);
         return moduleC_collectToSelf();
     }
@@ -538,14 +468,14 @@ contract ConcentratedLiquidityModuleC is Blastable {
     function moduleC_fullWithdrawToSelf(
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) public payable returns (uint256 amount0, uint256 amount1) {
+    ) public payable override returns (uint256 amount0, uint256 amount1) {
         (, , , , , , , uint128 liquidity, , , , ) = position();
         (amount0, amount1) = moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
         moduleC_burn();
     }
 
     /// @notice Collect tokens owned in position, sending funds to the receiver
-    function moduleC_collectTo(address receiver) external payable virtual {
+    function moduleC_collectTo(address receiver) external payable virtual override {
         moduleC_collectToSelf();
         moduleC_sendBalanceTo(receiver);
     }
@@ -556,29 +486,19 @@ contract ConcentratedLiquidityModuleC is Blastable {
         uint128 liquidity,
         uint160 sqrtPriceX96,
         uint24 slippageLiquidity
-    ) external payable {
+    ) external payable override {
         moduleC_partialWithdrawalToSelf(liquidity, sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
 
     /// @notice Sends funds to receiver after withdrawaling position
-    function moduleC_fullWithdrawTo(address receiver, uint160 sqrtPriceX96, uint24 slippageLiquidity) external payable {
+    function moduleC_fullWithdrawTo(address receiver, uint160 sqrtPriceX96, uint24 slippageLiquidity) external payable override {
         moduleC_fullWithdrawToSelf(sqrtPriceX96, slippageLiquidity);
         moduleC_sendBalanceTo(receiver);
     }
 
-    struct RebalanceParams {
-        address router; // Address of router contract
-        uint24 fee; // Fee pool to use
-        uint24 slippageSwap; // slippageSwap to tolerate
-        uint24 slippageLiquidity; // slippageSwap to tolerate
-        int24 tickLower;
-        int24 tickUpper;
-        uint160 sqrtPriceX96;
-    }
-
     /// @notice Withdrawals, swaps and creates a new position at the new range
-    function moduleC_rebalance(RebalanceParams memory params) external payable {
+    function moduleC_rebalance(RebalanceParams memory params) external payable override {
         moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
@@ -612,7 +532,7 @@ contract ConcentratedLiquidityModuleC is Blastable {
     }
 
     /// @notice Withdrawals, swaps and creates a new position at the new range
-    function moduleC_rebalance02(RebalanceParams memory params) external payable {
+    function moduleC_rebalance02(RebalanceParams memory params) external payable override {
         moduleC_fullWithdrawToSelf(params.sqrtPriceX96, params.slippageLiquidity);
 
         (address tokenIn, address tokenOut, uint256 amountIn) = _getSwapForNewRange(
@@ -688,17 +608,6 @@ contract ConcentratedLiquidityModuleC is Blastable {
                 return (token1, token0, amountIn);
             }
         }
-    }
-
-    /// @notice Perform a swap of tokens
-    struct PerformSwapParams {
-        address router;
-        address tokenIn;
-        address tokenOut;
-        uint256 amountIn;
-        uint160 sqrtPriceX96;
-        uint24 slippageSwap;
-        uint24 fee;
     }
 
     function _performSwap(PerformSwapParams memory params) internal {
@@ -800,7 +709,17 @@ contract ConcentratedLiquidityModuleC is Blastable {
         amount1 = IERC20(token1).balanceOf(address(this));
     }
 
-    function _setApproval(address token, address spender, uint256 value) internal {
-        SafeERC20.safeIncreaseAllowance(IERC20(token), spender, value);
+    /**
+     * @notice Checks the approval of an ERC20 token from this contract to another address.
+     * @param token The token to check allowance.
+     * @param recipient The address to give allowance to.
+     * @param minAmount The minimum amount of the allowance.
+     */
+    function _checkApproval(address token, address recipient, uint256 minAmount) internal {
+        // if current allowance is insufficient
+        if(IERC20(token).allowance(address(this), recipient) < minAmount) {
+            // set allowance to max
+            SafeERC20.forceApprove(IERC20(token), recipient, type(uint256).max);
+        }
     }
 }

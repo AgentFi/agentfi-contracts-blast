@@ -179,8 +179,8 @@ describe("Blastable", function () {
   describe("blastable 1", function () {
     var amount:any
     before(async function () {
-      console.log("Warning: These tests will fail. The blast address cannot be called on local testnet.")
-      console.log("We're just going to call them here, then do the real tests in prod.")
+      //console.log("Warning: These tests will fail. The blast address cannot be called on local testnet.")
+      //console.log("We're just going to call them here, then do the real tests in prod.")
       gasBurner = await deployContract(deployer, "MockGasBurner", [owner.address, BLAST_ADDRESS, gasCollector.address, BLAST_POINTS_ADDRESS, BLAST_POINTS_OPERATOR_ADDRESS]);
       await gasBurner.connect(owner).transferOwnership(owner.address);
       await user1.sendTransaction({
@@ -286,8 +286,8 @@ describe("Blastable", function () {
   describe("blastable 2", function () {
     var amount:any
     before(async function () {
-      console.log("Warning: These tests will fail. The blast address cannot be called on local testnet.")
-      console.log("We're just going to call them here, then do the real tests in prod.")
+      //console.log("Warning: These tests will fail. The blast address cannot be called on local testnet.")
+      //console.log("We're just going to call them here, then do the real tests in prod.")
 
       mockblast = await deployContract(deployer, "MockBlast", []);
       //await mockblast.connect(user1).claimAllGas(user1.address, user1.address);

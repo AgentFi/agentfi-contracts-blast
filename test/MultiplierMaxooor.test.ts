@@ -562,7 +562,7 @@ describe("MultiplierMaxxooorModuleB", function () {
       ]
       let tx = await multicallForwarder.connect(user1).aggregate(calls)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)
@@ -621,10 +621,10 @@ describe("MultiplierMaxxooorModuleB", function () {
 
       accountProxyA = await ethers.getContractAt("DexBalancerModuleA", tbaccountS1.address)
       accountProxyB = await ethers.getContractAt("MultiplierMaxxooorModuleB", tbaccountS1.address)
-      let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', true)
-      let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', true)
-      let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', true)
-      let sighashes4 = calcSighashes(strategyModuleB, 'MultiplierMaxxooorModuleB', true)
+      //let sighashes1 = calcSighashes(strategyFactory, 'StrategyFactory', false)
+      //let sighashes2 = calcSighashes(genesisAccountImplementation, 'GenesisAccountImplementation', false)
+      //let sighashes3 = calcSighashes(strategyAccountImplementation, 'StrategyAccountImplementation', false)
+      //let sighashes4 = calcSighashes(strategyModuleB, 'MultiplierMaxxooorModuleB', false)
     });
     it("non owner cannot set overrides", async function () {
       await expect(tbaccountS1.connect(user1).setOverrides([])).to.be.revertedWithCustomError(strategyFactory, "NotAuthorized")
@@ -646,7 +646,7 @@ describe("MultiplierMaxxooorModuleB", function () {
       let calldata = tbaccountS1.interface.encodeFunctionData("setOverrides", [overrides])
       let tx = await tbaccountG1A.connect(user1).execute(tbaccountS1.address, 0, calldata, 0)
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
       for(const param of functionParamsA) {
         let { selector, isProtected } = param
         let res = await tbaccountS1.overrides(selector)
@@ -819,7 +819,7 @@ describe("MultiplierMaxxooorModuleB", function () {
       let tx = await multicallForwarder.connect(user1).aggregate3Value(calls, {value: depositAmountETH})
 
       let receipt = await tx.wait()
-      console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
+      //console.log(`gasUsed: ${receipt.gasUsed.toNumber().toLocaleString()}`)
 
       let tbaList0 = await agentRegistry.getTbasOfNft(genesisAgentNft.address, genesisAgentID)
       expect(tbaList0.length).eq(1)

@@ -8,6 +8,9 @@ import { BigNumber as BN } from "ethers";
 import chai from "chai";
 const { expect } = chai;
 
+const { AddressZero, WeiPerEther, MaxUint256, Zero } = ethers.constants;
+const { formatUnits } = ethers.utils;
+
 import {
   AgentRegistry,
   BlastooorAccountFactory,
@@ -90,7 +93,7 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func, true), requiredRole });
+      acc.push({ selector: calcSighash(func, false), signature: func, requiredRole });
     });
 
     return acc;
@@ -429,7 +432,7 @@ export async function fixtureSetup(
     deployer,
   );
   const PositionManager = await ethers.getContractAt(
-    "INonfungiblePositionManager",
+    "contracts/interfaces/external/Thruster/INonfungiblePositionManager.sol:INonfungiblePositionManager",
     POSITION_MANAGER_ADDRESS,
     signer,
   );
@@ -451,7 +454,22 @@ export async function fixtureSetup(
 }
 
 describe("ConcentratedLiquidityModuleC", function () {
+  let deployer: SignerWithAddress;
+  let owner: SignerWithAddress;
+  let strategyManager: SignerWithAddress;
+  let user1: SignerWithAddress;
+  let user2: SignerWithAddress;
+  let user3: SignerWithAddress;
+  let user4: SignerWithAddress;
+  let user5: SignerWithAddress;
+  let user6: SignerWithAddress;
+  let user7: SignerWithAddress;
+
   const sqrtPriceX96 = BN.from("1392486909633467119786647344");
+
+  before(async function () {
+    [deployer, owner, strategyManager, user1, user2, user3, user4, user5, user6, user7] = await ethers.getSigners();
+  })
 
   async function fixtureDeployed() {
     const fixture = await fixtureSetup("ConcentratedLiquidityModuleC");
@@ -504,7 +522,7 @@ describe("ConcentratedLiquidityModuleC", function () {
 
     const signer = await provider.getSigner(whale);
     const router = await ethers.getContractAt(
-      "ISwapRouter",
+      "contracts/interfaces/external/Thruster/ISwapRouter.sol:ISwapRouter",
       SWAP_ROUTER_ADDRESS,
       signer,
     );
@@ -626,12 +644,26 @@ describe("ConcentratedLiquidityModuleC", function () {
         }),
       ).to.be.revertedWithCustomError(module, "InvalidTickParam");
     });
+    it("Can reject invalid slippage", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          tickLower: -80880,
+          tickUpper: -81480,
+          slippageLiquidity: 1_000_001,
+          sqrtPriceX96,
+        }),
+      ).to.be.revertedWithCustomError(module, "InvalidSlippageParam");
+    });
 
     it("Can handle too low slippage", async function () {
       const { module, USDB, WETH, signer } = await loadFixture(fixtureDeployed);
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await expect(
@@ -650,8 +682,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, signer } =
         await loadFixture(fixtureDeposited);
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
       // Trigger the deposit
@@ -680,7 +712,7 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
       await WETH.transfer(module.address, BN.from("59265494520598039751")); // Found emperically
 
       // Trigger the deposit
@@ -732,8 +764,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await module
@@ -796,15 +828,15 @@ describe("ConcentratedLiquidityModuleC", function () {
       ).to.deep.equal([BN.from("0"), BN.from("0"), BN.from("0")]);
 
       // Transfer all assets to tba
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       // Trigger the deposit
       await module
         .moduleC_mintWithBalance({
           manager: POSITION_MANAGER_ADDRESS,
           pool: POOL_ADDRESS,
-          slippageLiquidity: 1_00_000,
+          slippageLiquidity: 100_000,
           sqrtPriceX96,
           tickLower: price1ToTick(4000),
           tickUpper: price1ToTick(2000),
@@ -850,25 +882,58 @@ describe("ConcentratedLiquidityModuleC", function () {
         ]),
       ).to.deep.equal([BN.from("10"), BN.from("1499144318855151962")]);
     });
+
+    it("Rejects mint when a position already exists", async () => {
+      const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
+
+      // Transfer all assets to tba
+      await USDB.transfer(module.address, await USDB.balanceOf(user1.address));
+      await WETH.transfer(module.address, await WETH.balanceOf(user1.address));
+
+      // already minted one. revert second
+      await expect(
+        module.moduleC_mintWithBalance({
+          manager: POSITION_MANAGER_ADDRESS,
+          pool: POOL_ADDRESS,
+          slippageLiquidity: 100_000,
+          sqrtPriceX96,
+          tickLower: -60000,
+          tickUpper: 121200,
+        })
+      ).to.be.revertedWithCustomError(module, "PositionAlreadyExists");
+    });
   });
 
   describe("Partial Deposit flow", () => {
-    it("Rejects partial deposit when no position exists", async () => {
+    it("Rejects partial deposit when no position exists pt 1", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeployed);
 
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(sqrtPriceX96, 1_000_000),
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
+    });
+    it("Rejects partial deposit when no position exists pt 2", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_increaseLiquidity({
+          amount0Desired: 0,
+          amount1Desired: 0,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: 0,
+        }),
       ).to.be.revertedWithCustomError(module, "NoPositionFound");
     });
 
     it("Can handle too low slippageSwap", async () => {
       const { module, USDB, WETH } = await loadFixture(fixtureDeposited);
 
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
 
       await expect(
         module.moduleC_increaseLiquidityWithBalance(
@@ -877,13 +942,23 @@ describe("ConcentratedLiquidityModuleC", function () {
         ),
       ).to.be.revertedWith("Price slippage check");
     });
+    it("Can reject invalid slippage liquidity", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_increaseLiquidityWithBalance(
+          sqrtPriceX96,
+          1_000_001,
+        )
+      ).to.be.revertedWithCustomError(module, "InvalidSlippageParam");
+    });
 
     it("Can do partial deposit and refund", async () => {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
 
       // Position to be minted
       expect(convertToStruct(await module.position())).to.deep.equal({
@@ -951,8 +1026,8 @@ describe("ConcentratedLiquidityModuleC", function () {
       const { module, USDB, WETH, PositionManager } =
         await loadFixture(fixtureDeposited);
 
-      await WETH.transfer(module.address, WETH.balanceOf(USER_ADDRESS));
-      await USDB.transfer(module.address, USDB.balanceOf(USER_ADDRESS));
+      await WETH.transfer(module.address, await WETH.balanceOf(USER_ADDRESS));
+      await USDB.transfer(module.address, await USDB.balanceOf(USER_ADDRESS));
 
       const tokenId = await module.tokenId();
 
@@ -1109,6 +1184,25 @@ describe("ConcentratedLiquidityModuleC", function () {
         "21151305998240367223",
       );
     });
+
+    it("Rejects collect when no position exists", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_collect({
+          amount0Max: 0,
+          amount1Max: 0,
+        }),
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
+    });
+
+    it("Rejects burn when no position exists", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_burn(),
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
+    });
   });
 
   describe("Partial Withdrawal test suite", () => {
@@ -1203,6 +1297,19 @@ describe("ConcentratedLiquidityModuleC", function () {
         BN.from("45948265209303681774"),
       );
     });
+
+    it("Rejects partial withdraw when no position exists", async () => {
+      const { module } = await loadFixture(fixtureDeployed);
+
+      await expect(
+        module.moduleC_decreaseLiquidity({
+          liquidity: 0,
+          amount0Min: 0,
+          amount1Min: 0,
+          deadline: 0,
+        }),
+      ).to.be.revertedWithCustomError(module, "NoPositionFound");
+    });
   });
 
   describe("Rebalance tests", () => {
@@ -1220,6 +1327,32 @@ describe("ConcentratedLiquidityModuleC", function () {
           sqrtPriceX96,
         }),
       ).to.be.revertedWithCustomError(module, "InvalidTickParam");
+    });
+
+    it("reverts rebalance with zero balance", async () => {
+      const { module } = await loadFixture(fixtureDeposited);
+      let tickLower = -80880
+      let tickUpper = -81480
+      expect(tickLower >= tickUpper).to.be.true
+      let position = await module.position()
+      await module.moduleC_decreaseLiquidity({
+        liquidity: position.liquidity,
+        amount0Min: 0,
+        amount1Min: 0,
+        deadline: MaxUint256,
+      })
+      await module.moduleC_collectTo(user3.address)
+      await expect(
+        module.moduleC_rebalance({
+          router: SWAP_ROUTER_ADDRESS,
+          slippageSwap: 10000,
+          slippageLiquidity: 1_000_000,
+          fee: 3000,
+          tickLower,
+          tickUpper,
+          sqrtPriceX96,
+        }),
+      ).to.be.reverted
     });
 
     it("Can handle slippage rejection", async () => {
@@ -1241,17 +1374,16 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can rebalance with range below spot", async () => {
       const { module, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -81480,
-          tickUpper: -80880,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -81480,
+        tickUpper: -80880,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1298,17 +1430,16 @@ describe("ConcentratedLiquidityModuleC", function () {
     it("Can rebalance with range above spot", async () => {
       const { module, USDB, WETH, pool } = await loadFixture(fixtureDeposited);
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -80760,
-          tickUpper: -80160,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -80760,
+        tickUpper: -80160,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1361,17 +1492,16 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 1_000_000,
-          tickLower: -82920,
-          tickUpper: -76020,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 1_000_000,
+        tickLower: -82920,
+        tickUpper: -76020,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
@@ -1422,17 +1552,16 @@ describe("ConcentratedLiquidityModuleC", function () {
 
       expect(await module.tokenId()).to.deep.equal(BN.from("54353"));
 
-      await expect(
-        module.moduleC_rebalance({
-          fee: 3000,
-          router: SWAP_ROUTER_ADDRESS,
-          slippageSwap: 10000,
-          slippageLiquidity: 10_000, // 1%
-          tickLower: -82020,
-          tickUpper: -79620,
-          sqrtPriceX96,
-        }),
-      )
+      let tx = await module.moduleC_rebalance({
+        fee: 3000,
+        router: SWAP_ROUTER_ADDRESS,
+        slippageSwap: 10000,
+        slippageLiquidity: 10_000, // 1%
+        tickLower: -82020,
+        tickUpper: -79620,
+        sqrtPriceX96,
+      })
+      await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
           SWAP_ROUTER_ADDRESS,
