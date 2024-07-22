@@ -9,6 +9,7 @@ import { BlastableLibrary } from "./../libraries/BlastableLibrary.sol";
 import { Calls } from "./../libraries/Calls.sol";
 import { Errors } from "./../libraries/Errors.sol";
 import { ILoopooorModuleD } from "./../interfaces/modules/ILoopooorModuleD.sol";
+import { IRateContract } from "./../interfaces/external/Duo/IRateContract.sol";
 import { IWrapMintV2 } from "./../interfaces/external/Duo/IWrapMintV2.sol";
 import { IOErc20Delegator } from "./../interfaces/external/Orbit/IOErc20Delegator.sol";
 import { IPriceOracle } from "./../interfaces/external/Orbit/IPriceOracle.sol";
@@ -448,13 +449,19 @@ contract LoopooorModuleD is Blastable, ILoopooorModuleD {
         moduleD_redeem(state.oToken, oToken_.balanceOf(address(this)));
 
         // Burn
-        if (state.mode == MODE.FIXED_RATE) {
-            moduleD_burnFixedRate(state.wrapMint, state.rateContract, duoAsset_.balanceOf(address(this)));
+        if (state.rateContract != address(0)) {
+            uint256 burnAmount = Math.min(
+                duoAsset_.balanceOf(address(this)),
+                IRateContract(state.rateContract).principal()
+            );
+            if (state.mode == MODE.FIXED_RATE) {
+                moduleD_burnFixedRate(state.wrapMint, state.rateContract, burnAmount);
+            }
+            if (state.mode == MODE.VARIABLE_RATE) {
+                moduleD_burnVariableRate(state.wrapMint, state.rateContract, burnAmount, 0);
+            }
+            state.rateContract = address(0);
         }
-        if (state.mode == MODE.VARIABLE_RATE) {
-            moduleD_burnVariableRate(state.wrapMint, state.rateContract, duoAsset_.balanceOf(address(this)), 0);
-        }
-        state.rateContract = address(0);
 
         // Unwrap if necesary
         if (underlying() == _eth) {

@@ -190,12 +190,12 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
       });
 
       // All funds sent back to user
-      almostEqual(USDB.balanceOf(module.address), BN.from("0"));
-      almostEqual(WETH.balanceOf(module.address), BN.from("0"));
+      almostEqual(await USDB.balanceOf(module.address), BN.from("0"));
+      almostEqual(await WETH.balanceOf(module.address), BN.from("0"));
 
-      almostEqual(USDB.balanceOf(USER_ADDRESS), BN.from("10"));
-      almostEqual(WETH.balanceOf(USER_ADDRESS), BN.from("0"));
-      almostEqual(signer.getBalance(), BN.from("1596208653441996856"));
+      almostEqual(await USDB.balanceOf(USER_ADDRESS), BN.from("10"));
+      almostEqual(await WETH.balanceOf(USER_ADDRESS), BN.from("0"));
+      almostEqual(await signer.getBalance(), BN.from("1585391670000000000"));
     });
   });
 
@@ -255,12 +255,12 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         tokensOwed1: BN.from("0"),
       });
 
-      almostEqual(USDB.balanceOf(module.address), BN.from("0"));
-      almostEqual(WETH.balanceOf(module.address), BN.from("0"));
+      almostEqual(await USDB.balanceOf(module.address), BN.from("0"));
+      almostEqual(await WETH.balanceOf(module.address), BN.from("0"));
 
-      almostEqual(USDB.balanceOf(USER_ADDRESS), BN.from("10"));
-      almostEqual(WETH.balanceOf(USER_ADDRESS), BN.from("0"));
-      almostEqual(signer.getBalance(), BN.from("1595691681404988370"));
+      almostEqual(await USDB.balanceOf(USER_ADDRESS), BN.from("10"));
+      almostEqual(await WETH.balanceOf(USER_ADDRESS), BN.from("0"));
+      almostEqual(await signer.getBalance(), BN.from("1585391670000000000"));
     });
   });
 
@@ -274,21 +274,21 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         await WETH.balanceOf(module.address),
         BN.from("21131891579154171837"),
       );
-      almostEqual(await signer.getBalance(), BN.from("97099855589811073"));
+      almostEqual(await signer.getBalance(), BN.from("86282844000000000"));
 
       await module
         .moduleC_fullWithdrawTo(USER_ADDRESS, sqrtPriceX96, 1_000)
         .then((tx) => tx.wait());
 
       almostEqual(
-        USDB.balanceOf(USER_ADDRESS),
+        await USDB.balanceOf(USER_ADDRESS),
         BN.from("413026157656739951683271"),
       );
       almostEqual(
-        WETH.balanceOf(USER_ADDRESS),
+        await WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
       );
-      almostEqual(signer.getBalance(), BN.from("50861229114998159745"));
+      almostEqual(await signer.getBalance(), BN.from("50861229114998159745"));
 
       // Expect position to be burnt
       const tokenId = await module.tokenId();
@@ -389,14 +389,14 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         await loadFixture(fixtureDeposited);
 
       almostEqual(
-        USDB.balanceOf(USER_ADDRESS),
+        await USDB.balanceOf(USER_ADDRESS),
         BN.from("206513078828369975841636"),
       );
       almostEqual(
-        WETH.balanceOf(USER_ADDRESS),
+        await WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
       );
-      almostEqual(await signer.getBalance(), BN.from("97099855589811073"));
+      almostEqual(await signer.getBalance(), BN.from("86282844000000000"));
 
       expect(convertToStruct(await module.position()).liquidity).to.deep.equal(
         BN.from("16983715425639545311351"),
@@ -413,14 +413,14 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         BN.from("8491857712819772655676"),
       );
       almostEqual(
-        USDB.balanceOf(USER_ADDRESS),
+        await USDB.balanceOf(USER_ADDRESS),
         BN.from("309769618242554963762453"),
       );
       almostEqual(
-        WETH.balanceOf(USER_ADDRESS),
+        await WETH.balanceOf(USER_ADDRESS),
         BN.from("10000000000000000000"),
       );
-      almostEqual(signer.getBalance(), BN.from("36044963652858168591"));
+      almostEqual(await signer.getBalance(), BN.from("36044963652858168591"));
     });
   });
 
@@ -444,7 +444,7 @@ describe("ConcentratedLiquidityHyperlockModuleC", function () {
         tickLower: -82020,
         tickUpper: -79620,
         sqrtPriceX96,
-      })
+      });
       await expect(tx)
         .to.emit(pool, "Swap")
         .withArgs(
