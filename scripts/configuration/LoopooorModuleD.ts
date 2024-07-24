@@ -55,6 +55,7 @@ export const moduleDFunctionParams = [
   },
   {
     selector: "0x4c711a2a",
+    signature: "quoteClaim()",
     requiredRole:
       "0x0000000000000000000000000000000000000000000000000000000000000000",
   },
