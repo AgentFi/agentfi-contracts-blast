@@ -1,10 +1,8 @@
 import { expect } from "chai";
-import { BigNumber, BigNumberish } from "ethers";
-const BN = ethers.BigNumber;
+import { BigNumber } from "ethers";
 
 // Default 0.001%
-export async function almostEqual(actualOrPromise: Promise<BigNumber> | BigNumber, expected: BigNumber, percentage = 0.001) {
-  const actual = await Promise.resolve(actualOrPromise);
+export function almostEqual(actual: BigNumber, expected: BigNumber, percentage = 0.001) {
   const epsilon = expected.mul(percentage * 100_000).div(100_000);
   return expect(actual).to.be.within(expected.sub(epsilon), expected.add(epsilon))
 }

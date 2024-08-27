@@ -104,7 +104,11 @@ const permissions = Object.entries({
 }).reduce(
   (acc, [requiredRole, functions]) => {
     functions.forEach((func) => {
-      acc.push({ selector: calcSighash(func, false), signature: func, requiredRole });
+      acc.push({
+        selector: calcSighash(func, false),
+        signature: func,
+        requiredRole,
+      });
     });
 
     return acc;
@@ -1274,6 +1278,65 @@ describe("LoopoorModuleD", function () {
       );
     });
 
+    it("1x Leverage deposit in WETH in fixedRate", async function () {
+      const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Confirm Initial stage
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(false);
+
+      await signer.sendTransaction({
+        to: WETH.address,
+        value: parseEther("0.1"),
+      });
+
+      await WETH.transfer(module.address, parseEther("0.1"));
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        WETH_ADDRESS,
+        MODE.BOOST_POINTS,
+        parseEther("1"), // 2.5 is max based on 60% LTV
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0"),
+      );
+
+      almostEqual(await ODETH.balanceOf(module.address), parseEther("500"));
+
+      await expect(mintTx).to.emit(WRAPMINT_ETH, "MintFixedRate");
+
+      almostEqual(await module.leverage(), parseEther("1"));
+      expect(await module.underlying()).to.equal(WETH_ADDRESS);
+      expect(await module.mode()).to.equal(1);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+
+      await mine(10_000);
+      almostEqual(
+        await module.callStatic.quoteBalance(),
+        parseEther("0.099999857741142425"),
+      );
+
+      // ===== Do leverage burn
+      await module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      almostEqual(
+        await WETH.balanceOf(USER_ADDRESS),
+        parseEther("0.099999857741142425"),
+      );
+
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
+    });
+
     it("Looped depositing WETH in fixedRate", async function () {
       const { module, ODETH, DETH, COMPTROLLER, WETH, WRAPMINT_ETH, signer } =
         await loadFixture(fixtureDeployed);
@@ -1543,6 +1606,62 @@ describe("LoopoorModuleD", function () {
         await module.supplyBalance(),
         parseEther("0.249999998999999999"),
       );
+      expect(await module.underlying()).to.equal(ETH_ADDRESS);
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(true);
+
+      // ===== Do leverage burn
+      const eth = await signer.getBalance();
+      const burnTx = module.moduleD_withdrawBalanceTo(USER_ADDRESS);
+
+      const gas = await burnTx
+        .then((tx) => tx.wait())
+        .then((x) => x.cumulativeGasUsed.mul(x.effectiveGasPrice));
+
+      almostEqual(
+        (await signer.getBalance()).add(gas).sub(eth),
+        parseEther("0.100000001012336174"),
+      );
+
+      expect(await ODETH.balanceOf(module.address)).to.equal(parseEther("0"));
+      expect(await module.underlying()).to.equal(
+        "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE",
+      );
+    });
+
+    it("1x Leverage ETH in variableRate", async function () {
+      const { module, ODETH, DETH, COMPTROLLER, WRAPMINT_ETH, signer } =
+        await loadFixture(fixtureDeployed);
+
+      // Confirm Initial stage
+      expect(
+        await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
+      ).to.equal(false);
+
+      // ===== Do leverage mint
+      const mintTx = module.moduleD_depositBalance(
+        WRAPMINT_ETH_ADDRESS,
+        ODETH_ADDRESS,
+        ETH_ADDRESS,
+        MODE.BOOST_YIELD,
+        parseEther("1"), // 2.5 is max based on 60% LTV
+        {
+          value: parseEther("0.1"),
+        },
+      );
+
+      await expect(mintTx).to.changeTokenBalance(
+        DETH,
+        module.address,
+        parseEther("0"),
+      );
+
+      await expect(mintTx).to.emit(WRAPMINT_ETH, "MintVariableRate");
+
+      almostEqual(await ODETH.balanceOf(module.address), parseEther("500"));
+      almostEqual(await module.borrowBalance(), parseEther("0"));
+      almostEqual(await module.supplyBalance(), parseEther("0.1"));
       expect(await module.underlying()).to.equal(ETH_ADDRESS);
       expect(
         await COMPTROLLER.checkMembership(module.address, ODETH_ADDRESS),
