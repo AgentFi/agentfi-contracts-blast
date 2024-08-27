@@ -1,7 +1,7 @@
 {
-  "name": "agentfi-contracts",
+  "name": "agentfi-contracts-blast",
   "version": "1.0.1",
-  "description": "Smart contracts for the core of the AgentFi protocol.",
+  "description": "Smart contracts for the core of the AgentFi protocol on Blast.",
   "scripts": {
     "format": "prettier . --write",
     "test": "echo \"Error: no test specified\" && exit 1"
