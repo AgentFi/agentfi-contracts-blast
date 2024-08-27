@@ -1,5 +1,5 @@
-# agentfi-contracts
-Smart contracts for the core of the AgentFi protocol.
+# agentfi-contracts-blast
+Smart contracts for the core of the AgentFi protocol on Blast.
 
 ### Install Dependencies
 
@@ -20,4 +20,4 @@ npx hardhat coverage --testfiles test/filename.test.ts
 
 ### Deployment and Executing Scripts
 
-`npx hardhat run scripts/ethereum/deploy.ts --network ethereum`
+`npx hardhat run scripts/blast/a01-deployContracts1.ts --network blast`
